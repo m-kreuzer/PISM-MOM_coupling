@@ -1,0 +1,32 @@
+# gridname, fieldname_code, fieldname_file, file_name, ongrid, factor
+# NB if no file is specified, the 'factor' is applied as a globally uniform constant.
+# gridname, fieldname_code,                 fieldname_file, file_name,                              ongrid, factor
+
+
+"ICE",  "sic_obs",      "SIC",      "./INPUT/sst_ice_clim.nc",  .false.,    0.01
+"ICE",  "sit_obs",      "SIT",      "./INPUT/sst_ice_clim.nc",  .false.,    1.06
+"ICE",  "sst_obs",      "SST",      "./INPUT/sst_ice_clim.nc",  .false.,    1
+
+"ICE",  "runoff_add",       "mass_flux","../x_PISM-to-MOM/FILE_NAME_DUMMY", .true.,    1.0
+"ICE",  "runoff_hflx_add",  "heat_flux","../x_PISM-to-MOM/FILE_NAME_DUMMY", .true.,    1.0
+
+#"ICE",  "runoff",       "",         "",                         .false.,    0
+#"ICE",  "calving",      "",         "",                         .false.,    0
+#"ICE",  "runoff_hflx",  "",         "",                         .false.,    0
+#"ICE",  "calving_hflx", "",         "",                         .false.,    0
+
+
+
+"ATM",  "c14o2_flux_pcair_atm",     "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
+"ATM",  "co2_flux_pcair_atm",       "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
+"ATM",  "co2_sat_flux_pcair_atm",   "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
+"ATM",  "co2_bot",                  "",     "",                                             .false. ,   286.0e-6
+"ATM",  "o2_flux_pcair_atm",        "",     "",                                             .false. ,   1.0
+"ATM",  "i14co2_flux_pcair_atm",    "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
+"ATM",  "ico2_flux_pcair_atm",      "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
+"ATM",  "ico2sat_flux_pcair_atm",   "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
+"ATM",  "io2_flux_pcair_atm" ,      "",     "",                                             .false. ,   1.0
+
+"OCN",  "runoff_alk_flux_ice_ocn",  "",     "",                                 .false. ,   0.48e-3
+"OCN",  "dry_dep_fed_flux_ice_ocn", "FLUX", "./INPUT/Soluble_Fe_Flux_PI.nc",    .false. ,   -1.0
+
