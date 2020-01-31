@@ -2,13 +2,13 @@
 
 """ Redistributing mass and energy fluxes from PISM/PICO to MOM cells.
 
-useage: ./PISM-to-MOM_processing -o PISM_output_file -e PISM_extra_file 
+useage: ./PISM-to-MOM_processing -o PISM_output_file -e PISM_snap_file 
             -m PISM_MOM_mapping_file -a MOM_file -f fluxes_out_file 
             -d basin_shelf_depth_file [-t] [-v]
 
-Mass and energy fluxes are computed from PISM extra output file (variable 
-'basal_mass_flux_floating'). Conversion to total fluxes per PISM grid cell is 
-done assuming uniform grid cell area.
+Mass and energy fluxes are computed from PISM snapshot file (from multiple 
+variables). Conversion to total fluxes per PISM grid cell is done assuming 
+uniform grid cell area.
 Fluxes are aggregated in PICO basins and distributed to southern ocean edge 
 cells via previous computed mapping. Fluxes on the ocean grid are again converted
 into unit fluxes per area via division with corresponding MOM grid cell area.
@@ -19,12 +19,13 @@ Arguments:
     -o PISM_output_file
         PISM output file with flux variables 'mask', 'ice_area_specific_volume' 
         and 'topg'
-    -e PISM_extra_file
-        input file from PISM extra-output with flux variables
-        'surface_runoff_flux', 'tendency_of_ice_amount_due_to_basal_mass_flux' 
-        and 'tendency_of_ice_amount_due_to_discharge'.
-        Caution: variable contains accumulated fluxes over reporting interval, 
-        which is the interval of writing out the extra variables.
+    -e PISM_snap_file
+        input file from PISM snapshot file with flux variables
+        'surface_runoff_flux_accumulator', 
+        'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' 
+        and 'tendency_of_ice_amount_due_to_discharge_accumulator'.
+        Caution: variables '*_accumulator' contain accumulated fluxes over 
+        interval specified in '*_time_since_reset'. 
     -m PISM_MOM_mapping_file
         input file with PICO basin to MOM cell mapping from 
         PISMbasin-to-MOMcell_mapping script
@@ -94,14 +95,14 @@ if __name__ == "__main__":
                         help=("PISM output file with flux variables "
                               "'mask', 'ice_area_specific_volume' and "
                               "'topg'"))
-    parser.add_argument('-e', '--extra_output', 
+    parser.add_argument('-e', '--snap_output', 
                         action="store", 
-                        dest="PISM_extra_file", 
+                        dest="PISM_snap_file", 
                         required=True, 
-                        help=("PISM output file with flux variable "
-                              "'surface_runoff_flux', "
-                              "'tendency_of_ice_amount_due_to_basal_mass_flux'" 
-                              " and 'tendency_of_ice_amount_due_to_discharge'"))
+                        help=("PISM snapshot output file with flux variables "
+                              "'surface_runoff_flux_accumulator', "
+                              "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'" 
+                              " and 'tendency_of_ice_amount_due_to_discharge_accumulator'"))
     parser.add_argument('-m', '--mapping', 
                         action="store", 
                         dest="PISM_MOM_mapping_file",
@@ -155,16 +156,16 @@ if __name__ == "__main__":
     xdims = ['x', 'x1']
     ydims = ['y', 'y1']        
     
-    ### ---------- read PISM extra - BEGIN -----------------------------------
+    ### ---------- read PISM snapshot - BEGIN ----------------------------------
     t_read_files_start = time.time()
     
     if args.verbose:
-        print(" - reading PISM extra variables from " + args.PISM_extra_file )
+        print(" - reading PISM snapshot variables from " + args.PISM_snap_file )
     try:
-        nc_fh = CDF(args.PISM_extra_file, 'r')
+        nc_fh = CDF(args.PISM_snap_file, 'r')
     except:
-        s = ("PISM extra file '{}' can't be found! ")
-        raise FileNotFoundError( s.format(args.PISM_extra_file) )
+        s = ("PISM snapshot file '{}' can't be found! ")
+        raise FileNotFoundError( s.format(args.PISM_snap_file) )
         
     # assign x,y dimension
     for dim in xdims:
@@ -185,45 +186,45 @@ if __name__ == "__main__":
     #basin_lon2[basin_lon2 >  180] -=360
 
     # read time axis incl dimensions and variables
-    pism_extra_time = nc_fh.variables['time'][:]
-    pism_extra_time_n = len(pism_extra_time)
-    pism_extra_time_dict = nc_fh['time'].__dict__
-    if pism_extra_time_n != 1:
-        s = ("PISM extra variables have {} timestamps. "
-             "Expected: 1")
-        raise ValueError( s.format(pism_extra_time_n)) 
+    pism_snap_time = nc_fh.variables['time'][:]
+    pism_snap_time_n = len(pism_snap_time)
+    pism_snap_time_dict = nc_fh['time'].__dict__
+    if pism_snap_time_n != 2:
+        s = ("PISM snap variables have {} timestamps. "
+             "Expected: 2")
+        raise ValueError( s.format(pism_snap_time_n)) 
  
-    pism_extra_time_bounds = nc_fh.variables['time_bounds'][:]
-    pism_extra_time_bounds_n = len(pism_extra_time_bounds)
-    pism_extra_time_bounds_dict = nc_fh['time_bounds'].__dict__
+    #pism_snap_time_bounds = nc_fh.variables['time_bounds'][:]
+    #pism_snap_time_bounds_n = len(pism_snap_time_bounds)
+    #pism_snap_time_bounds_dict = nc_fh['time_bounds'].__dict__
     
-    pism_extra_nv = nc_fh.dimensions['nv'].size
+    #pism_snap_nv = nc_fh.dimensions['nv'].size
 
     ### read PISM variables concerning mass flux from ice to ocean
     #   all in units: [kg/m^2/year]
-    pism_bmf = np.squeeze(nc_fh.variables['basal_mass_flux_floating'][:])
-    pism_bmf_dtype = nc_fh.variables['basal_mass_flux_floating'].dtype
+    pism_bmf = np.squeeze(nc_fh.variables['basal_mass_flux_floating_accumulator'][1])
+    pism_bmf_dtype = nc_fh.variables['basal_mass_flux_floating_accumulator'].dtype
     pism_bmf_ndim = len(pism_bmf.shape)
     if pism_bmf_ndim != 2:
         raise ValueError( str("flux field is of dimension " + \
                             str( pism_bmf_ndim ) + ". Expected: 2.") )
 
-    pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux'][:])
-    pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux'].dtype
+    pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
+    pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
     pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
     if pism_surf_runoff_ndim != 2:
         raise ValueError( str("flux field is of dimension " + \
                             str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
 
-    pism_tend_bmf = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux'][:])
-    pism_tend_bmf_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux'].dtype
+    pism_tend_bmf = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'][1])
+    pism_tend_bmf_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'].dtype
     pism_tend_bmf_ndim = len(pism_tend_bmf.shape)
     if pism_tend_bmf_ndim != 2:
         raise ValueError( str("flux field is of dimension " + \
                             str( pism_tend_bmf_ndim ) + ". Expected: 2.") )
 
-    pism_tend_discharge = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_discharge'][:])
-    pism_tend_discharge_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_discharge'].dtype
+    pism_tend_discharge = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_discharge_accumulator'][1])
+    pism_tend_discharge_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_discharge_accumulator'].dtype
     pism_tend_discharge_ndim = len(pism_tend_discharge.shape)
     if pism_tend_discharge_ndim != 2:
         raise ValueError( str("flux field is of dimension " + \
@@ -238,10 +239,10 @@ if __name__ == "__main__":
     
     # read reporting interval, unit: [years]
     d = nc_fh['pism_config'].__dict__
-    pism_extra_times__str = d['output.extra.times']           
+    pism_snap_times__str = d['output.snapshot.times']           
     
     nc_fh.close()
-    ### ---------- read PISM extra - END ------------------------------------
+    ### ---------- read PISM snapshot - END -----------------------------------
 
 
     ### ---------- read PISM output - BEGIN -----------------------------------   
@@ -350,16 +351,18 @@ if __name__ == "__main__":
     
     ### extract reporting interval of PISM flux 
     #   -> time over which flux was aggregated, unit: years
-    pism_extra_times = pism_extra_times__str.split(':')
-    if len(pism_extra_times)==3:
-        reporting_interval = float(pism_extra_times[1])
-    elif len(pism_extra_times)==2:
-        reporting_interval = float(pism_extra_times[1]) - float(pism_extra_times[0])
+    pism_snap_times = pism_snap_times__str.split(':')
+    if len(pism_snap_times)==3:
+        reporting_interval = float(pism_snap_times[1])
+    elif len(pism_snap_times)==2:
+        reporting_interval = float(pism_snap_times[1]) - float(pism_snap_times[0])
+    elif len(pism_snap_times)==1:
+        reporting_interval = float(pism_snap_times[0])
     else:
         s = ("Cannot identify PISM reporting interval! "
-             "PISM extra-output time interval has {} items. "
-             "Required are 2 or 3.")
-        raise( ValueError( s.format(len(pism_extra_times)) ) )
+             "PISM snapshot-output time interval has {} items. "
+             "Required are 1, 2 or 3.")
+        raise( ValueError( s.format(len(pism_snap_times)) ) )
         
     ### calculate cell area
     pism_dx = np.diff(pism_x)[0]    # unit: m
@@ -386,8 +389,8 @@ if __name__ == "__main__":
     ### ------------- conversion of variables ----------------
     
     ### mass flux ice to ocean 
-    #  -> unit[pism_massflux] : kg/m^2/year
-    #  -> unit[pism_massflux] : kg/s
+    #  -> unit[pism_massflux] :         kg/m^2/year
+    #  -> unit[pism_massflux_total] :   kg/s
     # positive mass flux corresponds to transfer from ice to ocean
     pism_massflux_total = -1 * pism_massflux * pism_cell_area_uniform \
                                     / seconds_p_year
@@ -522,16 +525,16 @@ if __name__ == "__main__":
                 
         # create time dimension
         dst.createDimension('time', None)
-        dst.createDimension('nv', pism_extra_nv)
+        #dst.createDimension('nv', pism_snap_nv)
         
         # write time variable
         dst.createVariable('time', np.double, ("time",) )
-        dst['time'].setncatts(pism_extra_time_dict)
-        dst['time'][:] = pism_extra_time
+        dst['time'].setncatts(pism_snap_time_dict)
+        dst['time'][:] = pism_snap_time[1]
         
-        dst.createVariable('time_bounds', np.double, ("time","nv",) )
-        dst['time_bounds'].setncatts(pism_extra_time_bounds_dict)
-        dst['time_bounds'][:] = pism_extra_time_bounds
+        #dst.createVariable('time_bounds', np.double, ("time","nv",) )
+        #dst['time_bounds'].setncatts(pism_snap_time_bounds_dict)
+        #dst['time_bounds'][:] = pism_snap_time_bounds
         
         
         # copy variables
@@ -562,9 +565,10 @@ if __name__ == "__main__":
                                nc_dtype, ('time','yt_ocean','xt_ocean'))
         var_dict = col.OrderedDict([
              ('long_name', ("average mass flux from PISM diagnostic output variables"
-                            "'surface_runoff_flux', "
-                            "'tendency_of_ice_amount_due_to_basal_mass_flux' and "
-                            "'tendency_of_ice_amount_due_to_discharge' in reporting interval")),
+                            "'surface_runoff_flux_accumulator', "
+                            "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'"
+                            " and 'tendency_of_ice_amount_due_to_discharge_accumulator' "
+                            "in reporting interval")),
              ('units', 'kg/m^2/s'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
              ('reporting_interval', reporting_interval ),
@@ -577,9 +581,10 @@ if __name__ == "__main__":
         x = dst.createVariable('heat_flux', nc_dtype, ('time','yt_ocean','xt_ocean'))
         var_dict = col.OrderedDict([
              ('long_name', ("average heat flux calculated from PISM diagnostic output variables"
-                            "'surface_runoff_flux', "
-                            "'tendency_of_ice_amount_due_to_basal_mass_flux' and "
-                            "'tendency_of_ice_amount_due_to_discharge' in reporting interval")),
+                            "'surface_runoff_flux_accumulator', "
+                            "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'"
+                            " and 'tendency_of_ice_amount_due_to_discharge_accumulator' "
+                            "in reporting interval")),
              ('units', 'W/m^2'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
              ('reporting_interval', reporting_interval ),
@@ -656,3 +661,4 @@ if __name__ == "__main__":
                                     t_write_file/t_main*100))
         print('{:.^58}'.format(''))
         print()
+

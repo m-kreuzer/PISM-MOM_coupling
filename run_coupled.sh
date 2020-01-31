@@ -3,7 +3,8 @@
 #SBATCH --job-name=coupled_POEM_PISM
 
 # without any nodes or tasks specification, will allocate 1 task
-#SBATCH --tasks 48
+##SBATCH --tasks 48
+#SBATCH --tasks 32
 #SBATCH --tasks-per-node=16
 #SBATCH --exclusive
 
@@ -32,7 +33,8 @@
 START_SCRIPT=$(date +%s.%N)
 
 # ---------------------------- define project paths ----------------------------
-POEM_PROJ_DIR=/p/projects/climber3/kreuzer/POEM/MOM5_PISM_coupling/mom5.0.2
+#POEM_PROJ_DIR=/p/projects/climber3/kreuzer/POEM/MOM5_PISM_coupling/mom5.0.2
+POEM_PROJ_DIR=/p/projects/climber3/kreuzer/POEM/trunk
 PISM_PROJ_DIR=/p/projects/climber3/kreuzer/PISM/pism1.1
 
 ROOT_WORK_DIR=$PWD
@@ -43,8 +45,8 @@ POEM_TOOLS_DIR=$POEM_PROJ_DIR/bin
 
 # -------------------------------- set parameters ------------------------------
 # time & coupling
-CPL_TIMESTEP=10             # in years, must be greater or equal 1
-MAX_CPL_ITERATION=10        # number of coupling iterations
+CPL_TIMESTEP=10            # in years, must be greater or equal 1
+MAX_CPL_ITERATION=40       # number of coupling iterations
 
 # PISM geometric parameters
 P_Mx=381
@@ -58,12 +60,13 @@ P_Mbz=21
 PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/result_equi_16km_100000yrs.nc) 
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/equi.nc) 
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/100011.pism_out.nc) 
+#PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/2951.pism_out.nc) 
 PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/deltaTO_4deg.nc) 
 PISM_SHIFTED_RESTART_PATH_FILE=$ROOT_WORK_DIR/pre-processing/PISM_restart_timeshift_path.txt
 # set filename of last PISM output file processed by PISM-to-MOM_processing.py
 #   must be in $ROOT_WORK_DIR/x_PISM-to-MOM
 #   -> only set if restarting from a coupled run
-PISM_TO_MOM_FLUX_RESTART_FILE="2951.fluxes.nc"
+#PISM_TO_MOM_FLUX_RESTART_FILE="2951.fluxes.nc"
 
 
 
@@ -121,11 +124,12 @@ poem_run() {
         export MPD_CON_EXT=Slurm_Job_$SLURM_JOBID
     
         # 16 tasks atm + 32 tasks ocn = 48 tasks total
-        local arb="`arbitrary 16 16 16`"
+        #local arb="`arbitrary 16 16 16`"
+        local arb="`arbitrary 16 16`"
         
         time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
                 -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
-                ./fms_MOM_LAD_AEOLUS.x-par
+                ./fms_MOM_SIS.x
         RESULT=$?
         #mpdallexit
 
@@ -140,7 +144,7 @@ poem_run() {
     else
        unset SLURM_PMI_KVS_DUP_KEYS
        unset SLURM_JOB_ID SLURM_STEPID SLURM_NPROCS SLURM_PROCID SLURM_GTIDS
-       time      ./fms_MOM_LAD_AEOLUS.x > fms.out-1-$SLURM_JOBID 2>&1
+       time      ./fms_MOM_SIS.x > fms.out-1-$SLURM_JOBID 2>&1
        RESULT=$?
     fi
 
@@ -199,11 +203,12 @@ poem_prerun() {
         export MPD_CON_EXT=Slurm_Job_$SLURM_JOBID
     
         # 16 tasks atm + 32 tasks ocn = 48 tasks total
-        local arb="`arbitrary 16 16 16`"
+        #local arb="`arbitrary 16 16 16`"
+        local arb="`arbitrary 16 16`"
         
         time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
                 -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
-                ./fms_MOM_LAD_AEOLUS.x-par
+                ./fms_MOM_SIS.x
         RESULT=$?
         #mpdallexit
 
@@ -218,7 +223,7 @@ poem_prerun() {
     else
        unset SLURM_PMI_KVS_DUP_KEYS
        unset SLURM_JOB_ID SLURM_STEPID SLURM_NPROCS SLURM_PROCID SLURM_GTIDS
-       time      ./fms_MOM_LAD_AEOLUS.x > fms.out-1-$SLURM_JOBID 2>&1
+       time      ./fms_MOM_SIS.x > fms.out-1-$SLURM_JOBID 2>&1
         RESULT=$?
     fi
 
@@ -410,7 +415,7 @@ pism_run() {
     -log_view \
     -extra_file results/$PISM_TIME_END.pism_extra.nc \
     -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
-    -extra_vars basal_mass_flux_floating,basins,pico_overturning,pico_salinity_box0,pico_temperature_box0,pico_box_mask,pico_shelf_mask,pico_ice_rise_mask,pico_basal_melt_rate,pico_contshelf_mask,pico_salinity,pico_temperature,pico_T_star,pico_basal_temperature \
+    -extra_vars basal_mass_flux_floating,basal_mass_flux_grounded,basins,pico_overturning,pico_salinity_box0,pico_temperature_box0,pico_box_mask,pico_shelf_mask,pico_ice_rise_mask,pico_basal_melt_rate,pico_contshelf_mask,pico_salinity,pico_temperature,pico_T_star,pico_basal_temperature,amount_fluxes,pdd_fluxes,ice_mass,enthalpy \
     -save_file results/$PISM_TIME_END.pism_snap.nc \
     -save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
         > results/$PISM_TIME_END.pism.out 2>&1
@@ -457,12 +462,18 @@ pism_prerun() {
     -verbose 2 \
     -options_left \
     -o_format netcdf4_parallel \
+    -atmosphere pik \
+    -atmosphere_pik era_interim \
+    -atmosphere_pik_temp_file initdata/racmo_wessem_initmip16km_mean1986_2005.nc \
+    -surface pdd \
     -ocean pico \
     -ocean_pico_file $PISM_OCEAN_START_FILE \
     -o $PISM_WORK_DIR/prerun/prerun.pism_out.nc \
     -extra_file $PISM_WORK_DIR/prerun/prerun.pism_extra.nc  \
     -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
-    -extra_vars basal_mass_flux_floating,basins \
+    -extra_vars basal_mass_flux_floating,basins,amount_fluxes,pdd_fluxes \
+    -save_file $PISM_WORK_DIR/prerun/prerun.pism_snap.nc \
+    -save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
         > $PISM_WORK_DIR/prerun/prerun.pism.out 2>&1
 
     RESULT=$?
@@ -514,7 +525,7 @@ process_pism_to_mom(){
 
     ./PISM-to-MOM_processing.py                                             \
         -o $PISM_PRE_OUT                                                    \
-        -e $PISM_WORK_DIR/results/$PISM_TIME_END.pism_extra.nc              \
+        -e $PISM_WORK_DIR/results/$PISM_TIME_END.pism_snap.nc              \
         -m $ROOT_WORK_DIR/pre-processing/PISMbasin-to-MOMcell_mapping.nc    \
         -a $MOM_PRE_OUT                                                     \
         -f $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END.fluxes.nc            \
@@ -710,6 +721,7 @@ sed "/months\s*=\s*$CPL_TIMESTEP_MONTHS\s*,/d"  -i POEM/input.nml-regular
 sed -e '/&coupler_nml/a\' -e "\tmonths = $CPL_TIMESTEP_MONTHS," \
     -i POEM/input.nml-regular
 
+
 ### --------------------- synchronise timestamp of models ---------------------
 
 cd $ROOT_WORK_DIR/pre-processing
@@ -736,7 +748,7 @@ poem_prerun
 poem_prerun_postprocess
 
 echo ">>> PISM pre-run"
-pism_prerun 0.01 
+pism_prerun 10
 
 END_PRERUNS=$(date +%s.%N)
 TIME_PRERUNS=$(echo "$END_PRERUNS - $START_PRERUNS" | bc)
@@ -800,7 +812,7 @@ echo " >> create basin_shelf_depth_file from prerun output"
 #BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc
 $ROOT_WORK_DIR/inter-model-processing/PISM-to-MOM_processing.py \
     -o $PISM_PRE_OUT                                            \
-    -e $PISM_WORK_DIR/prerun/prerun.pism_extra.nc               \
+    -e $PISM_WORK_DIR/prerun/prerun.pism_snap.nc                \
     -m PISMbasin-to-MOMcell_mapping.nc                          \
     -a $MOM_PRE_OUT                                             \
     -f $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.fluxes.nc            \
@@ -865,7 +877,6 @@ echo ">>> finished coupling iterations"
 echo
 echo ">>> postprocessing"
 concat_output_files
-
 
 
 ### --------------------------- runtime statistics -----------------------------
