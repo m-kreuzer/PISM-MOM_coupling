@@ -201,7 +201,7 @@ if __name__ == "__main__":
     #pism_snap_nv = nc_fh.dimensions['nv'].size
 
     ### read PISM variables concerning mass flux from ice to ocean
-    #   all in units: [kg/m^2/year]
+    #   all in units: [kg/m^2]
     pism_bmf = np.squeeze(nc_fh.variables['basal_mass_flux_floating_accumulator'][1])
     pism_bmf_dtype = nc_fh.variables['basal_mass_flux_floating_accumulator'].dtype
     pism_bmf_ndim = len(pism_bmf.shape)
@@ -229,6 +229,21 @@ if __name__ == "__main__":
     if pism_tend_discharge_ndim != 2:
         raise ValueError( str("flux field is of dimension " + \
                             str( pism_tend_discharge_ndim ) + ". Expected: 2.") )
+
+    ### read time span for PISM accumulation variables in snapshot file
+    #   time in unit: [s]
+    pism_snaptime_raw = np.squeeze(nc_fh.variables['basal_mass_flux_floating_time_since_reset'][:])
+    pism_snaptime_dtype = nc_fh.variables['basal_mass_flux_floating_time_since_reset'].dtype
+    pism_snaptime_ndim = len(pism_snaptime_raw.shape)
+    if pism_snaptime_ndim != 1:
+        raise ValueError( str("snapshot time field is of dimension " + \
+                            str( pism_snaptime_ndim ) + ". Expected: 1.") )
+    # select second timestep of two (beginning and end of run)
+    if len(pism_snaptime_raw) != 2:
+        raise ValueError( str("snapshot time field has " + \
+                            str( len(pism_snaptime_raw) ) + "entries. Expected: 2.") )
+    else:
+        pism_snaptime = pism_snaptime_raw[1]
 
     # read PISM basins
     pism_basins = np.squeeze(nc_fh.variables['basins'][:])
@@ -382,25 +397,25 @@ if __name__ == "__main__":
     
     # compute overall mass flux from ice to ocean
     #  positive corresponds to ice gain
-    #  unit[pism_massflux] = kg/m^2/year
+    #  unit[pism_massflux] = kg/m^2
     pism_massflux = -pism_surf_runoff + pism_tend_bmf + pism_tend_discharge
 
 
     ### ------------- conversion of variables ----------------
     
     ### mass flux ice to ocean 
-    #  -> unit[pism_massflux] :         kg/m^2/year
+    #  -> unit[pism_massflux] :         kg/m^2
     #  -> unit[pism_massflux_total] :   kg/s
     # positive mass flux corresponds to transfer from ice to ocean
     pism_massflux_total = -1 * pism_massflux * pism_cell_area_uniform \
-                                    / seconds_p_year
+                                    / pism_snaptime
     
     ### heatflux
     #  -> unit[latent_heat_of_fusion] : J/kg
     #  -> unit[pism_heatflux_total] :   J/s = W
     # heat flux PISM to Ocean: should be negative
     pism_heatflux_total = pism_massflux * pism_cell_area_uniform \
-                            / seconds_p_year * latent_heat_of_fusion
+                            / pism_snaptime * latent_heat_of_fusion
      
 
     

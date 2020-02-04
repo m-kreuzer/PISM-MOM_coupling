@@ -556,19 +556,21 @@ concat_output_files(){
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%04g-%04g.ice-yearly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
-    ncrcat $INPUT_FILES $OUTPUT_FILE
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
     INPUT_FILES=$(echo `seq -f "%04g0101.ocean-scalar.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%04g-%04g.ocean-scalar.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
-    ncrcat $INPUT_FILES $OUTPUT_FILE
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
     cd $ROOT_WORK_DIR
 
     # concatenate PISM output
     cd $PISM_WORK_DIR/results
-    ncrcat $(echo `seq -f "%04g.pism_extra.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f "%04g.pism_extra.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_extra.nc
+    ncrcat --overwrite $(echo `seq -f "%04g.pism_snap.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.pism_snap.nc
     cd $ROOT_WORK_DIR
 }
 
