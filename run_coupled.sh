@@ -493,7 +493,7 @@ process_mom_to_pism() {
     echo "  > bilinear regridding MOM output to PISM grid"
     OCEAN_OUT=$POEM_WORK_DIR/history/$POEM_TIME_END.ocean-yearly.nc
     REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.sparse.nc
-    ncks -v temp,salt $OCEAN_OUT $REGRID_IN
+    ncks -O -v temp,salt $OCEAN_OUT $REGRID_IN
     REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
     WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
     cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
