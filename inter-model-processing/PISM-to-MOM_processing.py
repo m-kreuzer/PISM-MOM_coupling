@@ -395,10 +395,11 @@ if __name__ == "__main__":
     pism_shelf_topg = np.ma.array(pism_topg, mask=~pism_floating_mask)
     
     
-    # compute overall mass flux from ice to ocean
+    # aggregate mass from ice to ocean for mass & energy flux calculations
     #  positive corresponds to ice gain
-    #  unit[pism_massflux] = kg/m^2
+    #  unit[pism_massflux*] = kg/m^2
     pism_massflux = -pism_surf_runoff + pism_tend_bmf + pism_tend_discharge
+    pism_massflux_energy = pism_tend_bmf + pism_tend_discharge
 
 
     ### ------------- conversion of variables ----------------
@@ -414,7 +415,7 @@ if __name__ == "__main__":
     #  -> unit[latent_heat_of_fusion] : J/kg
     #  -> unit[pism_heatflux_total] :   J/s = W
     # heat flux PISM to Ocean: should be negative
-    pism_heatflux_total = pism_massflux * pism_cell_area_uniform \
+    pism_heatflux_total = pism_massflux_energy * pism_cell_area_uniform \
                             / pism_snaptime * latent_heat_of_fusion
      
 
@@ -487,14 +488,14 @@ if __name__ == "__main__":
     oc_edge_flux['heat'] = oc_edge_flux['heat_total'] / ocean_area
     
     # conservation check
-    pism_mf_cum = np.sum( np.float64(pism_massflux_total) )
-    oc_mf_cum =   np.sum( np.float64(oc_edge_flux['mass_total']) )
+    pism_mf_cum = np.sum( np.float128(pism_massflux_total) )
+    oc_mf_cum =   np.sum( np.float128(oc_edge_flux['mass_total']) )
     
-    pism_ef_cum = np.sum( np.float64(pism_heatflux_total) )
-    oc_ef_cum =   np.sum( np.float64(oc_edge_flux['heat_total']) )
+    pism_ef_cum = np.sum( np.float128(pism_heatflux_total) )
+    oc_ef_cum =   np.sum( np.float128(oc_edge_flux['heat_total']) )
     
-    error_rate_mass = np.abs( (pism_mf_cum - oc_mf_cum) / pism_mf_cum )
-    error_rate_energy = np.abs( (pism_ef_cum - oc_ef_cum) / pism_ef_cum )
+    error_rate_mass =  (pism_mf_cum - oc_mf_cum) / pism_mf_cum 
+    error_rate_energy =  (pism_ef_cum - oc_ef_cum) / pism_ef_cum 
 
     if args.verbose:
         print(' - relative conservation error')
