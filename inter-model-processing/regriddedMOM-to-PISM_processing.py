@@ -61,18 +61,6 @@ except:
     sys.exit(1)
 
 
-
-__author__ = "Moritz Kreuzer"
-__copyright__ = "Copyright 2018-2019"
-__credits__ = ["", ""]
-__license__ = "GPLv3"
-__version__ = "0.0.2"
-__maintainer__ = "Moritz Kreuzer"
-__email__ = "kreuzer@pik-potsdam.de"
-__status__ = "Prototype"
-
-
-
 if __name__ == "__main__":
    
 
