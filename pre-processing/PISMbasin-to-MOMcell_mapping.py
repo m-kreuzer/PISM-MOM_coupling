@@ -48,18 +48,6 @@ except:
     raise ImportError("netCDF4 is not installed!")
 
 
-
-__author__ = "Moritz Kreuzer"
-__copyright__ = "Copyright 2019"
-__credits__ = ["", ""]
-__license__ = "GPLv3"
-__version__ = "0.0.2"
-__maintainer__ = "Moritz Kreuzer"
-__email__ = "kreuzer@pik-potsdam.de"
-__status__ = "Prototype"
-
-
-
 def mark_edge(data, mask, j_limit):
     """Marks edge cells of 2d masked array 'data' in 2d field 'mask'
     
