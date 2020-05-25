@@ -4,7 +4,6 @@ code for coupling the Parallel Ice Sheet Model PISM with the Modular Ocean Model
 -------------------------------------
 How to run a coupled POEM-PISM setup?
 -------------------------------------
-  - by Moritz Kreuzer    kreuzer@pik-potsdam.de  (*May 18, 2020*)
       
 This is a guide how to run a coupled setup of PIK's climate model POEM and the
 ice-sheet model PISM on the PIK cluster HLRS2015.

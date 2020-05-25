@@ -1,6 +1,6 @@
 #! /bin/sh
 
-#  Copyright (C) 2019, 2020 Moritz Kreuzer
+#  Copyright (C) 2019, 2020 PISM-MOM_coupling authors, see AUTHORS file
 #
 #  This file is part of PISM-MOM_coupling
 #
