@@ -235,10 +235,21 @@ if __name__ == "__main__":
         raise ValueError( str("flux field is of dimension " + \
                             str( pism_tend_discharge_ndim ) + ". Expected: 2.") )
 
+     # if no surface runoff variable, initialize field with zeros  
+     if 'surface_runoff_flux_accumulator' in nc_fh.variables:
+         pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
+         pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
+         pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
+         if pism_surf_runoff_ndim != 2:
+             raise ValueError( str("flux field is of dimension " + \
+                                 str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
+     else:
+         pism_surf_runoff = np.zeros_like(pism_tend_discharge)
+
     ### read time span for PISM accumulation variables in snapshot file
     #   time in unit: [s]
-    pism_snaptime_raw = np.squeeze(nc_fh.variables['basal_mass_flux_floating_time_since_reset'][:])
-    pism_snaptime_dtype = nc_fh.variables['basal_mass_flux_floating_time_since_reset'].dtype
+    pism_snaptime_raw = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_time_since_reset'][:])
+    pism_snaptime_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_time_since_reset'].dtype
     pism_snaptime_ndim = len(pism_snaptime_raw.shape)
     if pism_snaptime_ndim != 1:
         raise ValueError( str("snapshot time field is of dimension " + \
