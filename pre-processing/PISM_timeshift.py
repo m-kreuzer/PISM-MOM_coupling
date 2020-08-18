@@ -123,7 +123,6 @@ if __name__ == "__main__":
         pism_time_raw = np.squeeze(nc_pism.variables['time'][:])
         #pism_time__sec = pism_time_raw.data
         pism_time__sec = pism_time_raw
-        print("pism_time__sec: ", pism_time__sec)
         print("pism_time_raw: ", pism_time_raw)
         print("type(pism_time_raw): ", type(pism_time_raw))
     except:

@@ -244,7 +244,7 @@ if __name__ == "__main__":
         sys.exit(1)
         
     # extract vertical axis
-    ocean_z = nc_src.variables['st_ocean'][:]   # units: dbars (interpreting as m)
+    ocean_z = nc_src.variables['zl'][:]         # unit: meter
     ocean_z = -1 * ocean_z                      # positive = upwards
     
     # read field arrays 

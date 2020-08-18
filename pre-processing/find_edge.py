@@ -190,9 +190,13 @@ if __name__ == "__main__":
     # check field dimension
     field_ndim = len(field.shape)
     if (field_ndim != 3) :
-        err_str = "regridded field is of dimension " + str(field_ndim) + \
-                    ". Expected: 3."
-        raise ValueError( str(err_str) )
+        if (field_ndim == 4):
+            # multiple time slices, select first one
+            field = field[0,:]
+        else:
+            err_str = "regridded field is of dimension " + str(field_ndim) + \
+                        ". Expected: 3 or 4."
+            raise ValueError( str(err_str) )
 
     t_read_infile_end = t.time()
 

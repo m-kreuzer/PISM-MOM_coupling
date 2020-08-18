@@ -157,8 +157,8 @@ if __name__ == "__main__":
                         help=("PISM output file with PICO variable 'basins'"))
     parser.add_argument('-m', '--mom', action="store", dest="MOM_file",
                         required=True, 
-                        help=("MOM output file with coordinates 'xt_ocean', "
-                              "'yt_ocean', 'st_ocean' and variables 'temp'"))
+                        help=("MOM output file with coordinates 'xh', 'yh', "
+                              "'zl' and variable 'temp'"))
     parser.add_argument('-o', '--output', action="store", dest="out_file", 
                         required=True, 
                         help="file to store basin - ocean cell mapping")
@@ -234,19 +234,11 @@ if __name__ == "__main__":
         s = ("ocean file '{}' can't be found! ")
         raise FileNotFoundError( s.format(args.MOM_file) )
         
-    # assign x,y dimension
-    xdim = 'xt_ocean'
-    ydim = 'yt_ocean'
-    zdim = 'st_ocean'
-
     # deactivate mask for NC file input
     # (wrong valid range for longitude leads to missing values)    
     nc_fh.set_auto_mask(False)
     
     # coordinate variable in x,y-direction
-    ocean_x =   nc_fh.variables[xdim][:]
-    ocean_y =   nc_fh.variables[ydim][:]
-    ocean_z =   nc_fh.variables[zdim][:]
     ocean_lat = nc_fh.variables['geolat_t'][:]
     ocean_lon = nc_fh.variables['geolon_t'][:]
     
@@ -263,9 +255,13 @@ if __name__ == "__main__":
     # check basin dimension
     ocean_ndim = len(oc_temp.shape)
     if ocean_ndim != 3:
-        s = ("Ocean variable 'temp' from file '{}' is of dimension {}. "
-             "Expected: 3")
-        raise ValueError( s.format(args.MOM_file, ocean_ndim))  
+        if (ocean_ndim == 4):
+            # multiple time slices, select first one
+            oc_temp = oc_temp[0,:]
+        else:
+            s = ("Ocean variable 'temp' from file '{}' is of dimension {}. "
+                 "Expected: 3 or 4")
+            raise ValueError( s.format(args.MOM_file, ocean_ndim))  
         
     oc_nlat = oc_temp.shape[1]
     oc_nlon = oc_temp.shape[2]
@@ -371,9 +367,11 @@ if __name__ == "__main__":
     pism_basin_list = np.delete(pism_basin_list, np.where(pism_basin_list==0) ) 
     
     # check whether all elements of basin_lists are matching
+    print("set(mom_basin_list): ", set(mom_basin_list)) 
+    print("set(pism_basin_list): ", set(pism_basin_list)) 
     assert set(mom_basin_list) == set(pism_basin_list), \
             'not all basins on PISM grid have a corresponding MOM cell!'
-            
+
     # write basin ratio for each ocean edge cell
     for j in range(oc_nlat):
         for i in range(oc_nlon):
@@ -392,8 +390,8 @@ if __name__ == "__main__":
 
         
     ### write oc_south_edge information to output file
-    dim_copy = ['xt_ocean','yt_ocean']
-    var_copy = ['geolat_t', 'geolon_t', 'xt_ocean', 'yt_ocean']
+    dim_copy = ['xh','yh']
+    var_copy = ['geolat_t', 'geolon_t', 'xh', 'yh']
     
     cmd_line = ' '.join(sys.argv)
     histstr = time.asctime() + ': ' + cmd_line + "\n "
@@ -424,19 +422,11 @@ if __name__ == "__main__":
         for name, var in src.variables.items():
             if name in var_copy:
                 x = dst.createVariable(name, var.datatype, var.dimensions)
-                # fix wrong valid range attribute in geolon_t
-                if name == 'geolon_t':
-                    d = src[name].__dict__
-                    d['valid_range'][0] = -360
-                    dst[name].setncatts(d)
-                    dst[name][:] = ocean_lon[:]
-                else:
-                    # copy variable attributes all at once via dictionary
-                    dst[name].setncatts(src[name].__dict__)
-                    dst[name][:] = src[name][:]
+                dst[name].setncatts(src[name].__dict__)
+                dst[name][:] = src[name][:]
                 
         ### write new variables    
-        x = dst.createVariable('basin', 'i', ('yt_ocean','xt_ocean'))
+        x = dst.createVariable('basin', 'i', ('yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', 'corresponding PISM/PICO basin of cell center'),
              ('valid_range', np.array([0, oc_south_edge['pism_basin'].max()], dtype=np.int32)),
@@ -448,7 +438,7 @@ if __name__ == "__main__":
         dst['basin'].setncatts(var_dict)
         dst['basin'][:] = oc_south_edge['pism_basin'][:]
          
-        x = dst.createVariable('basin_ratio', 'f8', ('yt_ocean','xt_ocean'))
+        x = dst.createVariable('basin_ratio', 'f8', ('yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ('ratio of corresponding PISM/PICO basin total '
                             'flux value to be mapped to cell')),
@@ -460,7 +450,7 @@ if __name__ == "__main__":
         dst['basin_ratio'].setncatts(var_dict)
         dst['basin_ratio'][:] = oc_south_edge['pism_basin_ratio'][:]
         
-        x = dst.createVariable('pism_i', 'i', ('yt_ocean','xt_ocean'))
+        x = dst.createVariable('pism_i', 'i', ('yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', 'index of closest PISM grid cell to ocean cell center'),
              ('valid_range', np.array([0, basin_x.size], dtype=np.int32)),
@@ -471,7 +461,7 @@ if __name__ == "__main__":
         dst['pism_i'].setncatts(var_dict)
         dst['pism_i'][:] = oc_south_edge['pism_i'][:]
         
-        x = dst.createVariable('pism_j', 'i', ('yt_ocean','xt_ocean'))
+        x = dst.createVariable('pism_j', 'i', ('yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', 'index of closest PISM grid cell to ocean cell center'),
              ('valid_range', np.array([0, basin_y.size], dtype=np.int32)),

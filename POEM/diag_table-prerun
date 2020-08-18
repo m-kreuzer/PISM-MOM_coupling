@@ -16,8 +16,8 @@ mom4_Aeolus_lad-init-21-mar-clim
 "ocean_model","temp","temp","ocean-prerun","all",.true.,"none",2
 # "ocean_model","geolat_c","geolat_c","ocean-prerun","all",.true.,"none",2
 # "ocean_model","geolon_c","geolon_c","ocean-prerun","all",.true.,"none",2
- "ocean_model","geolat_t","geolat_t","ocean-prerun","all",.true.,"none",2
- "ocean_model","geolon_t","geolon_t","ocean-prerun","all",.true.,"none",2
+ "ocean_model","geolat","geolat_t","ocean-prerun","all",.true.,"none",2
+ "ocean_model","geolon","geolon_t","ocean-prerun","all",.true.,"none",2
 # "ocean_model","ht","ht","ocean-prerun","all",.true.,"none",2
 # "ocean_model","hu","hu","ocean-prerun","all",.true.,"none",2
 

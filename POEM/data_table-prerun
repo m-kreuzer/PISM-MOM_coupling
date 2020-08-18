@@ -25,8 +25,8 @@
 "ICE", "sit_obs"        , "SIT"         ,"./INPUT/sst_ice_clim.nc"       , .false. ,  0.00
 "ICE", "sst_obs"        , "SST"         ,"./INPUT/sst_ice_clim.nc"       , .false. ,  1.0
 
-"ICE",  "runoff_add",       "mass_flux","../x_PISM-to-MOM/FILE_NAME_DUMMY", .true.,    1.0
-"ICE",  "runoff_hflx_add",  "heat_flux","../x_PISM-to-MOM/FILE_NAME_DUMMY", .true.,    1.0
+#"ICE",  "runoff_add",       "mass_flux","../x_PISM-to-MOM/FILE_NAME_DUMMY", .true.,    1.0
+#"ICE",  "runoff_hflx_add",  "heat_flux","../x_PISM-to-MOM/FILE_NAME_DUMMY", .true.,    1.0
 
 "LND" , "t_surf"        , ""            , ""                             , .true.  ,  273.0
 "LND" , "t_ca"          , ""            , ""                             , .true.  ,  273.0

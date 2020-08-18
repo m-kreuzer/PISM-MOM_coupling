@@ -207,12 +207,12 @@ if __name__ == "__main__":
 
     ### read PISM variables concerning mass flux from ice to ocean
     #   all in units: [kg/m^2]
-    pism_bmf = np.squeeze(nc_fh.variables['basal_mass_flux_floating_accumulator'][1])
-    pism_bmf_dtype = nc_fh.variables['basal_mass_flux_floating_accumulator'].dtype
-    pism_bmf_ndim = len(pism_bmf.shape)
-    if pism_bmf_ndim != 2:
-        raise ValueError( str("flux field is of dimension " + \
-                            str( pism_bmf_ndim ) + ". Expected: 2.") )
+    #pism_bmf = np.squeeze(nc_fh.variables['basal_mass_flux_floating_accumulator'][1])
+    #pism_bmf_dtype = nc_fh.variables['basal_mass_flux_floating_accumulator'].dtype
+    #pism_bmf_ndim = len(pism_bmf.shape)
+    #if pism_bmf_ndim != 2:
+    #    raise ValueError( str("flux field is of dimension " + \
+    #                        str( pism_bmf_ndim ) + ". Expected: 2.") )
 
     pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
     pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
@@ -235,16 +235,16 @@ if __name__ == "__main__":
         raise ValueError( str("flux field is of dimension " + \
                             str( pism_tend_discharge_ndim ) + ". Expected: 2.") )
 
-     # if no surface runoff variable, initialize field with zeros  
-     if 'surface_runoff_flux_accumulator' in nc_fh.variables:
-         pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
-         pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
-         pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
-         if pism_surf_runoff_ndim != 2:
-             raise ValueError( str("flux field is of dimension " + \
-                                 str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
-     else:
-         pism_surf_runoff = np.zeros_like(pism_tend_discharge)
+    # if no surface runoff variable, initialize field with zeros  
+    if 'surface_runoff_flux_accumulator' in nc_fh.variables:
+        pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
+        pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
+        pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
+        if pism_surf_runoff_ndim != 2:
+            raise ValueError( str("flux field is of dimension " + \
+                                str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
+    else:
+        pism_surf_runoff = np.zeros_like(pism_tend_discharge)
 
     ### read time span for PISM accumulation variables in snapshot file
     #   time in unit: [s]
@@ -307,8 +307,8 @@ if __name__ == "__main__":
     nc_fh.set_auto_mask(False)
     
     # coordinate variable in x,y-direction
-    ocean_x =   nc_fh.variables['xt_ocean'][:]
-    ocean_y =   nc_fh.variables['yt_ocean'][:]
+    ocean_x =   nc_fh.variables['xh'][:]        # latitude
+    ocean_y =   nc_fh.variables['yh'][:]        # longitude
     ocean_lat = nc_fh.variables['geolat_t'][:]
     ocean_lon = nc_fh.variables['geolon_t'][:]
     #ocean_area = nc_fh.variables['area_t'][:]
@@ -355,8 +355,8 @@ if __name__ == "__main__":
     nc_fh.set_auto_mask(False)
     
     # coordinate variable in x,y-direction
-    ocean_x2 =   nc_fh.variables['xt_ocean'][:]
-    ocean_y2 =   nc_fh.variables['yt_ocean'][:]
+    ocean_x2 =   nc_fh.variables['xh'][:]
+    ocean_y2 =   nc_fh.variables['yh'][:]
     ocean_lat2 = nc_fh.variables['geolat_t'][:]
     ocean_lon2 = nc_fh.variables['geolon_t'][:]
     # read area variable
@@ -528,8 +528,8 @@ if __name__ == "__main__":
     if args.verbose:
         print(" - write fluxes on ocean grid to file ", args.PISM_to_MOM_fluxes_file)
 
-    dim_copy = ['xt_ocean','yt_ocean']
-    var_copy = ['geolat_t', 'geolon_t', 'xt_ocean', 'yt_ocean']
+    dim_copy = ['xh','yh']
+    var_copy = ['geolat_t', 'geolon_t', 'xh', 'yh']
     
     cmd_line = ' '.join(sys.argv)
     histstr = time.asctime() + ': ' + cmd_line + "\n "
@@ -573,16 +573,9 @@ if __name__ == "__main__":
         for name, variable in src.variables.items():
             if name in var_copy:
                 x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                # fix wrong valid range attribute in geolon_t
-                if name == 'geolon_t':
-                    d = src[name].__dict__
-                    d['valid_range'][0] = -360
-                    dst[name].setncatts(d)
-                    dst[name][:] = ocean_lon[:]
-                else:
-                    # copy variable attributes all at once via dictionary
-                    dst[name].setncatts(src[name].__dict__)
-                    dst[name][:] = src[name][:]
+                # copy variable attributes all at once via dictionary
+                dst[name].setncatts(src[name].__dict__)
+                dst[name][:] = src[name][:]
                
         ### write new variables   
         if pism_tend_bmf_dtype == 'float32':
@@ -594,7 +587,7 @@ if __name__ == "__main__":
             raise ValueError(s.format(pism_tend_bmf_dtype))
              
         x = dst.createVariable('mass_flux', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
+                               nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average mass flux from PISM diagnostic output variables"
                             "'surface_runoff_flux_accumulator', "
@@ -610,7 +603,7 @@ if __name__ == "__main__":
         dst['mass_flux'].setncatts(var_dict)
         dst['mass_flux'][0,:] = oc_edge_flux['mass'][:].data
          
-        x = dst.createVariable('heat_flux', nc_dtype, ('time','yt_ocean','xt_ocean'))
+        x = dst.createVariable('heat_flux', nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average heat flux calculated from PISM diagnostic output variables"
                             "'surface_runoff_flux_accumulator', "

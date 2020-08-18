@@ -1,23 +1,5 @@
 #! /bin/sh
 
-#  Copyright (C) 2019, 2020 PISM-MOM_coupling authors, see AUTHORS file
-#
-#  This file is part of PISM-MOM_coupling
-#
-#  PISM-MOM_coupling is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  PISM-MOM_coupling is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with PISM-MOM_coupling.  If not, see <https://www.gnu.org/licenses/>.
-
-
 #SBATCH --job-name=coupled_POEM_PISM
 
 # without any nodes or tasks specification, will allocate 1 task
@@ -63,8 +45,8 @@ POEM_TOOLS_DIR=$POEM_PROJ_DIR/bin
 
 # -------------------------------- set parameters ------------------------------
 # time & coupling
-CPL_TIMESTEP=10            # in years, must be greater or equal 1
-MAX_CPL_ITERATION=40       # number of coupling iterations
+CPL_TIMESTEP=1            # in years, must be greater or equal 1
+MAX_CPL_ITERATION=20      # number of coupling iterations
 
 # PISM geometric parameters
 P_Mx=381
@@ -245,6 +227,13 @@ poem_prerun() {
         RESULT=$?
     fi
 
+    # rename output (remove timestamp)
+    local begindate=`$POEM_TOOLS_DIR/time_stamp.csh -bf digital`
+    ls $begindate.*.nc
+    for f in $begindate.*.nc ; do
+        mv $f $(echo $f | sed -e s/$begindate.// )
+    done
+
     # revert links to previous location 
     ln -sf $DIAG_TABLE_STORE diag_table
     #ln -sf $DATA_TABLE_STORE data_table
@@ -268,7 +257,8 @@ poem_run_postprocess() {
     if [ "$enddate" == "" ] ; then 
         enddate=tmp`date +%Y%j%H%M%S`
     fi
-    rm -f time_stamp.out
+    #rm -f time_stamp.out
+
     # write to global variables
     POEM_TIME_BEGIN=$begindate
     POEM_TIME_END=$enddate
@@ -280,55 +270,60 @@ poem_run_postprocess() {
         mv $f $enddate.$(echo $f | sed -e s/$SLURM_JOBID-// )
     done
 
-    # put files to history dir
-    for i in *.nc 
-      do mv $i history/$enddate.$i
+    # put nc files to history dir (replacing preceding begindate with enddate)
+    for i in *.nc ; do 
+        mv $i history/$enddate.$(echo $i | sed -e s/$begindate.// )
     done
-    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out stocks.out
+
+    # archive output files and put to history/
+    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* \
+        available_diags.* logfile*out MOM_parameter_doc.* ocean.stats \
+        seaice.stats SIS.available_diags SIS_fast.available_diags \
+        SIS_parameter_doc.* time_stamp.out 
     
     mkdir -p fms.out/$SLURM_JOBID
     mv $enddate.fms.out* fms.out/$SLURM_JOBID
 
     # copy files to RESTART dir
     cp -p input.nml data_table diag_table field_table RESTART/.
-    ( cd RESTART
-      ulimit -c 0 # we dont want coredumps from mppnccombine
-      # Concatenate blobs restart files. mppnccombine would not work on them.
-      if [ -f ocean_blobs.res.nc.0000 ]
-      then
-         ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
-         rm -f ocean_blobs.res.nc.????
-      fi
-    
-      # Concatenate iceberg restarts
-      if [ -f ocean_blobs.res.nc.0000 ]
-      then
-         ncrcat icebergs.res.nc.???? icebergs.res.nc
-         rm icebergs.res.nc.????
-      fi
-    
-      # Land restarts need to be combined with  combine-ncc
-      # More simply just tar them up in this version
-      land_files="cana glac lake land snow soil vegn1 vegn2"
-      for file in $land_files
-      do
-         input_files="`/bin/ls ${file}.res.nc.????`"
-         if [ ${#input_files} -gt 0 ]
-         then
-             tar czf ${file}.res.nc.tar $input_files
-             if [ $? != 0 ]
-            then
-                 echo "ERROR: in creating land restarts tarfile"
-                 exit 1
-             fi
-             rm $input_files
-         fi
-      done
-    
-      # now combine all the remaining restart files
-      bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
-      [ -n "$bases" ] && time for b in $bases ; do echo mppnccombine $b ; rm -f $b; $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -64 -r $b $b.[0-9][0-9][0-9][0-9]* ; done
-    )
+    #( cd RESTART
+    #  ulimit -c 0 # we dont want coredumps from mppnccombine
+    #  # Concatenate blobs restart files. mppnccombine would not work on them.
+    #  if [ -f ocean_blobs.res.nc.0000 ]
+    #  then
+    #     ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
+    #     rm -f ocean_blobs.res.nc.????
+    #  fi
+    #
+    #  # Concatenate iceberg restarts
+    #  if [ -f ocean_blobs.res.nc.0000 ]
+    #  then
+    #     ncrcat icebergs.res.nc.???? icebergs.res.nc
+    #     rm icebergs.res.nc.????
+    #  fi
+    #
+    #  # Land restarts need to be combined with  combine-ncc
+    #  # More simply just tar them up in this version
+    #  land_files="cana glac lake land snow soil vegn1 vegn2"
+    #  for file in $land_files
+    #  do
+    #     input_files="`/bin/ls ${file}.res.nc.????`"
+    #     if [ ${#input_files} -gt 0 ]
+    #     then
+    #         tar czf ${file}.res.nc.tar $input_files
+    #         if [ $? != 0 ]
+    #        then
+    #             echo "ERROR: in creating land restarts tarfile"
+    #             exit 1
+    #         fi
+    #         rm $input_files
+    #     fi
+    #  done
+    #
+    #  # now combine all the remaining restart files
+    #  bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
+    #  [ -n "$bases" ] && time for b in $bases ; do echo mppnccombine $b ; rm -f $b; $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -64 -r $b $b.[0-9][0-9][0-9][0-9]* ; done
+    #)
 
     # tar files for restart and put to history
     mv RESTART $enddate.RESTART
@@ -360,8 +355,9 @@ poem_prerun_postprocess() {
     for i in *.nc 
       do mv $i prerun/prerun.$i
     done
-    mv prerun.fms.out-* logfile*out diag_field_log*out diag_integral.out \
-        stocks.out time_stamp.out $POEM_WORK_DIR/prerun/out/
+    mv prerun.fms.out-* ocean.stats MOM_parameter_doc.* SIS_parameter_doc.* \
+        available_diags.* seaice.stats SIS.available_diags SIS_fast.available_diags \
+        stocks.out time_stamp.out logfile.*.out $POEM_WORK_DIR/prerun/out/
     cp -p input.nml data_table diag_table field_table $POEM_WORK_DIR/prerun
     
     cd $OLDPWD
@@ -382,8 +378,10 @@ pism_run() {
                         awk '{print $3}')
     PISM_TIME_YR=$(echo $PISM_TIME_SEC / '( 365 * 24 * 60 * 60 )' | bc )
 
-    PISM_TIME_BEGIN=$PISM_TIME_YR
+    PISM_TIME_BEGIN=$(printf "%04d\n" $PISM_TIME_YR)
     PISM_TIME_END=$(echo $PISM_TIME_BEGIN + $__TIMESTEP | bc )
+    PISM_TIME_END=$(printf "%04d\n" $PISM_TIME_END)
+
     echo PISM_TIME_BEGIN $PISM_TIME_BEGIN
     echo PISM_TIME_END $PISM_TIME_END
 
@@ -394,7 +392,6 @@ pism_run() {
     # run pism executable
     time srun -n $SLURM_NTASKS $PISM_PROJ_DIR/bin/pismr \
     -i $PISM_RESTART_FILE \
-    -bootstrap -Mx $P_Mx -My $P_Mx -Lz $P_Lz -Lbz $P_Lbz -Mz $P_Mz -Mbz $P_Mbz \
     -config_override ./initdata/pism_config_override.nc \
     -y $__TIMESTEP \
     -verbose 2 \
@@ -429,16 +426,21 @@ pism_run() {
     -subgl \
     -no_subgl_basal_melt \
     -o results/$PISM_TIME_END.pism_out.nc \
-    -o_size big \
+    -o_size small \
     -log_view \
     -extra_file results/$PISM_TIME_END.pism_extra.nc \
     -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
-    -extra_vars basal_mass_flux_floating,basal_mass_flux_grounded,basins,pico_overturning,pico_salinity_box0,pico_temperature_box0,pico_box_mask,pico_shelf_mask,pico_ice_rise_mask,pico_basal_melt_rate,pico_contshelf_mask,pico_salinity,pico_temperature,pico_T_star,pico_basal_temperature,amount_fluxes,pdd_fluxes,ice_mass,enthalpy \
+    -extra_vars amount_fluxes,pdd_fluxes \
     -save_file results/$PISM_TIME_END.pism_snap.nc \
     -save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
+    -save_size small \
         > results/$PISM_TIME_END.pism.out 2>&1
 
+    #-bootstrap -Mx $P_Mx -My $P_Mx -Lz $P_Lz -Lbz $P_Lbz -Mz $P_Mz -Mbz $P_Mbz \
     #-extra_vars basal_mass_flux_floating,basins \
+    #-extra_vars basal_mass_flux_floating,basal_mass_flux_grounded,basins,pico_overturning,pico_salinity_box0,pico_temperature_box0,pico_box_mask,pico_shelf_mask,pico_ice_rise_mask,pico_basal_melt_rate,pico_contshelf_mask,pico_salinity,pico_temperature,pico_T_star,pico_basal_temperature,amount_fluxes,pdd_fluxes,ice_mass,enthalpy \
+    #-ts_file results/$PISM_TIME_END.pism_ts.nc \
+    #-ts_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
 
     RESULT=$?
 
@@ -465,9 +467,9 @@ pism_prerun() {
                         awk '{print $3}')
     PISM_TIME_YR=$(echo $PISM_TIME_SEC / '( 365 * 24 * 60 * 60 )' | bc )
 
-    PISM_TIME_BEGIN=$PISM_TIME_YR
+    PISM_TIME_BEGIN=$(printf "%04d\n" $PISM_TIME_YR)
     PISM_TIME_END=$(echo $PISM_TIME_BEGIN + $__TIMESTEP | bc )
-    echo $PISM_TIME_END
+    PISM_TIME_END=$(printf "%04d\n" $PISM_TIME_END)
 
     if [ ! -d $PISM_WORK_DIR/prerun ] ; then mkdir $PISM_WORK_DIR/prerun ; fi
 
@@ -576,9 +578,9 @@ concat_output_files(){
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%04g0101.ocean-scalar.nc" \
+    INPUT_FILES=$(echo `seq -f "%04g0101.ocean-yearly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%04g-%04g.ocean-scalar.nc" \
+    OUTPUT_FILE=$(echo `printf "%04g-%04g.ocean-yearly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
     cd $ROOT_WORK_DIR
@@ -589,6 +591,8 @@ concat_output_files(){
         $SIM_START_YEAR-$SIM_END_YEAR.pism_extra.nc
     ncrcat --overwrite $(echo `seq -f "%04g.pism_snap.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_snap.nc
+    ncrcat --overwrite $(echo `seq -f "%04g.pism_ts.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.pism_ts.nc
     cd $ROOT_WORK_DIR
 }
 
@@ -643,7 +647,7 @@ module load pism/stable1.0
 #echo $PETSC_DIR
 
 # load anaconda python environment for pre & inter-model processing scripts
-module load anaconda
+module load anaconda/5.0.0_py3
 source activate py3_netcdf
 conda info --envs
 conda list
@@ -768,7 +772,7 @@ poem_prerun
 poem_prerun_postprocess
 
 echo ">>> PISM pre-run"
-pism_prerun 10
+pism_prerun 1
 
 END_PRERUNS=$(date +%s.%N)
 TIME_PRERUNS=$(echo "$END_PRERUNS - $START_PRERUNS" | bc)
