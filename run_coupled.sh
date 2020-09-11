@@ -48,7 +48,7 @@
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
 
 
-START_SCRIPT=$(date +%s.%N)
+TIME_START_SCRIPT=$(date +%s.%N)
 
 # ---------------------------- define project paths ----------------------------
 #POEM_PROJ_DIR=/p/projects/climber3/kreuzer/POEM/MOM5_PISM_coupling/mom5.0.2
@@ -60,6 +60,7 @@ POEM_WORK_DIR=$ROOT_WORK_DIR/POEM
 PISM_WORK_DIR=$ROOT_WORK_DIR/PISM
 
 POEM_TOOLS_DIR=$POEM_PROJ_DIR/bin
+
 
 # -------------------------------- set parameters ------------------------------
 # time & coupling
@@ -80,7 +81,6 @@ PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/result_equi_16km_100000y
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/100011.pism_out.nc) 
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/2951.pism_out.nc) 
 PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/deltaTO_4deg.nc) 
-PISM_SHIFTED_RESTART_PATH_FILE=$ROOT_WORK_DIR/pre-processing/PISM_restart_timeshift_path.txt
 # set filename of last PISM output file processed by PISM-to-MOM_processing.py
 #   must be in $ROOT_WORK_DIR/x_PISM-to-MOM
 #   -> only set if restarting from a coupled run
@@ -683,6 +683,7 @@ sed -e '/&coupler_nml/a\' -e "\tmonths = $CPL_TIMESTEP_MONTHS," \
 ### --------------------- synchronise timestamp of models ---------------------
 
 cd $ROOT_WORK_DIR/pre-processing
+PISM_SHIFTED_RESTART_PATH_FILE=$ROOT_WORK_DIR/pre-processing/PISM_restart_timeshift_path.txt
 
 #
 echo " >> synchronise timestamps of PISM and MOM/POEM"
@@ -851,8 +852,8 @@ print_stat() {
     printf "$format" $1 $2  $TIME_PERCENT
 }
 
-END_SCRIPT=$(date +%s.%N)
-TIME_SCRIPT=$(echo "$END_SCRIPT - $START_SCRIPT" | bc)
+TIME_END_SCRIPT=$(date +%s.%N)
+TIME_SCRIPT=$(echo "$TIME_END_SCRIPT - $TIME_START_SCRIPT" | bc)
 
 
 str="-------------"
