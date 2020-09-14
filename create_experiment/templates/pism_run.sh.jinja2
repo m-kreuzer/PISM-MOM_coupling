@@ -1,0 +1,205 @@
+#!/bin/bash
+# created by matthias.mengel@pik-potsdam.de
+
+# variables depending on machine
+pismcode_dir={{settings.pismcode_dir}}
+PISM_EXEC={{settings.pism_exec}}
+
+# variables depending on experiment name
+runname=`echo $PWD | awk -F/ '{print $NF}'`
+code_version=`echo $PWD | awk -F/ '{print $NF}' | awk -F_ '{print $1}'`
+
+outdir={{settings.working_dir}}/$runname
+
+# use only MPI if job is submitted
+if [ -n "${PISM_ON_CLUSTER:+1}" ]; then  # check if env var is set
+  echo "This run was submitted, use MPI"
+  PISM_MPIDO="{{settings.pism_mpi_do}}"
+  NN="$1"
+else
+  echo "This is interactive, skip use of MPI"
+  PISM_MPIDO=""
+  NN=""
+fi
+
+# get new pism code if fetch is argument
+# if [ "$1" = "fetch" ]; then
+mkdir -p $outdir/log/
+# set parameters other than default ones.
+ncgen3 config_override.cdl -o $outdir/config_override.nc
+rsync -aCv $pismcode_dir/$code_version/bin/pismr $outdir/bin/
+# fi
+
+# set input files
+bootstrapfile={{settings.bootstrapfile}}
+atmfile={{settings.atm_data_dir}}/{{settings.atmfile}}
+
+
+# boundary conditions
+atm_opts="-surface given -surface_given_file $atmfile"
+
+
+# technical
+run_opts="-config_override config_override.nc -options_left \
+          -o_format netcdf4_parallel"
+
+PISM_DO="$PISM_MPIDO $NN $PISM_EXEC"
+grid="{{settings.grid}}"
+
+{% if "nomass" in settings.steps %}
+
+regridfile_tillwat={{settings.regridfile_tillwat}}
+
+#extratm=0:100:1000000
+timestm=0:100:1000000
+snapstm=0:10000:1000000
+
+#extra_vars="mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,\
+#pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount"
+#extra_opts="-extra_file extra -extra_split -extra_times $extratm -extra_vars $extra_vars"
+ts_vars="ice_area_glacierized_cold_base,ice_area_glacierized,ice_area_glacierized_temperate_base,ice_enthalpy,ice_enthalpy_glacierized,ice_volume,ice_volume_cold,ice_volume_glacierized_temperate,ice_volume_temperate,limnsw,max_diffusivity,max_hor_vel"
+ts_opts="-ts_times $timestm -ts_file timeseries.nc -ts_vars $ts_vars"
+snaps_opts="-save_file snapshots -save_times $snapstm -save_split -save_size medium"
+output_opts="$extra_opts $snaps_opts $ts_opts -o out.nc"
+
+init_opts="-i $bootstrapfile -bootstrap $grid -regrid_file $regridfile_tillwat -regrid_vars tillwat"
+nomass_opts="-no_mass -stress_balance ssa+sia -o no_mass.nc -ys 100000 -ye 200000"
+options="$init_opts $run_opts $atm_opts $nomass_opts $output_opts"
+
+echo "### no mass options:"
+echo $PISM_DO $options
+cd $outdir
+$PISM_DO $options
+
+# workaround: add tillphi to no_mass file
+#ncks -O -6 -v tillphi $bootstrapfile tillphi_tempfile.nc
+#ncap2 -O -s "lon_bnds=float(lon_bnds);lat_bnds=float(lat_bnds)" tillphi_tempfile.nc tillphi_tempfile.nc
+#cp no_mass.nc no_mass_tillphi.nc
+#ncks -A -v tillphi tillphi_tempfile.nc no_mass_tillphi.nc
+{% endif %}
+
+{% if "smoothing" in settings.steps %}
+
+infile={{settings.infile_smoothing}}
+init_opts="-i $infile $startyear -y 1"
+smoothing_opts="-stress_balance sia -o smoothing.nc"
+options="$init_opts $run_opts $atm_opts $smoothing_opts"
+
+echo "### smoothing options:"
+echo $PISM_DO $options
+cd $outdir
+$PISM_DO $options
+
+# workaround: add tillphi to smoothing file
+ncks -O -6 -v tillphi $bootstrapfile tillphi_tempfile.nc
+ncap2 -O -s "lon_bnds=float(lon_bnds);lat_bnds=float(lat_bnds)" tillphi_tempfile.nc tillphi_tempfile.nc
+cp smoothing.nc smoothing_tillphi.nc
+ncks -A -v tillphi tillphi_tempfile.nc smoothing_tillphi.nc
+{% endif %}
+
+
+{%- if "full_physics" in settings.steps -%}
+oceanfile={{settings.oceanfile}}
+ocean_opts="{{settings.ocean_opts}}"
+
+# inputs
+startyear={{settings.startyear}}
+length={{settings.length}}
+
+#infile={{settings.infile_full_physics}}twatdec{{settings.override_params["hydrology.tillwat_decay_rate"]}}_esia{{settings.override_params["stress_balance.sia.enhancement_factor"]}}.nc
+infile={{settings.infile_full_physics}}.nc
+# cd $outdir
+# cp {{settings.infile_smoothing}} $infile
+# workaround to avoid KSP error at startup
+# ncap2 -O -s 'tillwat=tillwat*0.95' $infile $infile
+## workaround: add tillwat fitted from rignot vels to no_mass file
+##ncks -O -6 -v tillwat $regridfile_tillwat tillwat_tempfile.nc
+##ncap2 -O -s "lon_bnds=float(lon_bnds);lat_bnds=float(lat_bnds)" tillwat_tempfile.nc tillwat_tempfile.nc
+##cp no_mass.nc no_mass_tillwat.nc
+##ncks -A -v tillwat tillwat_tempfile.nc no_mass_tillwat.nc
+
+restart_file=snapshots_restart_2150.000.nc
+
+{%- if settings.init == "bootstrapping" -%}
+init_opts="-i $infile -bootstrap $grid -ys $startyear -y $length"
+{% elif settings.init == "regrid" %}
+init_opts="-i $bootstrapfile -bootstrap $grid -regrid_file $infile \
+-regrid_vars enthalpy,litho_temp,tillwat -ys $startyear -y $length"
+{% else %}
+restart=false
+if $restart ; then
+  init_opts="-i $restart_file -ye $((startyear+length))"
+else
+  init_opts="-i $infile -ys $startyear -y $length"
+fi
+{% endif %}
+
+
+
+
+{% if "continue" in settings.steps %}
+oceanfile={{settings.oceanfile}}
+ocean_opts="{{settings.ocean_opts}}"
+
+# inputs
+startyear={{settings.startyear}}
+length={{settings.length}}
+
+infile={{settings.infile}}
+init_opts="-i $infile -ys $startyear -y $length"
+{% endif %}
+
+
+extratm=0:50:1000000
+timestm=0:1:1000000
+snapstm=0:100:1000000
+
+extra_vars="mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,\
+pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount"
+extra_opts="-extra_file extra -extra_split -extra_times $extratm -extra_vars $extra_vars"
+ts_opts="-ts_times $timestm -ts_file timeseries.nc"
+snaps_opts="-save_file snapshots -save_times $snapstm -save_split -save_size medium"
+output_opts="$extra_opts $snaps_opts $ts_opts -o out.nc"
+
+options="$init_opts $run_opts $atm_opts $ocean_opts $output_opts"
+echo "### PISM options:"
+echo $PISM_DO $options
+
+cd $outdir
+$PISM_DO $options
+
+{% endif %}
+
+
+{%- if "forcing" in settings.steps -%}
+oceanfile={{settings.oceanfile}}
+ocean_opts="{{settings.ocean_opts}}"
+
+# inputs
+startyear={{settings.startyear}}
+length={{settings.length}}
+
+infile={{settings.infile_forcing}}
+
+init_opts="-i $infile -ys $startyear -y $length"
+
+extratm=0:10:1000000
+timestm=0:1:1000000
+snapstm=0:10:1000000
+
+extra_vars="mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,\
+pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount"
+extra_opts="-extra_file extra -extra_split -extra_times $extratm -extra_vars $extra_vars"
+ts_opts="-ts_times $timestm -ts_file timeseries.nc"
+snaps_opts="-save_file snapshots -save_times $snapstm -save_split -save_size medium"
+output_opts="$extra_opts $snaps_opts $ts_opts -o out.nc"
+
+options="$init_opts $run_opts $atm_opts $ocean_opts $output_opts"
+echo "### PISM options:"
+echo $PISM_DO $options
+
+cd $outdir
+$PISM_DO $options
+
+{% endif %}
+
