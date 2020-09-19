@@ -44,7 +44,7 @@ run_opts="-config_override config_override.nc -options_left \
           -o_format netcdf4_parallel"
 
 PISM_DO="$PISM_MPIDO $NN $PISM_EXEC"
-grid="{{settings.grid}}"
+pism_grid="{{settings.pism_grid}}"
 
 {% if "nomass" in settings.steps %}
 
@@ -62,7 +62,7 @@ ts_opts="-ts_times $timestm -ts_file timeseries.nc -ts_vars $ts_vars"
 snaps_opts="-save_file snapshots -save_times $snapstm -save_split -save_size medium"
 output_opts="$extra_opts $snaps_opts $ts_opts -o out.nc"
 
-init_opts="-i $bootstrapfile -bootstrap $grid -regrid_file $regridfile_tillwat -regrid_vars tillwat"
+init_opts="-i $bootstrapfile -bootstrap $pism_grid -regrid_file $regridfile_tillwat -regrid_vars tillwat"
 nomass_opts="-no_mass -stress_balance ssa+sia -o no_mass.nc -ys 100000 -ye 200000"
 options="$init_opts $run_opts $atm_opts $nomass_opts $output_opts"
 
@@ -121,9 +121,9 @@ infile={{settings.infile_full_physics}}.nc
 restart_file=snapshots_restart_2150.000.nc
 
 {%- if settings.init == "bootstrapping" -%}
-init_opts="-i $infile -bootstrap $grid -ys $startyear -y $length"
+init_opts="-i $infile -bootstrap $pism_grid -ys $startyear -y $length"
 {% elif settings.init == "regrid" %}
-init_opts="-i $bootstrapfile -bootstrap $grid -regrid_file $infile \
+init_opts="-i $bootstrapfile -bootstrap $pism_grid -regrid_file $infile \
 -regrid_vars enthalpy,litho_temp,tillwat -ys $startyear -y $length"
 {% else %}
 restart=false

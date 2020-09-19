@@ -13,7 +13,7 @@ continued_submission = False
 
 def submit(ens_member_name):
 
-    ens_member_path = os.path.join(settings.pism_experiments_dir,ens_member_name)
+    ens_member_path = os.path.join(settings.working_dir,ens_member_name)
     print(ens_member_path)
     subprocess.check_call("cd "+ens_member_path+" && "+settings.submit_command,
                          shell=True)
