@@ -1,0 +1,51 @@
+#! /bin/sh
+
+# execution of PISM for a single coupling iteration 
+#
+# this script is part of the coupled PISM-MOM setup and gets called by the 
+# main coupling routine 'run_coupled.sh' in each coupling iteration
+#
+# all PISM options, parameters and flags are specified here except the 
+# input/restart file $PISM_RESTART_FILE taken from in run_coupled.sh
+
+
+#echo SLURM_NTASKS:      $SLURM_NTASKS 
+#echo ROOT_WORK_DIR:     $ROOT_WORK_DIR
+#echo PISM_PROJ_DIR:     $PISM_PROJ_DIR 
+#echo PISM_WORK_DIR:     $PISM_WORK_DIR 
+echo PISM_RESTART_FILE: $PISM_RESTART_FILE
+#echo __TIMESTEP:        $__TIMESTEP  
+echo PISM_TIME_BEGIN:   $PISM_TIME_BEGIN
+echo PISM_TIME_END:     $PISM_TIME_END 
+#echo $SLURM_NTASKS $ROOT_WORK_DIR $PISM_PROJ_DIR $PISM_WORK_DIR $PISM_RESTART_FILE $__TIMESTEP $PISM_TIME_BEGIN $PISM_TIME_END 
+#echo SLURM_NTASKS $SLURM_NTASKS
+
+module purge
+module load pism/stable1.0
+
+{{settings.pism_mpi_do}} {{settings.slurm_tasks}} {{settings.pism_exp_bin}} \
+-i $PISM_RESTART_FILE \
+-bootstrap {{settings.pism_grid}} \
+-config_override initdata/config_override.nc \
+-y {{settings.coupling_timestep}} \
+-verbose 2 \
+-options_left \
+-o_format netcdf4_parallel \
+-atmosphere pik \
+-atmosphere_pik era_interim \
+-atmosphere_pik_temp_file initdata/{{settings.pism_atm_file}} \
+-surface pdd \
+-ocean pico \
+-ocean_pico_file initdata/{{settings.pism_ocn_file}} \
+-o prerun/prerun.pism_out.nc \
+-extra_file prerun/prerun.pism_extra.nc  \
+-extra_times $PISM_TIME_BEGIN:$PISM_TIME_END \
+-extra_vars basal_mass_flux_floating,basins,amount_fluxes,pdd_fluxes \
+-save_file prerun/prerun.pism_snap.nc \
+-save_times $PISM_TIME_BEGIN:$PISM_TIME_END \
+    > prerun/prerun.pism.out 2>&1
+
+
+RESULT=$?
+
+exit $RESULT

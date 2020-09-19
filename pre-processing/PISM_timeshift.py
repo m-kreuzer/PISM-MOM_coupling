@@ -246,8 +246,14 @@ if __name__ == "__main__":
     
     # use NCO to shift time variable
     try:
-        os.system('ncap2 -s time+=' + str(time_shift__sec) + ' ' \
-                + args.pism_restart_file + ' -O -o ' + pism_restart_file_shift )
+        cmd = 'ncap2 -s time+=' + str(time_shift__sec) + ' ' \
+                + args.pism_restart_file + ' -O -o ' + pism_restart_file_shift
+        print(cmd)
+        return_val = os.system(cmd)
+        #os.system('ncap2 -s time+=' + str(time_shift__sec) + ' ' \
+        #        + args.pism_restart_file + ' -O -o ' + pism_restart_file_shift )
+        if return_val != 0:
+            raise OSError(return_val)
     except:
         print("ncap2 command failed! Exiting.")
         sys.exit(1)
