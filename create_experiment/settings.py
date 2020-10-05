@@ -12,7 +12,6 @@ import pwd
 import pism_grids
 
 # import settings including path to input, output directories
-username = pwd.getpwuid(os.getuid()).pw_name
 from pikcluster_settings import *
 
 

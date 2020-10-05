@@ -74,8 +74,7 @@ def copy_from_template(settings, filename,
     print(os.path.join(settings.experiment_dir, filename), "copied.")
 
 
-if __name__ == "__main__":
-
+def main_routine():
     # copy template structure to new experiment location
     try:
         shutil.copytree(settings.coupl_template_dir, settings.experiment_dir, symlinks=True)
@@ -144,4 +143,25 @@ if __name__ == "__main__":
     #shutil.copytree(settings.poem_template_dir, settings.poem_exp_dir, dirs_exist_ok=True, symlinks=True)
     dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir, preserve_symlinks=1, update=1, verbose=1)
     print(" > copied POEM template {} to POEM".format(settings.poem_template_dir))
+
+
+
+if __name__ == "__main__":
+
+    # redirect standard output to logfile
+    orig_stdout = sys.stdout
+    logfile = "create_run.log"
+    print("writing script output to '{}'".format(logfile))
+    print("  -> check there for possible errors")
+    with open(logfile, "wb") as f:
+        sys.stdout = f
+        try:
+            main_routine()
+        finally:
+            sys.stdout = orig_stdout
+
+    # copy logfile to experiment location
+    logfile_dst = os.path.join(settings.experiment_dir, logfile)
+    shutil.copy2(logfile, logfile_dst)
+    print("script ended sucessfully; logfile copied to {}".format(logfile_dst))
 
