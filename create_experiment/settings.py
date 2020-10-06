@@ -24,16 +24,16 @@ from pikcluster_settings import *
 # FIXME
 #experiment = pism_code_version+"_075_"+grid_id+"_bedmachine_ensemble_amedtem" # no _
 experiment = "coupled_run_setup_test"
+#experiment_dir      = os.path.join(settings.working_dir, settings.experiment)
+#experiment_dir      = os.path.join(working_dir, experiment)
 
 
 coupling_timestep = 10      # in years, must be greater or equal 1
 max_cpl_iteration = 40      # number of coupling iterations
 
-experiment_dir      = os.path.join(working_dir, experiment)
 
 # ------------------------------- POEM settings --------------------------------
 
-poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 
 
 # ------------------------------- PISM settings --------------------------------
@@ -41,13 +41,6 @@ poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 # select resolution of the run
 grid_id = "initmip16km" 
 pism_grid = pism_grids.grids[grid_id]
-
-# directories and path definition
-pism_exp_dir        = os.path.join(experiment_dir, 'PISM')
-pism_exp_bin_dir    = os.path.join(experiment_dir, 'PISM', 'bin')
-#pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
-pism_exp_bin        = os.path.join(pism_code_dir, 'bin',pism_exec)
-pism_sys_bin        = os.path.join(pism_code_dir, 'bin', pism_exec)
 
 
 
@@ -142,6 +135,7 @@ user = pwd.getpwuid(os.getuid()).pw_name
 #ocn_data_dir2 = os.path.join(pism_input_root_dir,"pycmip5/p003_testing")
 # 8km
 #ocn_data_dir2 = os.path.join(pism_input_root_dir,"pycmip5/p004_8kmprojections")
+ocn_data_dir2 = "dummy_path/"
 
 #tillwat_data_dir = os.path.join(pism_input_root_dir, "tillwat")
 
@@ -218,26 +212,26 @@ user = pwd.getpwuid(os.getuid()).pw_name
 #oceanfile = os.path.join("/gpfs/work/pn69ru/di52cok/pism_input/schmidtko/schmidtko_"+grid_id+"_means_intermediate.nc")
 
 ## forcing: ocean data iterables 4km
-##ocean_data_dir = ocn_data_dir2 #"/gpfs/work/pn69ru/di52cok/pism_input/pycmip5/p003_testing"
-#its = ["CSIRO-Mk3-6-0_historical+rcp85","GFDL-CM3_historical+rcp85","IPSL-CM5A-LR_historical+rcp85"]
-#
-#iterables = {}
-## FIXME include the ocean file iterables for "forcing" runs: 
-##iterables["oceanfile"] = { k : os.path.join(ocean_data_dir,
-##   "thetao_Omon_"+k+"_r1i1p1/schmidtko_anomaly/thetao_Omon_"+k+"_r1i1p1_"+grid_id+"_100km.nc")
-##   for k in its}
-#
+ocean_data_dir = ocn_data_dir2 #"/gpfs/work/pn69ru/di52cok/pism_input/pycmip5/p003_testing"
+its = ["CSIRO-Mk3-6-0_historical+rcp85","GFDL-CM3_historical+rcp85","IPSL-CM5A-LR_historical+rcp85"]
+
+iterables = {}
+# FIXME include the ocean file iterables for "forcing" runs: 
+#iterables["oceanfile"] = { k : os.path.join(ocean_data_dir,
+#   "thetao_Omon_"+k+"_r1i1p1/schmidtko_anomaly/thetao_Omon_"+k+"_r1i1p1_"+grid_id+"_100km.nc")
+#   for k in its}
+
 ## "full_physics": to create parameter ensemble
-#param_iterables = {}
-## FIXME: include parameters for full_physics ensemble
-##param_iterables["stress_balance.sia.enhancement_factor"] = [1.0,2.0]
-##param_iterables["stress_balance.ssa.enhancement_factor"] = [1.0,0.4]
-#param_iterables["basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden"] = [0.01,0.02,0.03,0.04]
-#param_iterables["basal_resistance.pseudo_plastic.q"] = [0.75,0.5,0.33,0.25,0.1]
-##param_iterables["hydrology.tillwat_decay_rate"] = [2,5,8]
-##param_iterables["calving.eigen_calving.K"] = [1.0e16, 5.0e16, 1.0e17, 5.0e17, 1.0e18]
-## special case topg_to_phi caught by if clause later:
-##param_iterables["topg_to_phi"] = [
+param_iterables = {}
+# FIXME: include parameters for full_physics ensemble
+#param_iterables["stress_balance.sia.enhancement_factor"] = [1.0,2.0]
+#param_iterables["stress_balance.ssa.enhancement_factor"] = [1.0,0.4]
+param_iterables["basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden"] = [0.01,0.02,0.03,0.04]
+param_iterables["basal_resistance.pseudo_plastic.q"] = [0.75,0.5,0.33,0.25,0.1]
+#param_iterables["hydrology.tillwat_decay_rate"] = [2,5,8]
+#param_iterables["calving.eigen_calving.K"] = [1.0e16, 5.0e16, 1.0e17, 5.0e17, 1.0e18]
+# special case topg_to_phi caught by if clause later:
+#param_iterables["topg_to_phi"] = [
 ##[2.,20.,-700.,500.],
 ##[2.,50.,-500.,0.],
 ##[2.,20.,-500.,0.],
@@ -246,14 +240,14 @@ user = pwd.getpwuid(os.getuid()).pw_name
 ##[2.,30.,-500.,0.],
 ##[2.,50.,-500.,1000.]
 ## new:
-##[1.0,50.,-700.,500.], 
-##[2.0,50.,-700.,500.],
-##[3.0,50.,-700.,500.],
-##[4.0,50.,-700.,500.]]
-## param_iterables["ocean.pico.overturning_coefficent"] = [5e5,1e6]
-##param_iterables["ocean.pico.heat_exchange_coefficent"] = [1e-5,2e-5,4e-5]
-#
-#
+#[1.0,50.,-700.,500.], 
+#[2.0,50.,-700.,500.],
+#[3.0,50.,-700.,500.],
+#[4.0,50.,-700.,500.]]
+# param_iterables["ocean.pico.overturning_coefficent"] = [5e5,1e6]
+#param_iterables["ocean.pico.heat_exchange_coefficent"] = [1e-5,2e-5,4e-5]
+
+
 ## FIXME forcing: add also a control run in which the ocean data from before is used (e.g., schmidtko) 
 ##iterables["oceanfile"].update({"base":oceanfile})
 #
