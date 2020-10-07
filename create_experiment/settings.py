@@ -7,7 +7,6 @@
 import os
 import pwd
 import collections
-import pwd
 
 import pism_grids
 
@@ -25,7 +24,7 @@ from pikcluster_settings import *
 #experiment = pism_code_version+"_075_"+grid_id+"_bedmachine_ensemble_amedtem" # no _
 experiment = "coupled_run_setup_test"
 #experiment_dir      = os.path.join(settings.working_dir, settings.experiment)
-#experiment_dir      = os.path.join(working_dir, experiment)
+experiment_dir      = os.path.join(working_dir, experiment)
 
 
 coupling_timestep = 10      # in years, must be greater or equal 1
@@ -34,7 +33,7 @@ max_cpl_iteration = 40      # number of coupling iterations
 
 # ------------------------------- POEM settings --------------------------------
 
-
+poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 
 # ------------------------------- PISM settings --------------------------------
 
@@ -42,7 +41,12 @@ max_cpl_iteration = 40      # number of coupling iterations
 grid_id = "initmip16km" 
 pism_grid = pism_grids.grids[grid_id]
 
-
+# directories and path definitions
+pism_exp_dir        = os.path.join(experiment_dir, 'PISM')
+pism_exp_bin_dir    = os.path.join(experiment_dir, 'PISM', 'bin')
+pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
+#pism_exp_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
+pism_sys_bin        = os.path.join(pism_code_dir, 'bin', pism_exec)
 
 # input data
 pism_infile_dir = "/p/tmp/albrecht/pism19/pismOut/equi/equi9000/results"

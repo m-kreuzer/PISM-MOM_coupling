@@ -64,7 +64,6 @@ def create_set():
     
     
     # create ensemble parent directory
-    #settings.__dict__[experiment_dir] += '_ensemble'
     global ensemble_parent_dir
     ensemble_parent_dir = os.path.join(settings.working_dir, settings.experiment + "_ensemble")
     
@@ -73,6 +72,7 @@ def create_set():
     else:
         print("Directory {} exists. Choose a different experiment name or remove directory".format(ensemble_parent_dir))
         sys.exit(1)
+
     
     # bring ensemble table entries to settings and write experiments
     for ind in ensemble_table.index:
@@ -88,10 +88,16 @@ def create_set():
                 # case of standard parameters, should be written to config_override
                 settings.override_params[col] = ensemble_table.loc[ind,col]
     
+        # adapt experiment directory in settings and update all derived path definitions
         experiment = settings.experiment+"_"+ind
-        settings.__dict__['experiment_dir'] = os.path.join(ensemble_parent_dir,experiment)
-        #settings.__dict__['experiment'] = experiment
+        new_experiment_dir = os.path.join(ensemble_parent_dir,experiment)
+        settings.__dict__['experiment_dir'] = new_experiment_dir
+        settings.__dict__['poem_exp_dir'] = os.path.join(new_experiment_dir, 'POEM')
+        settings.__dict__['pism_exp_dir'] = os.path.join(new_experiment_dir, 'PISM')
+        settings.__dict__['pism_exp_bin_dir'] = os.path.join(new_experiment_dir, 'PISM', 'bin')
+        settings.__dict__['pism_exp_bin'] = os.path.join(new_experiment_dir, 'PISM', 'bin', settings.pism_exec)
         
+        # build run directory 
         cr.create_run(settings=settings, experiment=experiment)
 
 

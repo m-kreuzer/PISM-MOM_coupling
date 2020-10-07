@@ -9,6 +9,8 @@ import distutils.dir_util as dist
 
 import settings 
 
+import code # debug
+
 
 
 def create_script_from_template(settings, template_file,
@@ -76,16 +78,18 @@ def copy_from_template(settings, filename,
 
 def create_run(settings=settings, experiment=settings.experiment):
     
-    # directories and path definition
-    experiment_dir      = os.path.join(settings.working_dir, experiment)
-    # --- PISM ---
-    pism_exp_dir        = os.path.join(settings.experiment_dir, 'PISM')
-    pism_exp_bin_dir    = os.path.join(settings.experiment_dir, 'PISM', 'bin')
-    #pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
-    #pism_exp_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
-    pism_sys_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
-    # --- POEM ---
-    poem_exp_dir        = os.path.join(settings.experiment_dir, 'POEM')
+    #code.interact(local=locals())
+    ## directories and path definition
+    #global experiment_dir      
+    #experiment_dir      = os.path.join(settings.working_dir, experiment)
+    ## --- PISM ---
+    #pism_exp_dir        = os.path.join(experiment_dir, 'PISM')
+    #pism_exp_bin_dir    = os.path.join(experiment_dir, 'PISM', 'bin')
+    ##pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
+    ##pism_exp_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
+    #pism_sys_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
+    ## --- POEM ---
+    #poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 
     # copy template structure to new experiment location
     try:
@@ -103,25 +107,25 @@ def create_run(settings=settings, experiment=settings.experiment):
     # prepare PISM subdirectory
     PISM_folders = ['initdata', 'prerun', 'results']
     for f in PISM_folders:
-        fpath = os.path.join(pism_exp_dir, f)
+        fpath = os.path.join(settings.pism_exp_dir, f)
         if not os.path.exists(fpath):
             os.makedirs(fpath)
             print("   - created directory PISM/"+f)
 
     # copy PISM binary to experiment dir
-    if not os.path.exists(pism_exp_bin_dir):
-        os.makedirs(pism_exp_bin_dir)
-    shutil.copy2(pism_sys_bin, pism_exp_bin_dir)
-    print("   - copied PISM binary {} to PISM/bin".format(pism_sys_bin))
+    if not os.path.exists(settings.pism_exp_bin_dir):
+        os.makedirs(settings.pism_exp_bin_dir)
+    shutil.copy2(settings.pism_sys_bin, settings.pism_exp_bin_dir)
+    print("   - copied PISM binary {} to PISM/bin".format(settings.pism_sys_bin))
 
     # copy PISM input files to PISM/initdata/
-    shutil.copy2(settings.pism_infile_path, os.path.join(pism_exp_dir, 'initdata'))
+    shutil.copy2(settings.pism_infile_path, os.path.join(settings.pism_exp_dir, 'initdata'))
     print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_infile_path))
-    shutil.copy2(settings.pism_atm_data_path, os.path.join(pism_exp_dir, 'initdata'))
+    shutil.copy2(settings.pism_atm_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
     print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_atm_data_path))
-    shutil.copy2(settings.pism_ocn_data_path, os.path.join(pism_exp_dir, 'initdata'))
+    shutil.copy2(settings.pism_ocn_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
     print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocn_data_path))
-    shutil.copy2(settings.pism_ocnkill_data_path, os.path.join(pism_exp_dir, 'initdata'))
+    shutil.copy2(settings.pism_ocnkill_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
     print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocnkill_data_path))
 
 
@@ -129,8 +133,8 @@ def create_run(settings=settings, experiment=settings.experiment):
     pism_config_dict = get_pism_config_as_dict(settings)
     check_if_override_is_in_config(settings, pism_config_dict)
     create_script_from_template(settings, "config_override.cdl.jinja2")
-    cmd = "ncgen3 "+os.path.join(pism_exp_dir,"initdata","config_override.cdl") \
-            +" -o "+os.path.join(pism_exp_dir,"initdata","config_override.nc")
+    cmd = "ncgen3 "+os.path.join(settings.pism_exp_dir,"initdata","config_override.cdl") \
+            +" -o "+os.path.join(settings.pism_exp_dir,"initdata","config_override.nc")
     os.system(cmd)
     print("   - created PISM/config_override.nc from PISM/config_override.cdl")
 
@@ -142,8 +146,8 @@ def create_run(settings=settings, experiment=settings.experiment):
 
     ## prepare POEM subdirectory
     # delete all content first
-    for filename in os.listdir(poem_exp_dir):
-        file_path = os.path.join(poem_exp_dir, filename)
+    for filename in os.listdir(settings.poem_exp_dir):
+        file_path = os.path.join(settings.poem_exp_dir, filename)
         try:
             if os.path.isfile(file_path) or os.path.islink(file_path):
                 os.unlink(file_path)
@@ -152,8 +156,8 @@ def create_run(settings=settings, experiment=settings.experiment):
         except Exception as e:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
     # copy from template
-    #shutil.copytree(settings.poem_template_dir, poem_exp_dir, dirs_exist_ok=True, symlinks=True)
-    dist.copy_tree(settings.poem_template_dir, poem_exp_dir, preserve_symlinks=1, update=1, verbose=1)
+    #shutil.copytree(settings.poem_template_dir, settings.poem_exp_dir, dirs_exist_ok=True, symlinks=True)
+    dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir, preserve_symlinks=1, update=1, verbose=1)
     print("   - copied POEM template {} to POEM".format(settings.poem_template_dir))
 
 
@@ -165,7 +169,7 @@ if __name__ == "__main__":
     logfile = "create_run.log"
     print("writing script output to '{}'".format(logfile))
     print("  -> check there for possible errors")
-    with open(logfile, "wb") as f:
+    with open(logfile, "w") as f:
         sys.stdout = f
         try:
             create_run()
