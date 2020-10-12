@@ -14,7 +14,7 @@
 #echo PISM_PROJ_DIR:     $PISM_PROJ_DIR 
 #echo PISM_WORK_DIR:     $PISM_WORK_DIR 
 echo PISM_RESTART_FILE: $PISM_RESTART_FILE
-#echo __TIMESTEP:        $__TIMESTEP  
+echo __TIMESTEP:        $__TIMESTEP  
 echo PISM_TIME_BEGIN:   $PISM_TIME_BEGIN
 echo PISM_TIME_END:     $PISM_TIME_END 
 #echo $SLURM_NTASKS $ROOT_WORK_DIR $PISM_PROJ_DIR $PISM_WORK_DIR $PISM_RESTART_FILE $__TIMESTEP $PISM_TIME_BEGIN $PISM_TIME_END 
@@ -39,10 +39,10 @@ module load pism/stable1.0
 -ocean_pico_file initdata/{{settings.pism_ocn_file}} \
 -o prerun/prerun.pism_out.nc \
 -extra_file prerun/prerun.pism_extra.nc  \
--extra_times $PISM_TIME_BEGIN:$PISM_TIME_END \
+-extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
 -extra_vars basal_mass_flux_floating,basins,amount_fluxes,pdd_fluxes \
 -save_file prerun/prerun.pism_snap.nc \
--save_times $PISM_TIME_BEGIN:$PISM_TIME_END \
+-save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
     > prerun/prerun.pism.out 2>&1
 
 

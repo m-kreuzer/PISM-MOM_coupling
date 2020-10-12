@@ -429,7 +429,7 @@ pism_prerun() {
     if [ ! -d $PISM_WORK_DIR/prerun ] ; then mkdir $PISM_WORK_DIR/prerun ; fi
 
     # export all bash variables required by pism_run.sh
-    export PISM_RESTART_FILE PISM_TIME_BEGIN PISM_TIME_END 
+    export PISM_RESTART_FILE __TIMESTEP PISM_TIME_BEGIN PISM_TIME_END 
     #export SLURM_NTASKS ROOT_WORK_DIR PISM_PROJ_DIR PISM_WORK_DIR PISM_RESTART_FILE PISM_OCEAN_START_FILE __TIMESTEP  PISM_TIME_BEGIN PISM_TIME_END 
     #export P_Mx P_My P_Lz P_Lbz P_Mz P_Mbz 
 
