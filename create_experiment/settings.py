@@ -38,7 +38,8 @@ poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 # ------------------------------- PISM settings --------------------------------
 
 # select resolution of the run
-grid_id = "initmip16km" 
+#grid_id = "initmip16km" 
+grid_id = "initmip8km" 
 pism_grid = pism_grids.grids[grid_id]
 
 # directories and path definitions
@@ -49,20 +50,28 @@ pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
 pism_sys_bin        = os.path.join(pism_code_dir, 'bin', pism_exec)
 
 # input data
-pism_infile_dir = "/p/tmp/albrecht/pism19/pismOut/equi/equi9000/results"
-pism_infile = "result_equi_16km_100000yrs.nc"
+#pism_infile_dir = "/p/tmp/albrecht/pism19/pismOut/equi/equi9000/results"
+#pism_infile = "result_equi_16km_100000yrs.nc"
+pism_infile_dir = "/p/tmp/reese/pism_out/pism_025_initmip8km_ismip_merged_schmidtko_woa18_cold1.25_thkgradient_subgl_subglmelt_hmin700_decay7_7a241540/"
+pism_infile = "snapshots_112000.000.nc"
 pism_infile_path = os.path.join(pism_infile_dir, pism_infile)
 
-pism_atm_data_dir = os.path.join(pism_input_root_dir, "racmo_wessem")
-pism_atm_file = "racmo_wessem_"+grid_id+"_mean1986_2005.nc"
+#pism_atm_data_dir = os.path.join(pism_input_root_dir, "racmo_wessem")
+#pism_atm_file = "racmo_wessem_"+grid_id+"_mean1986_2005.nc"
+pism_atm_data_dir = os.path.join(pism_input_root_dir, "merged")
+pism_atm_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
 pism_atm_data_path = os.path.join(pism_atm_data_dir,pism_atm_file)
 
-pism_ocn_data_dir = os.path.join(pism_input_root_dir, "schmidtko")
-pism_ocn_file = "schmidtko_"+grid_id+"_means.nc"
+#pism_ocn_data_dir = os.path.join(pism_input_root_dir, "schmidtko")
+#pism_ocn_file = "schmidtko_"+grid_id+"_means.nc"
+pism_ocn_data_dir = "/p/projects/pism/reese/ISMIP6_input_data/ocean_merged_schmidtko_woa18/"
+pism_ocn_file = "ocean_merged_schmidtko_woa18_initmip8km_means_amundsen-1.25.nc"
 pism_ocn_data_path = os.path.join(pism_ocn_data_dir,pism_ocn_file)
 
-pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "bedmap2")
-pism_ocnkill_file = "bedmap2_"+grid_id+".nc"
+#pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "bedmap2")
+#pism_ocnkill_file = "bedmap2_"+grid_id+".nc"
+pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "merged")
+pism_ocnkill_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
 pism_ocnkill_data_path = os.path.join(pism_ocnkill_data_dir,pism_ocnkill_file)
 
 
@@ -71,12 +80,11 @@ pism_config_file = os.path.join(pism_code_dir,"src/pism_config.cdl")
 
 # override parameters that deviate from default.
 override_params = collections.OrderedDict([
-# "ocean.pico.continental_shelf_depth", -2000,
 ("stress_balance.sia.enhancement_factor",1.0),
 ("stress_balance.ssa.enhancement_factor",1.0),
 ("stress_balance.model","ssa+sia"),
 ("time_stepping.skip.enabled", "yes"),
-("basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden", 0.03),
+("basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden", 0.04),
 ("basal_resistance.pseudo_plastic.q", 0.75),
 ("basal_yield_stress.mohr_coulomb.topg_to_phi.enabled",  "yes"),
 ("basal_yield_stress.mohr_coulomb.topg_to_phi.phi_min", 2.0), # FIXME 5.0
@@ -84,14 +92,14 @@ override_params = collections.OrderedDict([
 ("basal_yield_stress.mohr_coulomb.topg_to_phi.topg_min", -700.0),
 ("basal_yield_stress.mohr_coulomb.topg_to_phi.topg_max", 500.0),
 ("basal_resistance.pseudo_plastic.enabled","true"),
-("hydrology.tillwat_decay_rate", 5.0),
+("hydrology.tillwat_decay_rate", 7.0),
 # grounding line interpolations of melting
-("energy.basal_melt.use_grounded_cell_fraction", "false"),
-("calving.methods", "ocean_kill,thickness_calving,eigen_calving"), # FIXME 
+("energy.basal_melt.use_grounded_cell_fraction", "true"),
+("energy.basal_melt.no_melting_first_floating_cell", "false"),
+("calving.methods", "eigen_calving,thickness_calving,ocean_kill"), # FIXME 
 ("calving.eigen_calving.K", 1e16), # FIXME 1e17
 ("calving.thickness_calving.threshold", 50), # 200
-#("calving.ocean_kill.file", os.path.join(input_data_dir,
-#                      "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc")),
+("calving.ocean_kill.file", "initdata/"+pism_ocnkill_file), 
 #("calving.float_kill.calve_near_grounding_line", "false"), # FIXME remove? Keep one shelf cell
 # the following four options are equivalent to command line option -pik
 # if all set to true
@@ -100,14 +108,23 @@ override_params = collections.OrderedDict([
 ("geometry.remove_icebergs", "true"),
 ("geometry.grounded_cell_fraction", "true"),
 ("ocean.pico.exclude_ice_rises", "yes"),
-#("hydrology.set_tillwat_ocean", "yes"), # use Mattias tillwat fix
+("ocean.pico.continental_shelf_depth", -1200),
+("ocean.pico.heat_exchange_coefficent", 3.e-05),
+("ocean.pico.overturning_coefficent", 1e6),
+("hydrology.set_tillwat_ocean", "yes"), # use Mattias tillwat fix
 ## Include limit for the nomass runs! FIXME nomass only! And for Bedmachine because of convergence errors
-("stress_balance.ssa.fd.max_speed", 10e3),
+("stress_balance.ssa.fd.max_speed", 20e3),
 ("stress_balance.sia.limit_diffusivity", "yes"),
 ("stress_balance.sia.max_diffusivity", 10),
+("stress_balance.sia.surface_gradient_method", "GL_thk"),
+("stress_balance.ssa.fd.relative_convergence", "1.e-07"),
 #("hydrology.use_const_bmelt", "yes"),
 ])
 
+
+# set pism diagnostic timesteps
+pism_diag_extra_timestep = 1
+pism_diag_snap_timestep = coupling_timestep 
 
 
 

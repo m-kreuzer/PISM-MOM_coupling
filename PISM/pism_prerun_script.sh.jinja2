@@ -20,8 +20,8 @@ echo PISM_TIME_END:     $PISM_TIME_END
 #echo $SLURM_NTASKS $ROOT_WORK_DIR $PISM_PROJ_DIR $PISM_WORK_DIR $PISM_RESTART_FILE $__TIMESTEP $PISM_TIME_BEGIN $PISM_TIME_END 
 #echo SLURM_NTASKS $SLURM_NTASKS
 
-module purge
-module load pism/stable1.0
+#module purge
+#module load pism/stable1.0
 
 {{settings.pism_mpi_do}} {{settings.slurm_tasks}} {{settings.pism_exp_bin}} \
 -i $PISM_RESTART_FILE \
@@ -31,21 +31,30 @@ module load pism/stable1.0
 -verbose 2 \
 -options_left \
 -o_format netcdf4_parallel \
--atmosphere pik \
--atmosphere_pik era_interim \
--atmosphere_pik_temp_file initdata/{{settings.pism_atm_file}} \
--surface pdd \
+-surface given \
+-surface_given_file initdata/{{settings.pism_atm_file}} \
 -ocean pico \
 -ocean_pico_file initdata/{{settings.pism_ocn_file}} \
--o prerun/prerun.pism_out.nc \
+-log_view \
 -extra_file prerun/prerun.pism_extra.nc  \
 -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
--extra_vars basal_mass_flux_floating,basins,amount_fluxes,pdd_fluxes \
+-extra_vars basal_mass_flux_floating,basins,amount_fluxes \
 -save_file prerun/prerun.pism_snap.nc \
 -save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
+-o prerun/prerun.pism_out.nc \
     > prerun/prerun.pism.out 2>&1
 
 
 RESULT=$?
 
 exit $RESULT
+
+
+
+
+#-atmosphere pik \
+#-atmosphere_pik era_interim \
+#-atmosphere_pik_temp_file initdata/{{settings.pism_atm_file}} \
+#-surface pdd \
+#-ocean pico \
+#-ocean_pico_file initdata/{{settings.pism_ocn_file}} \

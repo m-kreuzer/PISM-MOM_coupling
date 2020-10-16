@@ -394,7 +394,7 @@ pism_run() {
 
     # export all bash variables required by pism_run.sh
     #export SLURM_NTASKS ROOT_WORK_DIR PISM_PROJ_DIR PISM_WORK_DIR PISM_RESTART_FILE __TIMESTEP  PISM_TIME_BEGIN PISM_TIME_END POEM_TIME_END
-    export PISM_RESTART_FILE PISM_TIME_BEGIN PISM_TIME_END
+    export PISM_RESTART_FILE PISM_TIME_BEGIN PISM_TIME_END POEM_TIME_END
     # run pism executable
     time ./pism_run_script.sh
     RESULT=$?

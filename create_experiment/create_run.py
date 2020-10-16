@@ -99,6 +99,10 @@ def create_run(settings=settings, experiment=settings.experiment):
         print("Choose a different experiment name or remove " + settings.experiment_dir)
         sys.exit(1)
 
+    for d in ['x_MOM-to-PISM','x_PISM-to-MOM']:
+        dir_path = os.path.join(settings.experiment_dir,d) 
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
     print(" > created experiment directory " + settings.experiment_dir)
 
     # create main coupling script from template
@@ -119,14 +123,23 @@ def create_run(settings=settings, experiment=settings.experiment):
     print("   - copied PISM binary {} to PISM/bin".format(settings.pism_sys_bin))
 
     # copy PISM input files to PISM/initdata/
-    shutil.copy2(settings.pism_infile_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_infile_path))
-    shutil.copy2(settings.pism_atm_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_atm_data_path))
-    shutil.copy2(settings.pism_ocn_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocn_data_path))
-    shutil.copy2(settings.pism_ocnkill_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocnkill_data_path))
+    pism_input_files_to_copy = [
+            settings.pism_infile_path, 
+            settings.pism_atm_data_path, 
+            settings.pism_ocn_data_path,
+            settings.pism_ocnkill_data_path]
+    for f in pism_input_files_to_copy:
+        shutil.copy2(f, os.path.join(settings.pism_exp_dir, 'initdata'))
+        print("   - copied PISM input file {} to PISM/initdata".format(f))
+
+    #shutil.copy2(settings.pism_infile_path, os.path.join(settings.pism_exp_dir, 'initdata'))
+    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_infile_path))
+    #shutil.copy2(settings.pism_atm_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
+    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_atm_data_path))
+    #shutil.copy2(settings.pism_ocn_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
+    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocn_data_path))
+    #shutil.copy2(settings.pism_ocnkill_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
+    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocnkill_data_path))
 
 
     # prepare pism config_override file
