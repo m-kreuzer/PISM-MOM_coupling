@@ -82,7 +82,6 @@ PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/result_equi_16km_100000y
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/2951.pism_out.nc) 
 #PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/deltaTO_4deg.nc) 
 PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/schmidtko_initmip16km.nc) 
-PISM_SHIFTED_RESTART_PATH_FILE=$ROOT_WORK_DIR/pre-processing/PISM_restart_timeshift_path.txt
 # set filename of last PISM output file processed by PISM-to-MOM_processing.py
 #   must be in $ROOT_WORK_DIR/x_PISM-to-MOM
 #   -> only set if restarting from a coupled run
@@ -466,7 +465,7 @@ process_mom_to_pism() {
         -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
         -f temp salt                                                        \
         -d $BASIN_SHELF_DEPTH_FILE                                          \
-        -o $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc        \
+        -o $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc     \
         -v
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"

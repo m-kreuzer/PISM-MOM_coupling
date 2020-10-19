@@ -52,6 +52,8 @@ srun -n $SLURM_NTASKS $PISM_PROJ_DIR/bin/pismr \
 -extra_vars basal_mass_flux_floating,basal_mass_flux_grounded,basins,pico_overturning,pico_salinity_box0,pico_temperature_box0,pico_box_mask,pico_shelf_mask,pico_ice_rise_mask,pico_basal_melt_rate,pico_contshelf_mask,pico_salinity,pico_temperature,pico_T_star,pico_basal_temperature,amount_fluxes,pdd_fluxes,ice_mass,enthalpy \
 -save_file results/$PISM_TIME_END.pism_snap.nc \
 -save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
+-ts_file results/$PISM_TIME_END.pism_ts.nc \
+-ts_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
     > results/$PISM_TIME_END.pism.out 2>&1
 
 RESULT=$?
