@@ -37,7 +37,8 @@ Arguments:
         a netCDF file with variables to be processed
     -b basin_file
         a netCDF file with variable 'basins' describing the basins
-        of the PICO model
+        of the PICO model as well as the variable 'pico_contshelf_mask'
+        with the continental shelf mask
     -e edge_file
         a netCDF file with variable 'field_edge' which masks all
         grid cells with empty neighbouring cells. This file was precomputed
@@ -152,7 +153,8 @@ if __name__ == "__main__":
         print()
        
     # preparing data structure to manage fields to be filled
-    d = dict({'field_in':None, 'field_out':None ,'dim':None})
+    d = dict({'field_in':None, 'field_out':None , 'field_out_basin_mean': None,
+                'dim':None})
     fields = dict({f: cp.deepcopy(d)  for f in args.var_fill})
     
 
@@ -177,8 +179,20 @@ if __name__ == "__main__":
     except:
         print("Variable 'basins' can't be read from BASIN_FILE '" 
                 + args.basin_file + "'!")
+    try:
+        # mask values:
+        #   0 = grounded ice or open ocean
+        #   1 = continental shelf but ignored
+        #   2 = continental shelf as used in PICO
+        contshelf_mask = np.squeeze(nc_b.variables['pico_contshelf_mask'][:])
+        contshelf_mask_dtype = nc_b.variables['pico_contshelf_mask'].datatype
+        contshelf_mask_dim   = nc_b.variables['pico_contshelf_mask'].dimensions
+        contshelf_mask_dict  = nc_b.variables['pico_contshelf_mask'].__dict__
+    except:
+        print("Variable 'pico_contshelf_mask' can't be read from BASIN_FILE '" 
+                + args.basin_file + "'!")
 
-    # check basin dimension
+    # check dimensions
     basin_ndim = len(basins.shape)
     if basin_ndim != 2 and basin_ndim != 3:
         raise ValueError( str("basin field is of dimension " + \
@@ -186,6 +200,19 @@ if __name__ == "__main__":
     if basin_ndim == 3:
         # cut of time dimension and take first time slice
         basins = basins[0,:,:]
+
+    contshelf_ndim = len(contshelf_mask.shape)
+    if contshelf_ndim != 2 and contshelf_ndim != 3:
+        raise ValueError( str("pico continental shelf mask field is of dimension " + \
+                            str( contshelf_ndim ) + ". Expected: 2 or 3.") )
+    if contshelf_ndim == 3:
+        # cut of time dimension and take first time slice
+        contshelf_mask = contshelf_mask[0,:,:]
+
+    assert_str = ("non matching dimensions of variables 'basins' and "
+                  "'pico_contshelf_mask' in BASIN_FILE '{}'.")
+    assert basins.shape == contshelf_mask.shape, \
+                assert_str.format(args.basin_file)
         
     # create list with all occuring basins
     basin_vals = np.unique(basins)
@@ -271,6 +298,8 @@ if __name__ == "__main__":
 
         fields[f]['field_out'] = np.zeros(shape=fields[f]['field_in'].shape[-2:])
         fields[f]['field_out'][:] = np.nan
+        fields[f]['field_out_basin_mean'] = np.zeros(shape=fields[f]['field_in'].shape[-2:])
+        fields[f]['field_out_basin_mean'][:] = np.nan
         print(fields[f]['field_out'].shape)
 
     nc_src.close()
@@ -395,7 +424,6 @@ if __name__ == "__main__":
 
     t_fill_end = t.time()
 
-
     ### --------------- depth interpolation ---------------------------------
     t_interp_start = t.time()    
 
@@ -460,7 +488,37 @@ if __name__ == "__main__":
 
     t_interp_end = t.time()    
     
+
+    ### --------------------------- basin averaging -------------------------
+    t_basin_ave_start = t.time()
+    if args.verbose:
+        print('... calculate basin means')
+
+    # iterate through fields to be filled
+    for f in fields.keys():
+        if args.verbose: 
+            print('\t > ', f)
+        
+        # check field dimension
+        field = fields[f]['field_out']
+        field_shape = field.shape
+
+        for b in basin_vals:
+            # mask of current basin
+            m__basin = (basins==b)
+            # mask of contshelf condition == True
+            m__contshelf = (contshelf_mask==2)
+            # mask of current basin & contshelf
+            m__basin_contshelf = m__basin & m__contshelf
+
+            # calculate mean and write to array 
+            basin_mean = field[m__basin].mean()
+            #fields[f]['field_out_basin_mean'][m__basin] = basin_mean
+            fields[f]['field_out_basin_mean'][m__basin_contshelf] = basin_mean
+
+    t_basin_ave_end = t.time()
     
+
     ### -------------------- write result to output file -------------------- 
 
     ###   read input file 
@@ -519,7 +577,7 @@ if __name__ == "__main__":
     nc_dst.setncatts(glob_dict)
 
     ### copy variables from field_file incl attributes & dimensions
-    var_copy = ['lon','lon_bnds','lat','lat_bnds','x','y','time','time_bnds']
+    var_copy = ['lon','lon_bnds','lat','lat_bnds','x','y']
     for name, var in nc_src.variables.items():
         if name in var_copy:
             # create variables with correct datatype and dimensions
@@ -528,6 +586,18 @@ if __name__ == "__main__":
             nc_dst[name].setncatts(nc_src[name].__dict__)
             # copy variable data
             nc_dst[name][:] = nc_src[name][:]
+    for name, var in nc_src.variables.items():
+        if name in ['time','time_bnds']:
+            # create variables with correct datatype and dimensions
+            nc_dst.createVariable(name, var.datatype, var.dimensions)
+            # copy variable attributes
+            nc_dst[name].setncatts(nc_src[name].__dict__)
+            # copy variable data
+            if name == 'time':
+                nc_dst['time'][:] = nc_src['time'][-1]
+            if name == 'time_bnds':
+                nc_dst['time_bnds'][:] = nc_src['time_bnds'][-2]
+
     
     # write depth condensed fields     
     for name in fields:
@@ -540,16 +610,28 @@ if __name__ == "__main__":
         else:
             name_out = name + '_dcon'   # depth condensed
             field_unit = 'unknown'
+        
+        # remove depth dimension but keep time
+        dim_out = list(nc_src.variables['temp'].dimensions)
+        dim_out.remove("st_ocean")
 
-        nc_dst.createVariable(name_out, 
-                              nc_src.variables[name].datatype, 
-                              nc_src.variables['temp'].dimensions[-2:])
-        var_dict = nc_src[name].__dict__
-        var_dict['long_name'] += (" depth_condensed: linear depth interpolated "
-                                  "for basin shelf depth")
-        var_dict['units'] = field_unit
-        nc_dst[name_out].setncatts(var_dict)
-        nc_dst[name_out][:] = fields[name]['field_out'][:]
+        for out_field in ['field_out', 'field_out_basin_mean']:
+            if out_field == 'field_out_basin_mean':
+                name_out += '_basin_mean'
+            nc_dst.createVariable(name_out, 
+                                  nc_src.variables[name].datatype, 
+                                  #nc_src.variables['temp'].dimensions[-2:])
+                                  dim_out)
+            var_dict = nc_src[name].__dict__
+            var_dict['long_name'] += (" depth_condensed: linear depth interpolated "
+                                      "for basin shelf depth")
+            if out_field == 'field_out_basin_mean':
+                var_dict['long_name'] += (" -- mean value for continental shelf"
+                                          " region of each basin")
+            var_dict['units'] = field_unit
+            nc_dst[name_out].setncatts(var_dict)
+            field_out = fields[name][out_field]
+            nc_dst[name_out][:] = np.array(field_out)[np.newaxis,:] # added time dimension
 
     # write basins
     nc_dst.createVariable('basins', 
@@ -594,6 +676,7 @@ if __name__ == "__main__":
         t_read_files    = t_read_end            - t_read_start
         t_fill          = t_fill_end            - t_fill_start
         t_interp        = t_interp_end          - t_interp_start        
+        t_basin_ave     = t_basin_ave_end       - t_basin_ave_start
         t_write_outfile = t_write_outfile_end   - t_write_outfile_start
 
         format_total = "{:<15} \t\t {:9.2f} s \t {:6.2f} %"
@@ -615,6 +698,8 @@ if __name__ == "__main__":
                                     t_fill/t_main*100))
         print(format_sub.format('interpolate depths', t_interp, 
                                     t_interp/t_main*100))
+        print(format_sub.format('basin average', t_basin_ave,
+                                    t_basin_ave/t_main*100))
         print(format_sub.format('write output file', t_write_outfile, 
                                     t_write_outfile/t_main*100))
         print('{:.^58}'.format(''))

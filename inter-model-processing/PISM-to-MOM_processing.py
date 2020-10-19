@@ -236,15 +236,15 @@ if __name__ == "__main__":
                             str( pism_tend_discharge_ndim ) + ". Expected: 2.") )
 
      # if no surface runoff variable, initialize field with zeros  
-     if 'surface_runoff_flux_accumulator' in nc_fh.variables:
-         pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
-         pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
-         pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
-         if pism_surf_runoff_ndim != 2:
-             raise ValueError( str("flux field is of dimension " + \
-                                 str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
-     else:
-         pism_surf_runoff = np.zeros_like(pism_tend_discharge)
+    if 'surface_runoff_flux_accumulator' in nc_fh.variables:
+        pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
+        pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
+        pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
+        if pism_surf_runoff_ndim != 2:
+            raise ValueError( str("flux field is of dimension " + \
+                                str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
+    else:
+        pism_surf_runoff = np.zeros_like(pism_tend_discharge)
 
     ### read time span for PISM accumulation variables in snapshot file
     #   time in unit: [s]

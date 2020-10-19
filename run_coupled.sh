@@ -459,7 +459,7 @@ process_mom_to_pism() {
     echo "  > regriddedMOM-to-PISM_processing script"
     ./regriddedMOM-to-PISM_processing.py                                    \
         -i $REGRID_OUT                                                      \
-        -b $PISM_WORK_DIR/prerun/prerun.pism_out.nc                         \
+        -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
         -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
         -f temp salt                                                        \
         -d $BASIN_SHELF_DEPTH_FILE                                          \
@@ -527,7 +527,21 @@ concat_output_files(){
         $SIM_START_YEAR-$SIM_END_YEAR.pism_extra.nc
     ncrcat --overwrite $(echo `seq -f "%04g.pism_snap.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_snap.nc
+    ncrcat --overwrite $(echo `seq -f "%04g.pism_ts.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.pism_ts.nc
     cd $ROOT_WORK_DIR
+    
+    # concatenate inter-model-processing files
+    cd $ROOT_WORK_DIR/x_MOM-to-PISM
+    ncrcat --overwrite $(echo `seq -f "%04g0101.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.PISM_input.nc
+    cd $ROOT_WORK_DIR/x_PISM-to-MOM
+    #ncrcat --overwrite $(echo `seq -f "%04g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    #    $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
+    ncrcat --overwrite $(echo `seq -f "%04g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
+    cd $ROOT_WORK_DIR
+
 }
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
