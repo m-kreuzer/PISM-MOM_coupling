@@ -38,7 +38,7 @@ srun -n $SLURM_NTASKS $PISM_PROJ_DIR/bin/pismr \
 -o $PISM_WORK_DIR/prerun/prerun.pism_out.nc \
 -extra_file $PISM_WORK_DIR/prerun/prerun.pism_extra.nc  \
 -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
--extra_vars basal_mass_flux_floating,basins,amount_fluxes,pdd_fluxes \
+-extra_vars basal_mass_flux_floating,basins,pico_contshelf_mask,amount_fluxes,pdd_fluxes \
 -save_file $PISM_WORK_DIR/prerun/prerun.pism_snap.nc \
 -save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
     > $PISM_WORK_DIR/prerun/prerun.pism.out 2>&1
