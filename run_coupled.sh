@@ -48,7 +48,7 @@
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
 
 
-START_SCRIPT=$(date +%s.%N)
+TIME_START_SCRIPT=$(date +%s.%N)
 
 # ---------------------------- define project paths ----------------------------
 #POEM_PROJ_DIR=/p/projects/climber3/kreuzer/POEM/MOM5_PISM_coupling/mom5.0.2
@@ -60,6 +60,7 @@ POEM_WORK_DIR=$ROOT_WORK_DIR/POEM
 PISM_WORK_DIR=$ROOT_WORK_DIR/PISM
 
 POEM_TOOLS_DIR=$POEM_PROJ_DIR/bin
+
 
 # -------------------------------- set parameters ------------------------------
 # time & coupling
@@ -393,62 +394,17 @@ pism_run() {
     if [ $CPL_ITERATION -eq 2 ]; then SIM_START_YEAR=$PISM_TIME_BEGIN; fi
     SIM_END_YEAR=$PISM_TIME_END
 
+    # export all bash variables required by pism_run.sh
+    export SLURM_NTASKS ROOT_WORK_DIR PISM_PROJ_DIR PISM_WORK_DIR PISM_RESTART_FILE __TIMESTEP  PISM_TIME_BEGIN PISM_TIME_END POEM_TIME_END
     # run pism executable
-    time srun -n $SLURM_NTASKS $PISM_PROJ_DIR/bin/pismr \
-    -i $PISM_RESTART_FILE \
-    -bootstrap -Mx $P_Mx -My $P_Mx -Lz $P_Lz -Lbz $P_Lbz -Mz $P_Mz -Mbz $P_Mbz \
-    -config_override ./initdata/pism_config_override.nc \
-    -y $__TIMESTEP \
-    -verbose 2 \
-    -options_left \
-    -o_format netcdf4_parallel \
-    -atmosphere pik \
-    -atmosphere_pik era_interim \
-    -atmosphere_pik_temp_file initdata/racmo_wessem_initmip16km_mean1986_2005.nc \
-    -surface pdd \
-    -ocean pico \
-    -ocean_pico_file $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc  \
-    -gamma_T 1.0e-5 \
-    -overturning_coeff 0.5e6 \
-    -exclude_icerises \
-    -continental_shelf_depth -2000 \
-    -bed_def lc \
-    -hydrology null \
-    -calving eigen_calving,ocean_kill \
-    -eigen_calving_K 1.0e17  \
-    -ocean_kill_file initdata/bedmap2_albmap_racmo_wessem_tillphi_pism_initmip16km.nc \
-    -pik \
-    -sia_e 1.0 \
-    -ssa_e 1.0 \
-    -ssa_method fd \
-    -stress_balance ssa+sia \
-    -sia_flow_law gpbld \
-    -ssa_flow_law gpbld \
-    -pseudo_plastic \
-    -pseudo_plastic_q 0.75 \
-    -pseudo_plastic_uthreshold 100.0 \
-    -till_effective_fraction_overburden 0.04 \
-    -subgl \
-    -no_subgl_basal_melt \
-    -o results/$PISM_TIME_END.pism_out.nc \
-    -o_size big \
-    -log_view \
-    -extra_file results/$PISM_TIME_END.pism_extra.nc \
-    -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
-    -extra_vars basal_mass_flux_floating,basal_mass_flux_grounded,basins,pico_overturning,pico_salinity_box0,pico_temperature_box0,pico_box_mask,pico_shelf_mask,pico_ice_rise_mask,pico_basal_melt_rate,pico_contshelf_mask,pico_salinity,pico_temperature,pico_T_star,pico_basal_temperature,amount_fluxes,pdd_fluxes,ice_mass,enthalpy \
-    -save_file results/$PISM_TIME_END.pism_snap.nc \
-    -save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
-        > results/$PISM_TIME_END.pism.out 2>&1
-
-    #-extra_vars basal_mass_flux_floating,basins \
-
+    time ./pism_run_script.sh
     RESULT=$?
+    return_check $RESULT "PISM_run.$PISM_TIME_END"
 
     # use PISM output file for next restart
     PISM_RESTART_FILE=$(readlink -f results/$PISM_TIME_END.pism_out.nc)
-    echo $PISM_RESTART_FILE
+    echo PISM_RESTART_FILE: $PISM_RESTART_FILE
 
-    return_check $RESULT "PISM_run.$PISM_TIME_END"
 
     END_PISM_RUN=$(date +%s.%N)
     TIME_PISM_RUN=$(echo "$END_PISM_RUN - $START_PISM_RUN" | bc)
@@ -473,29 +429,12 @@ pism_prerun() {
 
     if [ ! -d $PISM_WORK_DIR/prerun ] ; then mkdir $PISM_WORK_DIR/prerun ; fi
 
-    # run pism executable
-    time srun -n $SLURM_NTASKS $PISM_PROJ_DIR/bin/pismr \
-    -i $PISM_RESTART_FILE \
-    -bootstrap -Mx $P_Mx -My $P_Mx -Lz $P_Lz -Lbz $P_Lbz -Mz $P_Mz -Mbz $P_Mbz \
-    -config_override $PISM_WORK_DIR/initdata/pism_config_override.nc \
-    -y $__TIMESTEP \
-    -verbose 2 \
-    -options_left \
-    -o_format netcdf4_parallel \
-    -atmosphere pik \
-    -atmosphere_pik era_interim \
-    -atmosphere_pik_temp_file initdata/racmo_wessem_initmip16km_mean1986_2005.nc \
-    -surface pdd \
-    -ocean pico \
-    -ocean_pico_file $PISM_OCEAN_START_FILE \
-    -o $PISM_WORK_DIR/prerun/prerun.pism_out.nc \
-    -extra_file $PISM_WORK_DIR/prerun/prerun.pism_extra.nc  \
-    -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
-    -extra_vars basal_mass_flux_floating,basins,amount_fluxes,pdd_fluxes \
-    -save_file $PISM_WORK_DIR/prerun/prerun.pism_snap.nc \
-    -save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
-        > $PISM_WORK_DIR/prerun/prerun.pism.out 2>&1
+    # export all bash variables required by pism_run.sh
+    export SLURM_NTASKS ROOT_WORK_DIR PISM_PROJ_DIR PISM_WORK_DIR PISM_RESTART_FILE PISM_OCEAN_START_FILE __TIMESTEP  PISM_TIME_BEGIN PISM_TIME_END 
+    export P_Mx P_Mx P_Lz P_Lbz P_Mz P_Mbz 
 
+    # run pism executable
+    time ./pism_prerun_script.sh
     RESULT=$?
     return_check $RESULT "PISM_pre-run"
 }
@@ -757,6 +696,7 @@ sed -e '/&coupler_nml/a\' -e "\tmonths = $CPL_TIMESTEP_MONTHS," \
 ### --------------------- synchronise timestamp of models ---------------------
 
 cd $ROOT_WORK_DIR/pre-processing
+PISM_SHIFTED_RESTART_PATH_FILE=$ROOT_WORK_DIR/pre-processing/PISM_restart_timeshift_path.txt
 
 #
 echo " >> synchronise timestamps of PISM and MOM/POEM"
@@ -925,8 +865,8 @@ print_stat() {
     printf "$format" $1 $2  $TIME_PERCENT
 }
 
-END_SCRIPT=$(date +%s.%N)
-TIME_SCRIPT=$(echo "$END_SCRIPT - $START_SCRIPT" | bc)
+TIME_END_SCRIPT=$(date +%s.%N)
+TIME_SCRIPT=$(echo "$TIME_END_SCRIPT - $TIME_START_SCRIPT" | bc)
 
 
 str="-------------"

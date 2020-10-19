@@ -269,7 +269,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
 
-    fh_outfile.write("# relative path to time shifted PISM restart file written by PISM_timeshift.py \n")
+    fh_outfile.write("# path to time shifted PISM restart file written by PISM_timeshift.py \n")
     fh_outfile.write(pism_restart_file_shift)
     fh_outfile.close()
 
