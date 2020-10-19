@@ -463,7 +463,7 @@ process_mom_to_pism() {
     echo "  > regriddedMOM-to-PISM_processing script"
     ./regriddedMOM-to-PISM_processing.py                                    \
         -i $REGRID_OUT                                                      \
-        -b $PISM_WORK_DIR/prerun/prerun.pism_out.nc                         \
+        -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
         -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
         -f temp salt                                                        \
         -d $BASIN_SHELF_DEPTH_FILE                                          \
@@ -473,11 +473,13 @@ process_mom_to_pism() {
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
     # anomaly approach: change Schmidtko PICO forcing by processed_MOM anomaly
-    ncbo --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+    ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
-    ncbo --op_typ=add $PISM_OCEAN_START_FILE \
+    ncbo -O --op_typ=add $PISM_OCEAN_START_FILE \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
 
     END_MOM_to_PISM_PROCESS=$(date +%s.%N)
@@ -542,6 +544,22 @@ concat_output_files(){
     ncrcat --overwrite $(echo `seq -f "%04g.pism_ts.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_ts.nc
     cd $ROOT_WORK_DIR
+    
+    # concatenate inter-model-processing files
+    cd $ROOT_WORK_DIR/x_MOM-to-PISM
+    ncrcat --overwrite $(echo `seq -f "%04g0101.processed_MOM.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.nc
+    ncrcat --overwrite $(echo `seq -f "%04g0101.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.anomaly.nc
+    ncrcat --overwrite $(echo `seq -f "%04g0101.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.PISM_input.nc
+    cd $ROOT_WORK_DIR/x_PISM-to-MOM
+    #ncrcat --overwrite $(echo `seq -f "%04g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    #    $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
+    ncrcat --overwrite $(echo `seq -f "%04g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
+    cd $ROOT_WORK_DIR
+
 }
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
