@@ -79,7 +79,8 @@ PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/result_equi_16km_100000y
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/equi.nc) 
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/100011.pism_out.nc) 
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/2951.pism_out.nc) 
-PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/deltaTO_4deg.nc) 
+#PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/deltaTO_4deg.nc) 
+PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/schmidtko_initmip16km.nc) 
 PISM_SHIFTED_RESTART_PATH_FILE=$ROOT_WORK_DIR/pre-processing/PISM_restart_timeshift_path.txt
 # set filename of last PISM output file processed by PISM-to-MOM_processing.py
 #   must be in $ROOT_WORK_DIR/x_PISM-to-MOM
@@ -272,6 +273,7 @@ poem_run_postprocess() {
     # write to global variables
     POEM_TIME_BEGIN=$begindate
     POEM_TIME_END=$enddate
+    if [ $CPL_ITERATION -eq 1 ]; then POEM_TIME_END_IT1=$enddate; fi
     echo POEM TIME BEGIN $POEM_TIME_BEGIN
     echo POEM TIME END $POEM_TIME_END
 
@@ -530,6 +532,14 @@ process_mom_to_pism() {
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
+    # anomaly approach: change Schmidtko PICO forcing by processed_MOM anomaly
+    ncbo --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
+    ncbo --op_typ=add $PISM_OCEAN_START_FILE \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+
     END_MOM_to_PISM_PROCESS=$(date +%s.%N)
     TIME_MOM_to_PISM_PROCESS_T=$(echo "$END_MOM_to_PISM_PROCESS - $START_MOM_to_PISM_PROCESS" | bc)
     TIME_MOM_to_PISM_PROCESS=$(echo "$TIME_MOM_to_PISM_PROCESS + $TIME_MOM_to_PISM_PROCESS_T" | bc)
@@ -589,6 +599,8 @@ concat_output_files(){
         $SIM_START_YEAR-$SIM_END_YEAR.pism_extra.nc
     ncrcat --overwrite $(echo `seq -f "%04g.pism_snap.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_snap.nc
+    ncrcat --overwrite $(echo `seq -f "%04g.pism_ts.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.pism_ts.nc
     cd $ROOT_WORK_DIR
 }
 
