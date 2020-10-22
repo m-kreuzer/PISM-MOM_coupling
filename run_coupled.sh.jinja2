@@ -83,6 +83,7 @@ PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/schmidtko_initmip16k
 #   -> only set if restarting from a coupled run
 #PISM_TO_MOM_FLUX_RESTART_FILE="2951.fluxes.nc"
 
+DO_OCEAN_ANOMALY=0      # 1 = True, 0 = False
 
 
 # ------------------------------ define functions-------------------------------
@@ -472,15 +473,22 @@ process_mom_to_pism() {
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
-    # anomaly approach: change Schmidtko PICO forcing by processed_MOM anomaly
-    ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
-    ncbo -O --op_typ=add $PISM_OCEAN_START_FILE \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
-    ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    if [ $DO_OCEAN_ANOMALY -eq 1 ]; then
+        # anomaly approach: change Schmidtko PICO forcing by processed_MOM anomaly
+        ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
+        ncbo -O --op_typ=add $PISM_OCEAN_START_FILE \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+        ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    else
+        # link output of regriddedMOM-to-PISM_processing to PISM PICO input file  
+        cd $ROOT_WORK_DIR/x_MOM-to-PISM
+        ln -sf $POEM_TIME_END.processed_MOM.nc $POEM_TIME_END.PISM_input.nc
+        cd $ROOT_WORK_DIR/inter-model-processing
+    fi
 
     END_MOM_to_PISM_PROCESS=$(date +%s.%N)
     TIME_MOM_to_PISM_PROCESS_T=$(echo "$END_MOM_to_PISM_PROCESS - $START_MOM_to_PISM_PROCESS" | bc)
@@ -739,7 +747,7 @@ poem_prerun
 poem_prerun_postprocess
 
 echo ">>> PISM pre-run"
-pism_prerun 10
+pism_prerun 2 
 
 END_PRERUNS=$(date +%s.%N)
 TIME_PRERUNS=$(echo "$END_PRERUNS - $START_PRERUNS" | bc)
