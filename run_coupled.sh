@@ -80,12 +80,14 @@ PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/result_equi_16km_100000y
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/equi.nc) 
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/100011.pism_out.nc) 
 #PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/2951.pism_out.nc) 
-PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/deltaTO_4deg.nc) 
+#PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/deltaTO_4deg.nc) 
+PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/schmidtko_initmip16km.nc) 
 # set filename of last PISM output file processed by PISM-to-MOM_processing.py
 #   must be in $ROOT_WORK_DIR/x_PISM-to-MOM
 #   -> only set if restarting from a coupled run
 #PISM_TO_MOM_FLUX_RESTART_FILE="2951.fluxes.nc"
 
+DO_OCEAN_ANOMALY=0      # 1 = True, 0 = False
 
 
 # ------------------------------ define functions-------------------------------
@@ -272,6 +274,7 @@ poem_run_postprocess() {
     # write to global variables
     POEM_TIME_BEGIN=$begindate
     POEM_TIME_END=$enddate
+    if [ $CPL_ITERATION -eq 1 ]; then POEM_TIME_END_IT1=$enddate; fi
     echo POEM TIME BEGIN $POEM_TIME_BEGIN
     echo POEM TIME END $POEM_TIME_END
 
@@ -463,11 +466,28 @@ process_mom_to_pism() {
         -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
         -f temp salt                                                        \
         -d $BASIN_SHELF_DEPTH_FILE                                          \
-        -o $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc        \
+        -o $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc     \
         -v
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
+    if [ $DO_OCEAN_ANOMALY -eq 1 ]; then
+        # anomaly approach: change Schmidtko PICO forcing by processed_MOM anomaly
+        ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
+        ncbo -O --op_typ=add $PISM_OCEAN_START_FILE \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+        ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    else
+        # link output of regriddedMOM-to-PISM_processing to PISM PICO input file  
+        cd $ROOT_WORK_DIR/x_MOM-to-PISM
+        ln -sf $POEM_TIME_END.processed_MOM.nc $POEM_TIME_END.PISM_input.nc
+        cd $ROOT_WORK_DIR/inter-model-processing
+    fi
+
     END_MOM_to_PISM_PROCESS=$(date +%s.%N)
     TIME_MOM_to_PISM_PROCESS_T=$(echo "$END_MOM_to_PISM_PROCESS - $START_MOM_to_PISM_PROCESS" | bc)
     TIME_MOM_to_PISM_PROCESS=$(echo "$TIME_MOM_to_PISM_PROCESS + $TIME_MOM_to_PISM_PROCESS_T" | bc)
@@ -533,11 +553,13 @@ concat_output_files(){
     
     # concatenate inter-model-processing files
     cd $ROOT_WORK_DIR/x_MOM-to-PISM
+    ncrcat --overwrite $(echo `seq -f "%04g0101.processed_MOM.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.nc
+    ncrcat --overwrite $(echo `seq -f "%04g0101.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.anomaly.nc
     ncrcat --overwrite $(echo `seq -f "%04g0101.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.PISM_input.nc
     cd $ROOT_WORK_DIR/x_PISM-to-MOM
-    #ncrcat --overwrite $(echo `seq -f "%04g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
-    #    $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
     ncrcat --overwrite $(echo `seq -f "%04g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
     cd $ROOT_WORK_DIR
@@ -721,7 +743,7 @@ poem_prerun
 poem_prerun_postprocess
 
 echo ">>> PISM pre-run"
-pism_prerun 10
+pism_prerun 2 
 
 END_PRERUNS=$(date +%s.%N)
 TIME_PRERUNS=$(echo "$END_PRERUNS - $START_PRERUNS" | bc)
