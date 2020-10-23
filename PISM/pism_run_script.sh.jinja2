@@ -13,14 +13,11 @@
 -i $PISM_RESTART_FILE \
 -config_override initdata/config_override.nc \
 -y {{settings.coupling_timestep}} \
--verbose 2 \
--options_left \
--o_format netcdf4_parallel \
--surface given \
--surface_given_file initdata/{{settings.pism_atm_file}} \
+{{settings.pism_general_opt}} \
+{{settings.pism_atm_opt}} \
+{{settings.pism_add_opt}} \
 -ocean pico \
 -ocean_pico_file ../x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc  \
--log_view \
 -extra_file results/$PISM_TIME_END.pism_extra.nc \
 -extra_times $PISM_TIME_BEGIN:{{settings.pism_diag_extra_timestep}}:$PISM_TIME_END \
 -extra_vars {{settings.pism_extra_vars}} \

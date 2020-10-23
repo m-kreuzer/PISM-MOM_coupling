@@ -10,8 +10,8 @@ coupl_template_dir = "/p/projects/pism/kreuzer/software/PISM-MOM_coupling"
 
 ### PISM paths
 #pism_code_dir = "/p/projects/pism/kreuzer/software/pism1.2.1"
-#pism_code_dir = "/p/projects/climber3/kreuzerPISM/pism1.1"
-pism_code_dir = "/home/reese/pism_code/pism2019/pism"
+pism_code_dir = "/p/projects/climber3/kreuzer/PISM/pism1.1"
+#pism_code_dir = "/home/reese/pism_code/pism2019/pism"
 pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
 
 ### POEM paths

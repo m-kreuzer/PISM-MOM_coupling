@@ -9,33 +9,21 @@
 # input/restart file $PISM_RESTART_FILE taken from in run_coupled.sh
 
 
-#echo SLURM_NTASKS:      $SLURM_NTASKS 
-#echo ROOT_WORK_DIR:     $ROOT_WORK_DIR
-#echo PISM_PROJ_DIR:     $PISM_PROJ_DIR 
-#echo PISM_WORK_DIR:     $PISM_WORK_DIR 
 echo PISM_RESTART_FILE: $PISM_RESTART_FILE
 echo __TIMESTEP:        $__TIMESTEP  
 echo PISM_TIME_BEGIN:   $PISM_TIME_BEGIN
 echo PISM_TIME_END:     $PISM_TIME_END 
-#echo $SLURM_NTASKS $ROOT_WORK_DIR $PISM_PROJ_DIR $PISM_WORK_DIR $PISM_RESTART_FILE $__TIMESTEP $PISM_TIME_BEGIN $PISM_TIME_END 
-#echo SLURM_NTASKS $SLURM_NTASKS
-
-#module purge
-#module load pism/stable1.0
 
 {{settings.pism_mpi_do}} {{settings.slurm_tasks}} {{settings.pism_exp_bin}} \
 -i $PISM_RESTART_FILE \
 -bootstrap {{settings.pism_grid}} \
 -config_override initdata/config_override.nc \
 -y $__TIMESTEP \
--verbose 2 \
--options_left \
--o_format netcdf4_parallel \
--surface given \
--surface_given_file initdata/{{settings.pism_atm_file}} \
+{{settings.pism_general_opt}} \
+{{settings.pism_atm_opt}} \
+{{settings.pism_add_opt}} \
 -ocean pico \
 -ocean_pico_file initdata/{{settings.pism_ocn_file}} \
--log_view \
 -extra_file prerun/prerun.pism_extra.nc  \
 -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
 -extra_vars basal_mass_flux_floating,basins,amount_fluxes,pico_contshelf_mask \
@@ -52,9 +40,3 @@ exit $RESULT
 
 
 
-#-atmosphere pik \
-#-atmosphere_pik era_interim \
-#-atmosphere_pik_temp_file initdata/{{settings.pism_atm_file}} \
-#-surface pdd \
-#-ocean pico \
-#-ocean_pico_file initdata/{{settings.pism_ocn_file}} \

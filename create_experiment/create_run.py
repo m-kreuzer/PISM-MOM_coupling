@@ -9,8 +9,6 @@ import distutils.dir_util as dist
 
 import settings 
 
-import code # debug
-
 
 
 def create_script_from_template(settings, template_file,
@@ -49,8 +47,8 @@ def get_pism_config_as_dict(settings):
 
     for l in open(settings.pism_config_file,"r"):
 
-        if "pism_config:" in l and "_doc" not in l:
-            key,val =  [s.strip() for s in l.split("=")]
+        if "pism_config:" in l:
+            key,val =  [s.strip() for s in l.split("=",1)]
             pism_configs[key.replace("pism_config:","")] = val.strip(";")
 
     return pism_configs
@@ -78,19 +76,6 @@ def copy_from_template(settings, filename,
 
 def create_run(settings=settings, experiment=settings.experiment):
     
-    #code.interact(local=locals())
-    ## directories and path definition
-    #global experiment_dir      
-    #experiment_dir      = os.path.join(settings.working_dir, experiment)
-    ## --- PISM ---
-    #pism_exp_dir        = os.path.join(experiment_dir, 'PISM')
-    #pism_exp_bin_dir    = os.path.join(experiment_dir, 'PISM', 'bin')
-    ##pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
-    ##pism_exp_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
-    #pism_sys_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
-    ## --- POEM ---
-    #poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
-
     # copy template structure to new experiment location
     try:
         shutil.copytree(settings.coupl_template_dir, settings.experiment_dir, symlinks=True)
