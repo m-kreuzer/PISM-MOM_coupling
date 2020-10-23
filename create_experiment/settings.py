@@ -125,6 +125,7 @@ override_params = collections.OrderedDict([
 # set pism diagnostic timesteps
 pism_diag_extra_timestep = 1
 pism_diag_snap_timestep = coupling_timestep 
+pism_diag_ts_timestep = coupling_timestep 
 
 
 

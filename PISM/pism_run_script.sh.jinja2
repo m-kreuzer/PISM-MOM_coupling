@@ -30,7 +30,7 @@ amount_fluxes,ice_mass \
 -save_file results/$PISM_TIME_END.pism_snap.nc \
 -save_times $PISM_TIME_BEGIN:{{settings.pism_diag_snap_timestep}}:$PISM_TIME_END \
 -ts_file results/$PISM_TIME_END.pism_ts.nc \
--ts_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
+-ts_times $PISM_TIME_BEGIN:{{settings.pism_diag_ts_timestep}}:$PISM_TIME_END \
 -o results/$PISM_TIME_END.pism_out.nc \
 -o_size big \
     > results/$PISM_TIME_END.pism.out 2>&1

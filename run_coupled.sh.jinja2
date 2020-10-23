@@ -372,7 +372,7 @@ poem_prerun_postprocess() {
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 pism_run() {
-    # $1 : timestep for pism run 
+    # $1 : pism runtime (years)
     echo '  > run PISM'
     echo " ... running PISM from $SIM_START_TIME to $SIM_END_TIME of $SIMULATION_TIME model years"
     local __TIMESTEP=$1
