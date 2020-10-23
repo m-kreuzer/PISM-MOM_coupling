@@ -47,10 +47,6 @@
 TIME_START_SCRIPT=$(date +%s.%N)
 
 # ---------------------------- define project paths ----------------------------
-#POEM_PROJ_DIR=/p/projects/climber3/kreuzer/POEM/MOM5_PISM_coupling/mom5.0.2
-#POEM_PROJ_DIR=/p/projects/climber3/kreuzer/POEM/trunk
-#PISM_PROJ_DIR=/p/projects/climber3/kreuzer/PISM/pism1.1
-
 ROOT_WORK_DIR=$PWD
 POEM_WORK_DIR=$ROOT_WORK_DIR/POEM
 PISM_WORK_DIR=$ROOT_WORK_DIR/PISM
@@ -63,23 +59,12 @@ POEM_TOOLS_DIR={{settings.poem_proj_dir}}/bin
 CPL_TIMESTEP={{settings.coupling_timestep}}            # in years, must be greater or equal 1
 MAX_CPL_ITERATION={{settings.max_cpl_iteration}}       # number of coupling iterations
 
-## PISM geometric parameters
-#P_Mx=381
-#P_My=381
-#P_Lz=6000
-#P_Lbz=2000
-#P_Mz=81
-#P_Mbz=21
-
 # initial PISM input files
-#PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/result_equi_16km_100000yrs.nc) 
 PISM_RESTART_FILE={{settings.pism_exp_dir}}/initdata/{{settings.pism_infile}}
-#PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/initdata/equi.nc) 
-#PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/100011.pism_out.nc) 
-#PISM_RESTART_FILE=$(readlink -f $PISM_WORK_DIR/results/2951.pism_out.nc) 
-PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/schmidtko_initmip16km.nc) 
+
+# when continuing from a previous coupled run:
 # set filename of last PISM output file processed by PISM-to-MOM_processing.py
-#   must be in $ROOT_WORK_DIR/x_PISM-to-MOM
+#   file must be in $ROOT_WORK_DIR/x_PISM-to-MOM
 #   -> only set if restarting from a coupled run
 #PISM_TO_MOM_FLUX_RESTART_FILE="2951.fluxes.nc"
 
@@ -477,7 +462,7 @@ process_mom_to_pism() {
         ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
             $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
             $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
-        ncbo -O --op_typ=add $PISM_OCEAN_START_FILE \
+        ncbo -O --op_typ=add $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_ocn_file}} \
             $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
             $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
         ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \

@@ -124,6 +124,11 @@ override_params = collections.OrderedDict([
 ])
 
 
+### PISM output
+
+# set extra variables
+pism_extra_vars = "mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount,amount_fluxes,ice_mass,pico_contshelf_mask"
+
 # set pism diagnostic timesteps
 pism_diag_extra_timestep = 1
 pism_diag_snap_timestep = coupling_timestep 
