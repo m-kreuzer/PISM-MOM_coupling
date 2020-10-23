@@ -7,7 +7,9 @@ import jinja2
 import collections
 import distutils.dir_util as dist
 
-import settings
+import settings 
+
+import code # debug
 
 
 
@@ -36,7 +38,7 @@ def create_script_from_template(settings, template_file,
     if os.path.basename(fname) in exec_files:
         os.chmod(fname, os.stat(fname).st_mode | stat.S_IEXEC)
 
-    print(' > created {} from template'.format(os.path.basename(fname)))
+    print('   - created {} from template'.format(os.path.basename(fname)))
 
 
 def get_pism_config_as_dict(settings):
@@ -74,7 +76,20 @@ def copy_from_template(settings, filename,
     print(os.path.join(settings.experiment_dir, filename), "copied.")
 
 
-if __name__ == "__main__":
+def create_run(settings=settings, experiment=settings.experiment):
+    
+    #code.interact(local=locals())
+    ## directories and path definition
+    #global experiment_dir      
+    #experiment_dir      = os.path.join(settings.working_dir, experiment)
+    ## --- PISM ---
+    #pism_exp_dir        = os.path.join(experiment_dir, 'PISM')
+    #pism_exp_bin_dir    = os.path.join(experiment_dir, 'PISM', 'bin')
+    ##pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
+    ##pism_exp_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
+    #pism_sys_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
+    ## --- POEM ---
+    #poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 
     # copy template structure to new experiment location
     try:
@@ -84,6 +99,10 @@ if __name__ == "__main__":
         print("Choose a different experiment name or remove " + settings.experiment_dir)
         sys.exit(1)
 
+    for d in ['x_MOM-to-PISM','x_PISM-to-MOM']:
+        dir_path = os.path.join(settings.experiment_dir,d) 
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
     print(" > created experiment directory " + settings.experiment_dir)
 
     # create main coupling script from template
@@ -95,23 +114,32 @@ if __name__ == "__main__":
         fpath = os.path.join(settings.pism_exp_dir, f)
         if not os.path.exists(fpath):
             os.makedirs(fpath)
-            print(" > created directory PISM/"+f)
+            print("   - created directory PISM/"+f)
 
     # copy PISM binary to experiment dir
     if not os.path.exists(settings.pism_exp_bin_dir):
         os.makedirs(settings.pism_exp_bin_dir)
     shutil.copy2(settings.pism_sys_bin, settings.pism_exp_bin_dir)
-    print(" > copied PISM binary {} to PISM/bin".format(settings.pism_sys_bin))
+    print("   - copied PISM binary {} to PISM/bin".format(settings.pism_sys_bin))
 
     # copy PISM input files to PISM/initdata/
-    shutil.copy2(settings.pism_infile_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    print(" > copied PISM input file {} to PISM/initdata".format(settings.pism_infile_path))
-    shutil.copy2(settings.pism_atm_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    print(" > copied PISM input file {} to PISM/initdata".format(settings.pism_atm_data_path))
-    shutil.copy2(settings.pism_ocn_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    print(" > copied PISM input file {} to PISM/initdata".format(settings.pism_ocn_data_path))
-    shutil.copy2(settings.pism_ocnkill_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    print(" > copied PISM input file {} to PISM/initdata".format(settings.pism_ocnkill_data_path))
+    pism_input_files_to_copy = [
+            settings.pism_infile_path, 
+            settings.pism_atm_data_path, 
+            settings.pism_ocn_data_path,
+            settings.pism_ocnkill_data_path]
+    for f in pism_input_files_to_copy:
+        shutil.copy2(f, os.path.join(settings.pism_exp_dir, 'initdata'))
+        print("   - copied PISM input file {} to PISM/initdata".format(f))
+
+    #shutil.copy2(settings.pism_infile_path, os.path.join(settings.pism_exp_dir, 'initdata'))
+    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_infile_path))
+    #shutil.copy2(settings.pism_atm_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
+    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_atm_data_path))
+    #shutil.copy2(settings.pism_ocn_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
+    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocn_data_path))
+    #shutil.copy2(settings.pism_ocnkill_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
+    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocnkill_data_path))
 
 
     # prepare pism config_override file
@@ -121,7 +149,7 @@ if __name__ == "__main__":
     cmd = "ncgen3 "+os.path.join(settings.pism_exp_dir,"initdata","config_override.cdl") \
             +" -o "+os.path.join(settings.pism_exp_dir,"initdata","config_override.nc")
     os.system(cmd)
-    print(" > created PISM/config_override.nc from PISM/config_override.cdl")
+    print("   - created PISM/config_override.nc from PISM/config_override.cdl")
 
     # create pism run scripts from template
     create_script_from_template(settings, "pism_prerun_script.sh.jinja2")
@@ -143,5 +171,26 @@ if __name__ == "__main__":
     # copy from template
     #shutil.copytree(settings.poem_template_dir, settings.poem_exp_dir, dirs_exist_ok=True, symlinks=True)
     dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir, preserve_symlinks=1, update=1, verbose=1)
-    print(" > copied POEM template {} to POEM".format(settings.poem_template_dir))
+    print("   - copied POEM template {} to POEM".format(settings.poem_template_dir))
+
+
+
+if __name__ == "__main__":
+
+    # redirect standard output to logfile
+    orig_stdout = sys.stdout
+    logfile = "create_run.log"
+    print("writing script output to '{}'".format(logfile))
+    print("  -> check there for possible errors")
+    with open(logfile, "w") as f:
+        sys.stdout = f
+        try:
+            create_run()
+        finally:
+            sys.stdout = orig_stdout
+
+    # copy logfile to experiment location
+    logfile_dst = os.path.join(settings.experiment_dir, logfile)
+    shutil.copy2(logfile, logfile_dst)
+    print("script ended sucessfully; logfile copied to {}".format(logfile_dst))
 

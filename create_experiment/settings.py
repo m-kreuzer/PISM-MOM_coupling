@@ -7,12 +7,10 @@
 import os
 import pwd
 import collections
-import pwd
 
 import pism_grids
 
 # import settings including path to input, output directories
-username = pwd.getpwuid(os.getuid()).pw_name
 from pikcluster_settings import *
 
 
@@ -25,48 +23,55 @@ from pikcluster_settings import *
 # FIXME
 #experiment = pism_code_version+"_075_"+grid_id+"_bedmachine_ensemble_amedtem" # no _
 experiment = "coupled_run_setup_test"
+#experiment_dir      = os.path.join(settings.working_dir, settings.experiment)
+experiment_dir      = os.path.join(working_dir, experiment)
 
 
 coupling_timestep = 10      # in years, must be greater or equal 1
 max_cpl_iteration = 40      # number of coupling iterations
 
-experiment_dir      = os.path.join(working_dir, experiment)
 
 # ------------------------------- POEM settings --------------------------------
 
 poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 
-
 # ------------------------------- PISM settings --------------------------------
 
 # select resolution of the run
-grid_id = "initmip16km" 
+#grid_id = "initmip16km" 
+grid_id = "initmip8km" 
 pism_grid = pism_grids.grids[grid_id]
 
-# directories and path definition
+# directories and path definitions
 pism_exp_dir        = os.path.join(experiment_dir, 'PISM')
 pism_exp_bin_dir    = os.path.join(experiment_dir, 'PISM', 'bin')
-#pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
-pism_exp_bin        = os.path.join(pism_code_dir, 'bin',pism_exec)
+pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
+#pism_exp_bin        = os.path.join(settings.pism_code_dir, 'bin', settings.pism_exec)
 pism_sys_bin        = os.path.join(pism_code_dir, 'bin', pism_exec)
 
-
-
 # input data
-pism_infile_dir = "/p/tmp/albrecht/pism19/pismOut/equi/equi9000/results"
-pism_infile = "result_equi_16km_100000yrs.nc"
+#pism_infile_dir = "/p/tmp/albrecht/pism19/pismOut/equi/equi9000/results"
+#pism_infile = "result_equi_16km_100000yrs.nc"
+pism_infile_dir = "/p/tmp/reese/pism_out/pism_025_initmip8km_ismip_merged_schmidtko_woa18_cold1.25_thkgradient_subgl_subglmelt_hmin700_decay7_7a241540/"
+pism_infile = "snapshots_112000.000.nc"
 pism_infile_path = os.path.join(pism_infile_dir, pism_infile)
 
-pism_atm_data_dir = os.path.join(pism_input_root_dir, "racmo_wessem")
-pism_atm_file = "racmo_wessem_"+grid_id+"_mean1986_2005.nc"
+#pism_atm_data_dir = os.path.join(pism_input_root_dir, "racmo_wessem")
+#pism_atm_file = "racmo_wessem_"+grid_id+"_mean1986_2005.nc"
+pism_atm_data_dir = os.path.join(pism_input_root_dir, "merged")
+pism_atm_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
 pism_atm_data_path = os.path.join(pism_atm_data_dir,pism_atm_file)
 
-pism_ocn_data_dir = os.path.join(pism_input_root_dir, "schmidtko")
-pism_ocn_file = "schmidtko_"+grid_id+"_means.nc"
+#pism_ocn_data_dir = os.path.join(pism_input_root_dir, "schmidtko")
+#pism_ocn_file = "schmidtko_"+grid_id+"_means.nc"
+pism_ocn_data_dir = "/p/projects/pism/reese/ISMIP6_input_data/ocean_merged_schmidtko_woa18/"
+pism_ocn_file = "ocean_merged_schmidtko_woa18_initmip8km_means_amundsen-1.25.nc"
 pism_ocn_data_path = os.path.join(pism_ocn_data_dir,pism_ocn_file)
 
-pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "bedmap2")
-pism_ocnkill_file = "bedmap2_"+grid_id+".nc"
+#pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "bedmap2")
+#pism_ocnkill_file = "bedmap2_"+grid_id+".nc"
+pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "merged")
+pism_ocnkill_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
 pism_ocnkill_data_path = os.path.join(pism_ocnkill_data_dir,pism_ocnkill_file)
 
 
@@ -75,12 +80,11 @@ pism_config_file = os.path.join(pism_code_dir,"src/pism_config.cdl")
 
 # override parameters that deviate from default.
 override_params = collections.OrderedDict([
-# "ocean.pico.continental_shelf_depth", -2000,
 ("stress_balance.sia.enhancement_factor",1.0),
 ("stress_balance.ssa.enhancement_factor",1.0),
 ("stress_balance.model","ssa+sia"),
 ("time_stepping.skip.enabled", "yes"),
-("basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden", 0.03),
+("basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden", 0.04),
 ("basal_resistance.pseudo_plastic.q", 0.75),
 ("basal_yield_stress.mohr_coulomb.topg_to_phi.enabled",  "yes"),
 ("basal_yield_stress.mohr_coulomb.topg_to_phi.phi_min", 2.0), # FIXME 5.0
@@ -88,14 +92,14 @@ override_params = collections.OrderedDict([
 ("basal_yield_stress.mohr_coulomb.topg_to_phi.topg_min", -700.0),
 ("basal_yield_stress.mohr_coulomb.topg_to_phi.topg_max", 500.0),
 ("basal_resistance.pseudo_plastic.enabled","true"),
-("hydrology.tillwat_decay_rate", 5.0),
+("hydrology.tillwat_decay_rate", 7.0),
 # grounding line interpolations of melting
-("energy.basal_melt.use_grounded_cell_fraction", "false"),
-("calving.methods", "ocean_kill,thickness_calving,eigen_calving"), # FIXME 
+("energy.basal_melt.use_grounded_cell_fraction", "true"),
+("energy.basal_melt.no_melting_first_floating_cell", "false"),
+("calving.methods", "eigen_calving,thickness_calving,ocean_kill"), # FIXME 
 ("calving.eigen_calving.K", 1e16), # FIXME 1e17
 ("calving.thickness_calving.threshold", 50), # 200
-#("calving.ocean_kill.file", os.path.join(input_data_dir,
-#                      "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc")),
+("calving.ocean_kill.file", "initdata/"+pism_ocnkill_file), 
 #("calving.float_kill.calve_near_grounding_line", "false"), # FIXME remove? Keep one shelf cell
 # the following four options are equivalent to command line option -pik
 # if all set to true
@@ -104,14 +108,23 @@ override_params = collections.OrderedDict([
 ("geometry.remove_icebergs", "true"),
 ("geometry.grounded_cell_fraction", "true"),
 ("ocean.pico.exclude_ice_rises", "yes"),
-#("hydrology.set_tillwat_ocean", "yes"), # use Mattias tillwat fix
+("ocean.pico.continental_shelf_depth", -1200),
+("ocean.pico.heat_exchange_coefficent", 3.e-05),
+("ocean.pico.overturning_coefficent", 1e6),
+("hydrology.set_tillwat_ocean", "yes"), # use Mattias tillwat fix
 ## Include limit for the nomass runs! FIXME nomass only! And for Bedmachine because of convergence errors
-("stress_balance.ssa.fd.max_speed", 10e3),
+("stress_balance.ssa.fd.max_speed", 20e3),
 ("stress_balance.sia.limit_diffusivity", "yes"),
 ("stress_balance.sia.max_diffusivity", 10),
+("stress_balance.sia.surface_gradient_method", "GL_thk"),
+("stress_balance.ssa.fd.relative_convergence", "1.e-07"),
 #("hydrology.use_const_bmelt", "yes"),
 ])
 
+
+# set pism diagnostic timesteps
+pism_diag_extra_timestep = 1
+pism_diag_snap_timestep = coupling_timestep 
 
 
 
@@ -143,6 +156,7 @@ user = pwd.getpwuid(os.getuid()).pw_name
 #ocn_data_dir2 = os.path.join(pism_input_root_dir,"pycmip5/p003_testing")
 # 8km
 #ocn_data_dir2 = os.path.join(pism_input_root_dir,"pycmip5/p004_8kmprojections")
+ocn_data_dir2 = "dummy_path/"
 
 #tillwat_data_dir = os.path.join(pism_input_root_dir, "tillwat")
 
@@ -219,26 +233,26 @@ user = pwd.getpwuid(os.getuid()).pw_name
 #oceanfile = os.path.join("/gpfs/work/pn69ru/di52cok/pism_input/schmidtko/schmidtko_"+grid_id+"_means_intermediate.nc")
 
 ## forcing: ocean data iterables 4km
-##ocean_data_dir = ocn_data_dir2 #"/gpfs/work/pn69ru/di52cok/pism_input/pycmip5/p003_testing"
-#its = ["CSIRO-Mk3-6-0_historical+rcp85","GFDL-CM3_historical+rcp85","IPSL-CM5A-LR_historical+rcp85"]
-#
-#iterables = {}
-## FIXME include the ocean file iterables for "forcing" runs: 
-##iterables["oceanfile"] = { k : os.path.join(ocean_data_dir,
-##   "thetao_Omon_"+k+"_r1i1p1/schmidtko_anomaly/thetao_Omon_"+k+"_r1i1p1_"+grid_id+"_100km.nc")
-##   for k in its}
-#
+ocean_data_dir = ocn_data_dir2 #"/gpfs/work/pn69ru/di52cok/pism_input/pycmip5/p003_testing"
+its = ["CSIRO-Mk3-6-0_historical+rcp85","GFDL-CM3_historical+rcp85","IPSL-CM5A-LR_historical+rcp85"]
+
+iterables = {}
+# FIXME include the ocean file iterables for "forcing" runs: 
+#iterables["oceanfile"] = { k : os.path.join(ocean_data_dir,
+#   "thetao_Omon_"+k+"_r1i1p1/schmidtko_anomaly/thetao_Omon_"+k+"_r1i1p1_"+grid_id+"_100km.nc")
+#   for k in its}
+
 ## "full_physics": to create parameter ensemble
-#param_iterables = {}
-## FIXME: include parameters for full_physics ensemble
-##param_iterables["stress_balance.sia.enhancement_factor"] = [1.0,2.0]
-##param_iterables["stress_balance.ssa.enhancement_factor"] = [1.0,0.4]
-#param_iterables["basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden"] = [0.01,0.02,0.03,0.04]
-#param_iterables["basal_resistance.pseudo_plastic.q"] = [0.75,0.5,0.33,0.25,0.1]
-##param_iterables["hydrology.tillwat_decay_rate"] = [2,5,8]
-##param_iterables["calving.eigen_calving.K"] = [1.0e16, 5.0e16, 1.0e17, 5.0e17, 1.0e18]
-## special case topg_to_phi caught by if clause later:
-##param_iterables["topg_to_phi"] = [
+param_iterables = {}
+# FIXME: include parameters for full_physics ensemble
+#param_iterables["stress_balance.sia.enhancement_factor"] = [1.0,2.0]
+#param_iterables["stress_balance.ssa.enhancement_factor"] = [1.0,0.4]
+param_iterables["basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden"] = [0.01,0.02,0.03,0.04]
+param_iterables["basal_resistance.pseudo_plastic.q"] = [0.75,0.5,0.33,0.25,0.1]
+#param_iterables["hydrology.tillwat_decay_rate"] = [2,5,8]
+#param_iterables["calving.eigen_calving.K"] = [1.0e16, 5.0e16, 1.0e17, 5.0e17, 1.0e18]
+# special case topg_to_phi caught by if clause later:
+#param_iterables["topg_to_phi"] = [
 ##[2.,20.,-700.,500.],
 ##[2.,50.,-500.,0.],
 ##[2.,20.,-500.,0.],
@@ -247,14 +261,14 @@ user = pwd.getpwuid(os.getuid()).pw_name
 ##[2.,30.,-500.,0.],
 ##[2.,50.,-500.,1000.]
 ## new:
-##[1.0,50.,-700.,500.], 
-##[2.0,50.,-700.,500.],
-##[3.0,50.,-700.,500.],
-##[4.0,50.,-700.,500.]]
-## param_iterables["ocean.pico.overturning_coefficent"] = [5e5,1e6]
-##param_iterables["ocean.pico.heat_exchange_coefficent"] = [1e-5,2e-5,4e-5]
-#
-#
+#[1.0,50.,-700.,500.], 
+#[2.0,50.,-700.,500.],
+#[3.0,50.,-700.,500.],
+#[4.0,50.,-700.,500.]]
+# param_iterables["ocean.pico.overturning_coefficent"] = [5e5,1e6]
+#param_iterables["ocean.pico.heat_exchange_coefficent"] = [1e-5,2e-5,4e-5]
+
+
 ## FIXME forcing: add also a control run in which the ocean data from before is used (e.g., schmidtko) 
 ##iterables["oceanfile"].update({"base":oceanfile})
 #

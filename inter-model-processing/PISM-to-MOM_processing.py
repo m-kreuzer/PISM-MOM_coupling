@@ -205,21 +205,21 @@ if __name__ == "__main__":
     
     #pism_snap_nv = nc_fh.dimensions['nv'].size
 
-    ### read PISM variables concerning mass flux from ice to ocean
-    #   all in units: [kg/m^2]
-    pism_bmf = np.squeeze(nc_fh.variables['basal_mass_flux_floating_accumulator'][1])
-    pism_bmf_dtype = nc_fh.variables['basal_mass_flux_floating_accumulator'].dtype
-    pism_bmf_ndim = len(pism_bmf.shape)
-    if pism_bmf_ndim != 2:
-        raise ValueError( str("flux field is of dimension " + \
-                            str( pism_bmf_ndim ) + ". Expected: 2.") )
+    #### read PISM variables concerning mass flux from ice to ocean
+    ##   all in units: [kg/m^2]
+    #pism_bmf = np.squeeze(nc_fh.variables['basal_mass_flux_floating_accumulator'][1])
+    #pism_bmf_dtype = nc_fh.variables['basal_mass_flux_floating_accumulator'].dtype
+    #pism_bmf_ndim = len(pism_bmf.shape)
+    #if pism_bmf_ndim != 2:
+    #    raise ValueError( str("flux field is of dimension " + \
+    #                        str( pism_bmf_ndim ) + ". Expected: 2.") )
 
-    pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
-    pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
-    pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
-    if pism_surf_runoff_ndim != 2:
-        raise ValueError( str("flux field is of dimension " + \
-                            str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
+    #pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux_accumulator'][1])
+    #pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux_accumulator'].dtype
+    #pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
+    #if pism_surf_runoff_ndim != 2:
+    #    raise ValueError( str("flux field is of dimension " + \
+    #                        str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
 
     pism_tend_bmf = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'][1])
     pism_tend_bmf_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'].dtype
