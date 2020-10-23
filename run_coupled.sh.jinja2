@@ -484,7 +484,7 @@ process_mom_to_pism() {
         ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
             $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
     else
-        # link output of regriddedMOM-to-PISM_processing to PISM PICO input file  
+        # link output of regriddedMOM-to-PISM_processing to PISM PICO input file
         cd $ROOT_WORK_DIR/x_MOM-to-PISM
         ln -sf $POEM_TIME_END.processed_MOM.nc $POEM_TIME_END.PISM_input.nc
         cd $ROOT_WORK_DIR/inter-model-processing
@@ -747,7 +747,7 @@ poem_prerun
 poem_prerun_postprocess
 
 echo ">>> PISM pre-run"
-pism_prerun 2 
+pism_prerun 2
 
 END_PRERUNS=$(date +%s.%N)
 TIME_PRERUNS=$(echo "$END_PRERUNS - $START_PRERUNS" | bc)
