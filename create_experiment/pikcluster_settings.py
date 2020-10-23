@@ -25,7 +25,7 @@ poem_template_dir = "/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templa
 # ---------------------------------- commands ---------------------------------- 
 pism_exec = "pismr"
 pism_mpi_do = "srun -n"
-submit_command="sbatch submit.sh"
+submit_command="sbatch run_coupled.sh"
 
 
 # ---------------------------- resource management ----------------------------- 

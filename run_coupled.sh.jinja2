@@ -370,7 +370,7 @@ poem_prerun_postprocess() {
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 pism_run() {
-    # $1 : timestep for pism run 
+    # $1 : pism runtime (years)
     echo '  > run PISM'
     echo " ... running PISM from $SIM_START_TIME to $SIM_END_TIME of $SIMULATION_TIME model years"
     local __TIMESTEP=$1
@@ -710,7 +710,7 @@ poem_prerun
 poem_prerun_postprocess
 
 echo ">>> PISM pre-run"
-pism_prerun 10
+pism_prerun 2
 
 END_PRERUNS=$(date +%s.%N)
 TIME_PRERUNS=$(echo "$END_PRERUNS - $START_PRERUNS" | bc)

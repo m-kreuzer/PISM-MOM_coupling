@@ -27,7 +27,7 @@ echo PISM_TIME_END:     $PISM_TIME_END
 -i $PISM_RESTART_FILE \
 -bootstrap {{settings.pism_grid}} \
 -config_override initdata/config_override.nc \
--y {{settings.coupling_timestep}} \
+-y $__TIMESTEP \
 -verbose 2 \
 -options_left \
 -o_format netcdf4_parallel \
