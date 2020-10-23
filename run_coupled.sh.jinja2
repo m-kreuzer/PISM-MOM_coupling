@@ -83,7 +83,6 @@ PISM_OCEAN_START_FILE=$(readlink -f $PISM_WORK_DIR/initdata/schmidtko_initmip16k
 #   -> only set if restarting from a coupled run
 #PISM_TO_MOM_FLUX_RESTART_FILE="2951.fluxes.nc"
 
-DO_OCEAN_ANOMALY=0      # 1 = True, 0 = False
 
 
 # ------------------------------ define functions-------------------------------
@@ -473,7 +472,7 @@ process_mom_to_pism() {
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
-    if [ $DO_OCEAN_ANOMALY -eq 1 ]; then
+    if [ {{settings.do_ocean_anomaly}} -eq 1 ]; then
         # anomaly approach: change Schmidtko PICO forcing by processed_MOM anomaly
         ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
             $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \

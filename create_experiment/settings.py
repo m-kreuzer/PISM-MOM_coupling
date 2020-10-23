@@ -34,6 +34,8 @@ max_cpl_iteration = 40      # number of coupling iterations
 # ------------------------------- POEM settings --------------------------------
 
 poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
+do_ocean_anomaly    = 1     # 1 = True, 0 = False
+
 
 # ------------------------------- PISM settings --------------------------------
 
