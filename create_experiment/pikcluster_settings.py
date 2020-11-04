@@ -37,3 +37,5 @@ slurm_qos = 'priority'
 slurm_time = "23:00:00"
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
+
+slurm_add_directives = "#SBATCH --constraint=haswell,tasksmax"
