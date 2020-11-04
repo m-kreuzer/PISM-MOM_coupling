@@ -436,47 +436,42 @@ if __name__ == "__main__":
                     dst[name][:] = src[name][:]
                 
         ### write new variables    
-        x = dst.createVariable('basin', 'i', ('yt_ocean','xt_ocean'))
+        x = dst.createVariable('basin', 'i4', ('yt_ocean','xt_ocean'),
+                fill_value=oc_south_edge['pism_basin'].fill_value)
         var_dict = col.OrderedDict([
              ('long_name', 'corresponding PISM/PICO basin of cell center'),
              ('valid_range', np.array([0, oc_south_edge['pism_basin'].max()], dtype=np.int32)),
-             #('missing_value', oc_south_edge['pism_basin'].fill_value),
-             #('missing_value', -1),
-             ('fill_value', netCDF4._netCDF4.default_fillvals['i4']),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon_t geolat_t')])
         dst['basin'].setncatts(var_dict)
         dst['basin'][:] = oc_south_edge['pism_basin'][:]
          
-        x = dst.createVariable('basin_ratio', 'f8', ('yt_ocean','xt_ocean'))
+        x = dst.createVariable('basin_ratio', 'f8', ('yt_ocean','xt_ocean'),
+                fill_value=oc_south_edge['pism_basin_ratio'].fill_value)
         var_dict = col.OrderedDict([
              ('long_name', ('ratio of corresponding PISM/PICO basin total '
                             'flux value to be mapped to cell')),
              ('valid_range', np.array([0, 1], dtype=np.int32)),
-             #('missing_value', oc_south_edge['pism_basin_ratio'].fill_value),
-             ('fill_value', netCDF4._netCDF4.default_fillvals['f8']),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon_t geolat_t')])
         dst['basin_ratio'].setncatts(var_dict)
         dst['basin_ratio'][:] = oc_south_edge['pism_basin_ratio'][:]
         
-        x = dst.createVariable('pism_i', 'i', ('yt_ocean','xt_ocean'))
+        x = dst.createVariable('pism_i', 'i', ('yt_ocean','xt_ocean'),
+                fill_value=oc_south_edge['pism_i'].fill_value)
         var_dict = col.OrderedDict([
              ('long_name', 'index of closest PISM grid cell to ocean cell center'),
              ('valid_range', np.array([0, basin_x.size], dtype=np.int32)),
-             #('missing_value', oc_south_edge['pism_i'].fill_value),
-             ('fill_value', netCDF4._netCDF4.default_fillvals['i4']),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon_t geolat_t')])
         dst['pism_i'].setncatts(var_dict)
         dst['pism_i'][:] = oc_south_edge['pism_i'][:]
         
-        x = dst.createVariable('pism_j', 'i', ('yt_ocean','xt_ocean'))
+        x = dst.createVariable('pism_j', 'i', ('yt_ocean','xt_ocean'),
+                fill_value=oc_south_edge['pism_j'].fill_value)
         var_dict = col.OrderedDict([
              ('long_name', 'index of closest PISM grid cell to ocean cell center'),
              ('valid_range', np.array([0, basin_y.size], dtype=np.int32)),
-             #('missing_value', oc_south_edge['pism_j'].fill_value),
-             ('fill_value', netCDF4._netCDF4.default_fillvals['i4']),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon_t geolat_t')])
         dst['pism_j'].setncatts(var_dict)
