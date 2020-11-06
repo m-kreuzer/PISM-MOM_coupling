@@ -16,12 +16,6 @@ from pikcluster_settings import *
 
 # ----------------------------- coupling settings ------------------------------
 
-# ATTENTION: make sure to adjust this, otherwise, files will be overwritten
-# a useful approach is to have one number (_061_) for a suite of runs that get a
-# common name (_small_ensemble_) and an additional identifies for the current 
-# run step (_forcing_) 
-# FIXME
-#experiment = pism_code_version+"_075_"+grid_id+"_bedmachine_ensemble_amedtem" # no _
 experiment = "MOM5_PISM_16km_gmd-2020-230"
 #experiment_dir      = os.path.join(settings.working_dir, settings.experiment)
 experiment_dir      = os.path.join(working_dir, experiment)
@@ -30,6 +24,15 @@ experiment_dir      = os.path.join(working_dir, experiment)
 coupling_timestep = 2      # in years, must be greater or equal 1
 max_cpl_iteration = 2      # number of coupling iterations
 
+# option to restart a coupled setup from a previous run
+#  -> still requires to specify PISM and MOM restart files by hand (see path 
+#     definitions in pikcluster_settings.py)
+#     but gives the opportunity to add PISM input fluxes to MOM from last 
+#     coupling iteration of the previous run
+coupled_restart = True
+pism_to_mom_flux_restart_file = '7711.fluxes.nc'
+restart_dir = "/p/projects/pism/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_gmd-2020-230_run02"
+pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
 
 # ------------------------------- POEM settings --------------------------------
 

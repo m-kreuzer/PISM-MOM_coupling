@@ -6,8 +6,11 @@ import shutil
 import jinja2
 import collections
 import distutils.dir_util as dist
+import subprocess
 
+import helpers 
 import settings 
+
 
 
 
@@ -157,6 +160,29 @@ def create_run(settings=settings, experiment=settings.experiment):
     #shutil.copytree(settings.poem_template_dir, settings.poem_exp_dir, dirs_exist_ok=True, symlinks=True)
     dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir, preserve_symlinks=1, update=1, verbose=1)
     print("   - copied POEM template {} to POEM".format(settings.poem_template_dir))
+
+    # further stuff to do when doing a restart from a previous coupled run
+    if settings.coupled_restart==True :
+        # copy PISM-to-MOM fluxes file if doing a restart from previous run
+        shutil.copy2(settings.pism_to_mom_flux_restart_path, 
+                os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+        print("   - copied PISM-to-MOM flux file {} from {} to restart from previous run".format(settings.pism_to_mom_flux_restart_file, settings.restart_dir))
+
+        # copy MOM restart files from previous run
+        poem_input_dir = os.path.join(settings.poem_exp_dir,'INPUT')
+        poem_restart_files_dir = os.path.join(settings.restart_dir,'POEM/INPUT')
+        if os.path.exists(poem_restart_files_dir):
+            with helpers.cd( str(poem_restart_files_dir) ):
+                cmd = "for i in *.res*; do rm %s/$i; cp -a $i %s ; done" % (poem_input_dir, poem_input_dir)
+                #subprocess.run("ls", capture_output=True)
+                #subprocess.run("ls", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                subprocess.call(cmd, shell=True)
+            print("   - copied MOM restart files from {} to POEM/INPUT".format(
+                    settings.pism_to_mom_flux_restart_file, settings.restart_dir))
+        else:
+            print("WARNING: path %s does not exist! Need to copy MOM restart files to INPUT dir by hand..." %
+                    poem_restart_files_dir)
+
 
 
 

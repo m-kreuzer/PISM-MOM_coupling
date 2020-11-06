@@ -67,7 +67,11 @@ PISM_RESTART_FILE={{settings.pism_exp_dir}}/initdata/{{settings.pism_infile}}
 # set filename of last PISM output file processed by PISM-to-MOM_processing.py
 #   file must be in $ROOT_WORK_DIR/x_PISM-to-MOM
 #   -> only set if restarting from a coupled run
-#PISM_TO_MOM_FLUX_RESTART_FILE="2951.fluxes.nc"
+{% if settings.coupled_restart==True %}
+PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
+{% else %}
+#PISM_TO_MOM_FLUX_RESTART_FILE=
+{% endif %}
 
 
 
