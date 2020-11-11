@@ -376,23 +376,26 @@ pism_run() {
 
     PISM_TIME_BEGIN=$PISM_TIME_YR
     PISM_TIME_END=$(echo $PISM_TIME_BEGIN + $__TIMESTEP | bc )
+    PISM_TIME_END_PAD=$(printf "%06d\n" $PISM_TIME_END)
     echo PISM_TIME_BEGIN $PISM_TIME_BEGIN
     echo PISM_TIME_END $PISM_TIME_END
 
     # save first and last year of coupled simulation output
-    if [ $CPL_ITERATION -eq 2 ]; then SIM_START_YEAR=$PISM_TIME_BEGIN; fi
-    SIM_END_YEAR=$PISM_TIME_END
+    if [ $CPL_ITERATION -eq 2 ]; then 
+        SIM_START_YEAR=$(printf "%06d\n" $PISM_TIME_BEGIN)
+    fi
+    SIM_END_YEAR=$(printf "%06d\n" $PISM_TIME_END)
 
     # export all bash variables required by pism_run.sh
     #export SLURM_NTASKS ROOT_WORK_DIR PISM_PROJ_DIR PISM_WORK_DIR PISM_RESTART_FILE __TIMESTEP  PISM_TIME_BEGIN PISM_TIME_END POEM_TIME_END
-    export PISM_RESTART_FILE PISM_TIME_BEGIN PISM_TIME_END POEM_TIME_END
+    export PISM_RESTART_FILE PISM_TIME_BEGIN PISM_TIME_END PISM_TIME_END_PAD POEM_TIME_END
     # run pism executable
     time ./pism_run_script.sh
     RESULT=$?
-    return_check $RESULT "PISM_run.$PISM_TIME_END"
+    return_check $RESULT "PISM_run.$PISM_TIME_END_PAD"
 
     # use PISM output file for next restart
-    PISM_RESTART_FILE=$(readlink -f results/$PISM_TIME_END.pism_out.nc)
+    PISM_RESTART_FILE=$(readlink -f results/$PISM_TIME_END_PAD.pism_out.nc)
     echo PISM_RESTART_FILE: $PISM_RESTART_FILE
 
 
@@ -415,7 +418,8 @@ pism_prerun() {
 
     PISM_TIME_BEGIN=$PISM_TIME_YR
     PISM_TIME_END=$(echo $PISM_TIME_BEGIN + $__TIMESTEP | bc )
-    echo $PISM_TIME_END
+    PISM_TIME_END_PAD=$(printf "%06d\n" $PISM_TIME_END)
+    echo PISM_TIME_END $PISM_TIME_END
 
     if [ ! -d $PISM_WORK_DIR/prerun ] ; then mkdir $PISM_WORK_DIR/prerun ; fi
 
@@ -492,20 +496,20 @@ process_pism_to_mom(){
 
     ./PISM-to-MOM_processing.py                                             \
         -o $PISM_PRE_OUT                                                    \
-        -e $PISM_WORK_DIR/results/$PISM_TIME_END.pism_snap.nc              \
+        -e $PISM_WORK_DIR/results/$PISM_TIME_END_PAD.pism_snap.nc           \
         -m $ROOT_WORK_DIR/pre-processing/PISMbasin-to-MOMcell_mapping.nc    \
         -a $MOM_PRE_OUT                                                     \
-        -f $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END.fluxes.nc            \
-        -d $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END.basin_shelf_depth.nc \
+        -f $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc        \
+        -d $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc \
         -v
     RESULT=$?
     # save file path for usage in next process_mom_to_pism call
-    BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END.basin_shelf_depth.nc
+    BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc
 
     # modify data table to include PISM output fluxes
     cd $ROOT_WORK_DIR/POEM
     cp data_table-dummy data_table-pism_in 
-    sed "s/FILE_NAME_DUMMY/$PISM_TIME_END.fluxes.nc/" -i data_table-pism_in
+    sed "s/FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
     ln -sf data_table-pism_in data_table
 
     return_check $RESULT "PISM-to-MOM_processing.py"
@@ -519,59 +523,71 @@ process_pism_to_mom(){
 concat_output_files(){
     # concatenate MOM output
     cd $POEM_WORK_DIR/history
-    INPUT_FILES=$(echo `seq -f "%04g0101.ice-yearly.nc" \
+    INPUT_FILES=$(echo `seq -f "%06g0101.ice-monthly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%04g-%04g.ice-yearly.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-monthly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%04g0101.ice-decadal.nc" \
+    INPUT_FILES=$(echo `seq -f "%06g0101.ice-yearly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%04g-%04g.ice-decadal.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-yearly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%04g0101.ocean-scalar.nc" \
+    INPUT_FILES=$(echo `seq -f "%06g0101.ice-decadal.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%04g-%04g.ocean-scalar.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-decadal.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%04g0101.ocean-yearly.nc" \
+    INPUT_FILES=$(echo `seq -f "%06g0101.ocean-scalar.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%04g-%04g.ocean-yearly.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-scalar.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%04g0101.ocean-decadal.nc" \
+    INPUT_FILES=$(echo `seq -f "%06g0101.ocean-monthly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%04g-%04g.ocean-decadal.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-monthly.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f "%06g0101.ocean-yearly.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-yearly.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f "%06g0101.ocean-decadal.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
     cd $ROOT_WORK_DIR
 
     # concatenate PISM output
     cd $PISM_WORK_DIR/results
-    ncrcat --overwrite $(echo `seq -f "%04g.pism_extra.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f "%06g.pism_extra.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_extra.nc
-    ncrcat --overwrite $(echo `seq -f "%04g.pism_snap.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f "%06g.pism_snap.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_snap.nc
-    ncrcat --overwrite $(echo `seq -f "%04g.pism_ts.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f "%06g.pism_ts.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_ts.nc
     cd $ROOT_WORK_DIR
     
     # concatenate inter-model-processing files
     cd $ROOT_WORK_DIR/x_MOM-to-PISM
-    ncrcat --overwrite $(echo `seq -f "%04g0101.processed_MOM.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f "%06g0101.processed_MOM.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.nc
-    ncrcat --overwrite $(echo `seq -f "%04g0101.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f "%06g0101.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.anomaly.nc
-    ncrcat --overwrite $(echo `seq -f "%04g0101.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f "%06g0101.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.PISM_input.nc
     cd $ROOT_WORK_DIR/x_PISM-to-MOM
-    #ncrcat --overwrite $(echo `seq -f "%04g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    #ncrcat --overwrite $(echo `seq -f "%06g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
     #    $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
-    ncrcat --overwrite $(echo `seq -f "%04g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f "%06g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
     cd $ROOT_WORK_DIR
 
