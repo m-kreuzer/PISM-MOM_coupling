@@ -466,22 +466,30 @@ process_mom_to_pism() {
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
-    if [ {{settings.do_ocean_anomaly}} -eq 1 ]; then
-        # anomaly approach: change Schmidtko PICO forcing by processed_MOM anomaly
-        ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
-            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
-        ncbo -O --op_typ=add $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_ocn_file}} \
-            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
-            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
-        ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
-            $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
-    else
-        # link output of regriddedMOM-to-PISM_processing to PISM PICO input file
-        cd $ROOT_WORK_DIR/x_MOM-to-PISM
-        ln -sf $POEM_TIME_END.processed_MOM.nc $POEM_TIME_END.PISM_input.nc
-        cd $ROOT_WORK_DIR/inter-model-processing
-    fi
+    {% if settings.do_ocean_anomaly==True -%}
+    # anomaly approach: use pism_ocn_file (e.g. Schmidtko data) for 
+    #       PISM-PICO forcing and add difference of 
+    #       regriddedMOM-to-PISM_processing.py output from current to first 
+    #       coupling time step
+    {% if settings.coupled_restart==True -%}
+    ## set reference field like in run that this one is restarted from
+    POEM_TIME_END_IT1={{settings.POEM_TIME_END_IT1_from_restart}}
+    {% endif %}
+    ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
+    ncbo -O --op_typ=add $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_ocn_file}} \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    {% else %}
+    # don't use ocean anomaly approach:
+    #       make PISM input file the same as regriddedMOM-to-PISM_processing.py output
+    cd $ROOT_WORK_DIR/x_MOM-to-PISM
+    ln -sf $POEM_TIME_END.processed_MOM.nc $POEM_TIME_END.PISM_input.nc
+    cd $ROOT_WORK_DIR/inter-model-processing
+    {% endif %}
 
     END_MOM_to_PISM_PROCESS=$(date +%s.%N)
     TIME_MOM_to_PISM_PROCESS_T=$(echo "$END_MOM_to_PISM_PROCESS - $START_MOM_to_PISM_PROCESS" | bc)

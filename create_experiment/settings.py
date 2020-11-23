@@ -16,28 +16,39 @@ from pikcluster_settings import *
 
 # ----------------------------- coupling settings ------------------------------
 
-experiment = "MOM5_PISM_16km_gmd-2020-230"
+experiment = "MOM5_PISM_16km_gmd-2020-230_run04_post"
 #experiment_dir      = os.path.join(settings.working_dir, settings.experiment)
 experiment_dir      = os.path.join(working_dir, experiment)
 
 
-coupling_timestep = 2      # in years, must be greater or equal 1
-max_cpl_iteration = 2      # number of coupling iterations
+coupling_timestep = 10      # in years, must be greater or equal 1
+max_cpl_iteration = 10      # number of coupling iterations
 
+
+# coupled_restart
 # option to restart a coupled setup from a previous run
-#  -> still requires to specify PISM and MOM restart files by hand (see path 
-#     definitions in pikcluster_settings.py)
-#     but gives the opportunity to add PISM input fluxes to MOM from last 
-#     coupling iteration of the previous run
+#  -> gives the opportunity to add PISM input fluxes to MOM from last coupling 
+#     iteration of the previous run
+#  -> still requires to specify PISM restart files by hand (see pism_infile 
+#     and pism_infile_dir below)
+#  -> MOM restart files are automatically copied from $restart_dir/POEM/INPUT/
+#     if path exists
 coupled_restart = True
-pism_to_mom_flux_restart_file = '7711.fluxes.nc'
-restart_dir = "/p/projects/pism/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_gmd-2020-230_run02"
+pism_to_mom_flux_restart_file = '12811.fluxes.nc'
+restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_gmd-2020-230_run04"
 pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
+# in case of coupled restart with do_ocean_anomaly:
+#     specify reference to compute same ocean anomaly as in previous run:
+#     x_MOM_to_PISM file of first coupling iteration 
+POEM_TIME_END_IT1_from_restart = '78210101'
+mom_to_pism_IT1_path = os.path.join(restart_dir, 'x_MOM-to-PISM', 
+                                    POEM_TIME_END_IT1_from_restart+'.processed_MOM.nc')
 
 # ------------------------------- POEM settings --------------------------------
 
 poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
-do_ocean_anomaly    = 1     # 1 = True, 0 = False
+do_ocean_anomaly    = True
+
 
 
 # ------------------------------- PISM settings --------------------------------
@@ -55,10 +66,12 @@ pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
 pism_sys_bin        = os.path.join(pism_code_dir, 'bin', pism_exec)
 
 # input data
-pism_infile_dir = "/p/tmp/albrecht/pism19/pismOut/equi/equi9000/results"
-pism_infile = "result_equi_16km_100000yrs.nc"
+#pism_infile_dir = "/p/tmp/albrecht/pism19/pismOut/equi/equi9000/results"
+#pism_infile = "result_equi_16km_100000yrs.nc"
 #pism_infile_dir = "/p/tmp/reese/pism_out/pism_025_initmip8km_ismip_merged_schmidtko_woa18_cold1.25_thkgradient_subgl_subglmelt_hmin700_decay7_7a241540/"
 #pism_infile = "snapshots_112000.000.nc"
+pism_infile_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_gmd-2020-230_run04/PISM/results/"
+pism_infile = "12811.pism_out.nc"
 pism_infile_path = os.path.join(pism_infile_dir, pism_infile)
 
 pism_atm_data_dir = os.path.join(pism_input_root_dir, "racmo_wessem")

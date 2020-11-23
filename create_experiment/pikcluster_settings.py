@@ -2,7 +2,8 @@
 
 # ----------------------------------- paths ------------------------------------
 # base directory where experiments will be located (submit/input/output files)
-working_dir = "/p/projects/pism/kreuzer/coupled_PISM_MOM/experiments"
+#working_dir = "/p/projects/pism/kreuzer/coupled_PISM_MOM/experiments"
+working_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments"
 
 # directory with coupling infrastructure template 
 #  -> clone of https://github.com/m-kreuzer/PISM-MOM_coupling.git
@@ -18,7 +19,7 @@ pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
 # POEM project directory with tools like mppnccombine, time_stamp.csh, ...
 poem_proj_dir = "/p/projects/climber3/kreuzer/POEM/trunk"
 # POEM template directory with all namelist & input files
-poem_template_dir = "/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/MOM5_SIS"
+poem_template_dir = "/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/MOM5_SIS-no_antarctic_river_runoff"
 
 
 

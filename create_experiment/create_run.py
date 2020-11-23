@@ -183,6 +183,14 @@ def create_run(settings=settings, experiment=settings.experiment):
             print("WARNING: path %s does not exist! Need to copy MOM restart files to INPUT dir by hand..." %
                     poem_restart_files_dir)
 
+        if settings.do_ocean_anomaly==True:
+            # copy ocean anomaly reference file from previous run
+            if os.path.exists(settings.mom_to_pism_IT1_path):
+                shutil.copy2(settings.mom_to_pism_IT1_path, 
+                    os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
+                print("   - copied first coupling iteration MOM-to-PISM file {} of {} to compute same ocean anomalies like in previous run".format(settings.mom_to_pism_IT1_path, settings.restart_dir))
+            else:
+                print("WARNING: path %s does not exist!"  % settings.mom_to_pism_IT1_path)
 
 
 
