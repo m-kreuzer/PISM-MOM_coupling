@@ -17,7 +17,6 @@ from pikcluster_settings import *
 # ----------------------------- coupling settings ------------------------------
 
 experiment = "MOM5_PISM_16km_gmd-2020-230_run04_post"
-#experiment_dir      = os.path.join(settings.working_dir, settings.experiment)
 experiment_dir      = os.path.join(working_dir, experiment)
 
 
@@ -37,17 +36,28 @@ coupled_restart = True
 pism_to_mom_flux_restart_file = '12811.fluxes.nc'
 restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_gmd-2020-230_run04"
 pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
-# in case of coupled restart with do_ocean_anomaly:
-#     specify reference to compute same ocean anomaly as in previous run:
-#     x_MOM_to_PISM file of first coupling iteration 
-POEM_TIME_END_IT1_from_restart = '78210101'
-mom_to_pism_IT1_path = os.path.join(restart_dir, 'x_MOM-to-PISM', 
-                                    POEM_TIME_END_IT1_from_restart+'.processed_MOM.nc')
+
 
 # ------------------------------- POEM settings --------------------------------
 
 poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 do_ocean_anomaly    = True
+
+# in case of coupled restart with do_ocean_anomaly:
+#     specify ocean anomaly reference file from previous run
+use_ocean_anomaly_from_prev_run = False
+#ocean_anomaly_reference_file = "001234-002345.mean_MOM.nc" 
+ocean_anomaly_reference_file = "12811.fluxes.nc" 
+ocean_anomaly_reference_path = os.path.join(restart_dir, 'x_PISM-to-MOM', ocean_anomaly_reference_file)
+#     or specify MOM output files used for computing ocean anomaly reference state
+#       -> used if do_ocean_anomally==True and use_ocean_anomaly_from_prev_run==False
+calc_ocn_anomaly = {}
+calc_ocn_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_equi_10000yrs_PISM_runoff_run02_post/history"
+calc_ocn_anomaly['yr_start'] = "7811"
+calc_ocn_anomaly['yr_end'] = "7811"
+calc_ocn_anomaly['yr_step'] = "10"
+calc_ocn_anomaly['name_format_in']  = "%06g0101.ocean-yearly.nc"
+calc_ocn_anomaly['name_format_out'] = "%06g-%06g.ocean-yearly.mean.nc"
 
 
 

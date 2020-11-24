@@ -7,6 +7,7 @@ import jinja2
 import collections
 import distutils.dir_util as dist
 import subprocess
+import warnings
 
 import helpers 
 import settings 
@@ -183,14 +184,15 @@ def create_run(settings=settings, experiment=settings.experiment):
             print("WARNING: path %s does not exist! Need to copy MOM restart files to INPUT dir by hand..." %
                     poem_restart_files_dir)
 
-        if settings.do_ocean_anomaly==True:
+        if (settings.do_ocean_anomaly==True and 
+            settings.use_ocean_anomaly_from_prev_run==True):
             # copy ocean anomaly reference file from previous run
-            if os.path.exists(settings.mom_to_pism_IT1_path):
-                shutil.copy2(settings.mom_to_pism_IT1_path, 
+            if os.path.exists(settings.ocean_anomaly_reference_path):
+                shutil.copy2(settings.ocean_anomaly_reference_path, 
                     os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
-                print("   - copied first coupling iteration MOM-to-PISM file {} of {} to compute same ocean anomalies like in previous run".format(settings.mom_to_pism_IT1_path, settings.restart_dir))
+                print("   - copied ocean anomaly reference file {} of {} to compute ocean anomalies to same reference like in previous run".format(settings.ocean_anomaly_reference_file, settings.restart_dir))
             else:
-                print("WARNING: path %s does not exist!"  % settings.mom_to_pism_IT1_path)
+                warnings.warn("path %s does not exist!"  % settings.ocean_anomaly_reference_path)
 
 
 

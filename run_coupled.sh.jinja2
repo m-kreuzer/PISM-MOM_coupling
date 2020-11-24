@@ -262,7 +262,6 @@ poem_run_postprocess() {
     # write to global variables
     POEM_TIME_BEGIN=$begindate
     POEM_TIME_END=$enddate
-    if [ $CPL_ITERATION -eq 1 ]; then POEM_TIME_END_IT1=$enddate; fi
     echo POEM TIME BEGIN $POEM_TIME_BEGIN
     echo POEM TIME END $POEM_TIME_END
 
@@ -471,12 +470,8 @@ process_mom_to_pism() {
     #       PISM-PICO forcing and add difference of 
     #       regriddedMOM-to-PISM_processing.py output from current to first 
     #       coupling time step
-    {% if settings.coupled_restart==True -%}
-    ## set reference field like in run that this one is restarted from
-    POEM_TIME_END_IT1={{settings.POEM_TIME_END_IT1_from_restart}}
-    {% endif %}
     ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END_IT1.processed_MOM.nc \
+        $OCEAN_ANOMALY_REFERENCE_FILE \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
     ncbo -O --op_typ=add $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_ocn_file}} \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
@@ -773,19 +768,28 @@ cd $ROOT_WORK_DIR
 
 ### --------------------------------- preruns ---------------------------------
 START_PRERUNS=$(date +%s.%N)
+echo
 echo ">>> POEM pre-run"
+echo
 poem_prerun 
 poem_prerun_postprocess
 
+echo
 echo ">>> PISM pre-run"
+echo
 pism_prerun 2
 
 END_PRERUNS=$(date +%s.%N)
 TIME_PRERUNS=$(echo "$END_PRERUNS - $START_PRERUNS" | bc)
+echo
 echo ">>> finished preruns"
+echo
 
 ### ---------------------------- preprocessing --------------------------------
+echo
 echo ">>> preprocessing"
+echo
+echo
 START_PREPROC=$(date +%s.%N)
 cd $ROOT_WORK_DIR/pre-processing
 
@@ -854,7 +858,7 @@ return_check $RESULT "PISM-to-MOM_processing.py"
 BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc
 
 
-# set input file in case of restart from coupled run
+# set PISM-to-MOM when restarting from coupled run
 if [ -z ${PISM_TO_MOM_FLUX_RESTART_FILE+x} ]; then 
     echo "PISM_TO_MOM_FLUX_RESTART_FILE is unset"; 
     echo " -> no restart from coupled run"
@@ -871,14 +875,87 @@ else
     cd $ROOT_WORK_DIR
 fi
 
+### ocean anomaly reference file
+# ____________________________________________________________________________ #
+{% if settings.do_ocean_anomaly==True -%}
+echo
+echo "ocean anomaly approach enabled"
+    # ........................................................................ #
+    {% if settings.use_ocean_anomaly_from_prev_run==True %}
+echo "using ocean anomaly reference file {{settings.ocean_anomaly_reference_path}}"
+OCEAN_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/\
+    {{settings.ocean_anomaly_reference_file}}
+
+    # ........................................................................ #
+    {% else %} # compute ocean anomaly reference state
+echo "computing ocean anomaly reference state as mean of PISM-to-MOM files in "\
+    {{settings.restart_dir}}
+
+cd {{settings.calc_ocn_anomaly['path']}}
+echo "  > [ocean anomaly reference] average yearly model output (possibly "\
+    "spread across multile files)"
+INPUT_FILES=$(echo `seq -f "{{settings.calc_ocn_anomaly['name_format_in']}}" \
+                           "{{settings.calc_ocn_anomaly['yr_start']}}"       \
+                           "{{settings.calc_ocn_anomaly['yr_step']}}"        \
+                           "{{settings.calc_ocn_anomaly['yr_end']}}" `)
+AVG_OUT_FILE=$(echo `printf "{{settings.calc_ocn_anomaly['name_format_out']}}" \
+                           "{{settings.calc_ocn_anomaly['yr_start']}}"         \
+                           "{{settings.calc_ocn_anomaly['yr_end']}}" `)
+ncra --overwrite -v temp,salt $INPUT_FILES $AVG_OUT_FILE
+RESULT=$?
+return_check $RESULT "ncra-operation"
+cd $ROOT_WORK_DIR
+
+echo "  > [ocean anomaly reference] regrid averaged output from MOM to PISM grid "
+REGRID_IN={{settings.calc_ocn_anomaly['path']}}/$AVG_OUT_FILE
+REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/ocean_mean.regrid.MOM-to-PISM.bil.cdo.nc
+WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
+cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
+RESULT=$?
+return_check $RESULT "cdo_regridding"
+
+echo "  > [ocean anomaly reference] regriddedMOM-to-PISM_processing script"
+cd $ROOT_WORK_DIR/inter-model-processing
+
+OUTFILE=$(echo `printf "%06g-%06g.mean.processed_MOM.nc"              \
+                       "{{settings.calc_ocn_anomaly['yr_start']}}"  \
+                       "{{settings.calc_ocn_anomaly['yr_end']}}" `)
+OCEAN_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
+./regriddedMOM-to-PISM_processing.py                                    \
+    -i $REGRID_OUT                                                      \
+    -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
+    -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
+    -f temp salt                                                        \
+    -d $BASIN_SHELF_DEPTH_FILE                                          \
+    -o $OCEAN_ANOMALY_REFERENCE_FILE                                    \
+    -v
+RESULT=$?
+return_check $RESULT "regriddedMOM-to-PISM_processing.py"
+cd $ROOT_WORK_DIR
+
+    {% endif %}
+    # ........................................................................ #
+
+# ____________________________________________________________________________ #
+{% else %}
+echo
+echo "ocean anomaly approach disabled"
+{% endif %}
+# ____________________________________________________________________________ #
 
 
 END_PREPROC=$(date +%s.%N)
 TIME_PREPROC=$(echo "$END_PREPROC - $START_PREPROC" | bc)
+echo
 echo ">>> finished preprocessing"
+echo 
+echo
 
 ### -------------------------- coupling iterations ----------------------------
+echo 
 echo ">>> starting coupling iterations"
+echo 
+echo
 
 for CPL_ITERATION in `seq 1 $MAX_CPL_ITERATION`
 do
@@ -901,11 +978,16 @@ do
     process_pism_to_mom
         
 done
+echo 
 echo ">>> finished coupling iterations"
+echo 
+echo 
 
 ### ---------------------------- postprocessing --------------------------------
 echo
 echo ">>> postprocessing"
+echo 
+echo 
 concat_output_files
 
 
