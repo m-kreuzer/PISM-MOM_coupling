@@ -333,11 +333,11 @@ if __name__ == "__main__":
         shelf_depth_basin_dim   = nc_src.variables['basin'].dimensions
         shelf_depth_basin_dict  = nc_src.variables['basin'].__dict__
         
-        mean_shelf_topg         = nc_src.variables['mean_shelf_topg'][:]
+        mean_shelf_topg         = np.squeeze(nc_src.variables['mean_shelf_topg'][:])
         mean_shelf_topg_dtype   = nc_src.variables['mean_shelf_topg'].datatype
         mean_shelf_topg_dim     = nc_src.variables['mean_shelf_topg'].dimensions
         mean_shelf_topg_dict    = nc_src.variables['mean_shelf_topg'].__dict__
-    
+
         nc_src.close()
         t_read_depthfile_end = t.time()
         
@@ -652,8 +652,7 @@ if __name__ == "__main__":
                           mean_shelf_topg_dtype, 
                           mean_shelf_topg_dim)
     nc_dst['mean_shelf_topg'].setncatts(mean_shelf_topg_dict)
-    nc_dst['mean_shelf_topg'][:] = mean_shelf_topg[:]
-    
+    nc_dst['mean_shelf_topg'][:] = np.array(mean_shelf_topg)[np.newaxis,:] # added time dimension
 
 
     nc_dst.close()

@@ -645,7 +645,8 @@ if __name__ == "__main__":
             })
         dst.setncatts(glob_dict)
         
-        # create basin dimension
+        # create dimensions
+        dst.createDimension('time', None)
         dst.createDimension('n_basin', len(pism_basin_list) )
 
         # create variables
@@ -655,7 +656,11 @@ if __name__ == "__main__":
         dst['basin'].setncatts(var_dict)      
         dst['basin'][:] = pism_basin_list[:]
 
-        x = dst.createVariable('mean_shelf_topg', float, 'n_basin')
+        dst.createVariable('time', np.double, ("time",) )
+        dst['time'].setncatts(pism_snap_time_dict)
+        dst['time'][:] = pism_snap_time[1]
+
+        x = dst.createVariable('mean_shelf_topg', float, ('time','n_basin'))
         var_dict = col.OrderedDict([
              ('long_name', "mean basin topography of ice shelf areas"),
              ('units', 'm'),
@@ -663,7 +668,7 @@ if __name__ == "__main__":
              ('positive', 'up'),
              ('fill_value', netCDF4._netCDF4.default_fillvals['f4'])])
         dst['mean_shelf_topg'].setncatts(var_dict)
-        dst['mean_shelf_topg'][:] = pism_basin_shelf_depth[:]
+        dst['mean_shelf_topg'][0,:] = pism_basin_shelf_depth[:]
 
 
     t_write_file_end = time.time()
