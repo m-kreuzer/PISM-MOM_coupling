@@ -79,7 +79,6 @@ try:
 except:
     raise ImportError("netCDF4 is not installed!")
     
-    
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(
@@ -221,15 +220,17 @@ if __name__ == "__main__":
     #    raise ValueError( str("flux field is of dimension " + \
     #                        str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
 
-    pism_tend_bmf = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'][1])
-    pism_tend_bmf_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'].dtype
+    varname = 'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'
+    pism_tend_bmf = np.squeeze(nc_fh.variables[varname][1])
+    pism_tend_bmf_dtype = nc_fh.variables[varname].dtype
     pism_tend_bmf_ndim = len(pism_tend_bmf.shape)
     if pism_tend_bmf_ndim != 2:
         raise ValueError( str("flux field is of dimension " + \
                             str( pism_tend_bmf_ndim ) + ". Expected: 2.") )
 
-    pism_tend_discharge = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_discharge_accumulator'][1])
-    pism_tend_discharge_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_discharge_accumulator'].dtype
+    varname = 'tendency_of_ice_amount_due_to_discharge_accumulator'
+    pism_tend_discharge = np.squeeze(nc_fh.variables[varname][1])
+    pism_tend_discharge_dtype = nc_fh.variables[varname].dtype
     pism_tend_discharge_ndim = len(pism_tend_discharge.shape)
     if pism_tend_discharge_ndim != 2:
         raise ValueError( str("flux field is of dimension " + \
@@ -248,8 +249,9 @@ if __name__ == "__main__":
 
     ### read time span for PISM accumulation variables in snapshot file
     #   time in unit: [s]
-    pism_snaptime_raw = np.squeeze(nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_time_since_reset'][:])
-    pism_snaptime_dtype = nc_fh.variables['tendency_of_ice_amount_due_to_basal_mass_flux_time_since_reset'].dtype
+    varname = 'tendency_of_ice_amount_due_to_basal_mass_flux_time_since_reset'
+    pism_snaptime_raw = np.squeeze(nc_fh.variables[varname][:])
+    pism_snaptime_dtype = nc_fh.variables[varname].dtype
     pism_snaptime_ndim = len(pism_snaptime_raw.shape)
     if pism_snaptime_ndim != 1:
         raise ValueError( str("snapshot time field is of dimension " + \
@@ -414,8 +416,17 @@ if __name__ == "__main__":
     # aggregate mass from ice to ocean for mass & energy flux calculations
     #  positive corresponds to ice gain
     #  unit[pism_massflux*] = kg/m^2
-    pism_massflux = -pism_surf_runoff + pism_tend_bmf + pism_tend_discharge
-    pism_massflux_energy = pism_tend_bmf + pism_tend_discharge
+    pism_massflux = {}
+    pism_massflux["mass_net"] = -pism_surf_runoff + pism_tend_bmf + \
+                                    pism_tend_discharge
+    pism_massflux["mass_surf_runoff"] = -pism_surf_runoff
+    pism_massflux["mass_basal_melt"] = pism_tend_bmf
+    pism_massflux["mass_calving"] = pism_tend_discharge
+
+    pism_massflux_energy = {}
+    pism_massflux_energy["energy_net"] = pism_tend_bmf + pism_tend_discharge
+    pism_massflux_energy["energy_basal_melt"] = pism_tend_bmf 
+    pism_massflux_energy["energy_calving"] = pism_tend_discharge
 
 
     ### ------------- conversion of variables ----------------
@@ -424,17 +435,22 @@ if __name__ == "__main__":
     #  -> unit[pism_massflux] :         kg/m^2
     #  -> unit[pism_massflux_total] :   kg/s
     # positive mass flux corresponds to transfer from ice to ocean
-    pism_massflux_total = -1 * pism_massflux * pism_cell_area_uniform \
+    pism_massflux_total = {}.fromkeys(pism_massflux.keys(), None)
+    for k in pism_massflux_total.keys():
+        pism_massflux_total[k] = -1 * pism_massflux[k] * pism_cell_area_uniform \
                                     / pism_snaptime
     
     ### heatflux
     #  -> unit[latent_heat_of_fusion] : J/kg
     #  -> unit[pism_heatflux_total] :   J/s = W
     # heat flux PISM to Ocean: should be negative
-    pism_heatflux_total = pism_massflux_energy * pism_cell_area_uniform \
-                            / pism_snaptime * latent_heat_of_fusion
-     
+    pism_heatflux_total = {}.fromkeys(pism_massflux_energy.keys(), None)
+    for k in pism_heatflux_total.keys():
+        pism_heatflux_total[k] = cp.deepcopy(pism_massflux_energy[k] * pism_cell_area_uniform \
+                                    / pism_snaptime * latent_heat_of_fusion)
 
+    # combine dictioniaries
+    pism_fluxes_total = {**pism_massflux_total,**pism_heatflux_total}
     
     ### ------------- aggregation of fluxes per basin ----------------
     if args.verbose:
@@ -447,22 +463,23 @@ if __name__ == "__main__":
     pism_basin_list = np.delete(pism_basin_list, np.where(pism_basin_list==0) ) 
     # make sure datatype is integer
     pism_basin_list = pism_basin_list.astype(int)
-    
+
     # create datastructre for basin cumulated fluxes
     pism_basin_dummy = np.zeros_like(pism_basin_list, dtype=pism_tend_bmf_dtype)
-    pism_basin_flux = dict({'mass_total':  cp.deepcopy(pism_basin_dummy),   \
-                            'heat_total':  cp.deepcopy(pism_basin_dummy) })
+    pism_basin_flux = {}.fromkeys(pism_fluxes_total.keys())
+    for k in pism_basin_flux.keys():
+        pism_basin_flux[k] = cp.deepcopy(pism_basin_dummy)
+
     # create datastructre for basin topography depth
     pism_basin_shelf_depth = np.zeros_like(pism_basin_list, dtype=np.float64)
     pism_basin_shelf_depth[:] = np.nan
     
     
     for idx, val in enumerate(pism_basin_list):
-         # cumulate PISM output flux for each basin
-        pism_basin_flux['mass_total'][idx] = \
-                                    np.sum(pism_massflux_total[pism_basins==val])
-        pism_basin_flux['heat_total'][idx] = \
-                                    np.sum(pism_heatflux_total[pism_basins==val])
+        # cumulate PISM output flux for each basin
+        for k in pism_basin_flux.keys():
+            pism_basin_flux[k][idx] = np.sum(pism_fluxes_total[k][pism_basins==val])
+
         # calculate basin mean topography for shelf ice
         basin_mean_depth = np.mean(pism_shelf_topg[pism_basins==val])
         if (basin_mean_depth is np.ma.masked):
@@ -471,13 +488,13 @@ if __name__ == "__main__":
         else:
             pism_basin_shelf_depth[idx] = np.mean(pism_shelf_topg[pism_basins==val])
 
+    print("pism_basin_flux['mass_net']", pism_basin_flux['mass_net'])
                             
     # create output structure on MOM grid
     oc_dummy = np.zeros_like(oc_edge_basin, dtype=pism_tend_bmf_dtype)
-    oc_edge_flux = dict({'mass_total': cp.deepcopy(oc_dummy),  \
-                         'mass':       cp.deepcopy(oc_dummy),  \
-                         'heat_total': cp.deepcopy(oc_dummy),  \
-                         'heat':       cp.deepcopy(oc_dummy) })
+    oc_edge_flux = {}.fromkeys(pism_fluxes_total.keys())
+    for k in oc_edge_flux.keys():
+        oc_edge_flux[k] = cp.deepcopy(oc_dummy)
     
     # distribute basin fluxes to MOM cells
     if args.verbose:
@@ -486,29 +503,27 @@ if __name__ == "__main__":
         for i in range(oc_nlon):
             if oc_edge_basin.mask[j,i] == False:
                 list_index = np.where( pism_basin_list==oc_edge_basin[j,i] )
-                oc_edge_flux['mass_total'][j,i] = \
-                                    pism_basin_flux['mass_total'][list_index] * \
-                                    oc_edge_basin_ratio[j,i] 
-                oc_edge_flux['heat_total'][j,i] = \
-                                    pism_basin_flux['heat_total'][list_index] * \
-                                    oc_edge_basin_ratio[j,i] 
-
+                for k in oc_edge_flux.keys():
+                    oc_edge_flux[k][j,i] = pism_basin_flux[k][list_index] * \
+                                            oc_edge_basin_ratio[j,i] 
 
     # convert fluxes in MOM cells from total to area-relative fluxes
-    # units of oc_edge_flux['*']:
-    #   mass_total:     kg/s
-    #   mass:           kg/s/m^2
-    #   heat_total:     J/s = W 
-    #   heat:           W/m^2
-    oc_edge_flux['mass'] = oc_edge_flux['mass_total'] / ocean_area
-    oc_edge_flux['heat'] = oc_edge_flux['heat_total'] / ocean_area
-    
+    # units of oc_edge_flux:
+    #   mass*:      kg/s
+    #   energy*:    J/s = W 
+    # units of oc_edge_flux_per_area:
+    #   mass*:      kg/s/m^2
+    #   energy*:    W/m^2
+    oc_edge_flux_per_area = cp.deepcopy(oc_edge_flux)
+    for k in oc_edge_flux_per_area.keys():
+        oc_edge_flux_per_area[k] /= ocean_area
+
     # conservation check
-    pism_mf_cum = np.sum( np.float128(pism_massflux_total) )
-    oc_mf_cum =   np.sum( np.float128(oc_edge_flux['mass_total']) )
+    pism_mf_cum = np.sum( np.float128(pism_massflux_total['mass_net']) )
+    oc_mf_cum =   np.sum( np.float128(oc_edge_flux['mass_net']) )
     
-    pism_ef_cum = np.sum( np.float128(pism_heatflux_total) )
-    oc_ef_cum =   np.sum( np.float128(oc_edge_flux['heat_total']) )
+    pism_ef_cum = np.sum( np.float128(pism_heatflux_total['energy_net']) )
+    oc_ef_cum =   np.sum( np.float128(oc_edge_flux['energy_net']) )
     
     error_rate_mass =  (pism_mf_cum - oc_mf_cum) / pism_mf_cum 
     error_rate_energy =  (pism_ef_cum - oc_ef_cum) / pism_ef_cum 
@@ -593,6 +608,7 @@ if __name__ == "__main__":
             s = 'pism_tend_bmf_dtype is "{}". Only "float32" and "float64" are allowed.'
             raise ValueError(s.format(pism_tend_bmf_dtype))
              
+        #### ---- mass flux variables ---- 
         x = dst.createVariable('mass_flux', \
                                nc_dtype, ('time','yt_ocean','xt_ocean'))
         var_dict = col.OrderedDict([
@@ -608,8 +624,55 @@ if __name__ == "__main__":
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon_t geolat_t')])
         dst['mass_flux'].setncatts(var_dict)
-        dst['mass_flux'][0,:] = oc_edge_flux['mass'][:].data
+        dst['mass_flux'][0,:] = oc_edge_flux_per_area['mass_net'][:].data
          
+        x = dst.createVariable('mass_flux_surf_runoff', \
+                               nc_dtype, ('time','yt_ocean','xt_ocean'))
+        var_dict = col.OrderedDict([
+             ('long_name', ("average mass flux from PISM diagnostic output variable "
+                            "'surface_runoff_flux_accumulator' "
+                            "in reporting interval")),
+             ('units', 'kg/m^2/s'),
+             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
+             ('reporting_interval', reporting_interval ),
+             ('reporting_interval_units', 'years'),
+             ('cell_methods', 'time: point'),
+             ('coordinates', 'geolon_t geolat_t')])
+        dst['mass_flux_surf_runoff'].setncatts(var_dict)
+        dst['mass_flux_surf_runoff'][0,:] = oc_edge_flux_per_area['mass_surf_runoff'][:].data
+
+        x = dst.createVariable('mass_flux_basal_melt', \
+                               nc_dtype, ('time','yt_ocean','xt_ocean'))
+        var_dict = col.OrderedDict([
+             ('long_name', ("average mass flux from PISM diagnostic output variable "
+                            "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' "
+                            "in reporting interval")),
+             ('units', 'kg/m^2/s'),
+             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
+             ('reporting_interval', reporting_interval ),
+             ('reporting_interval_units', 'years'),
+             ('cell_methods', 'time: point'),
+             ('coordinates', 'geolon_t geolat_t')])
+        dst['mass_flux_basal_melt'].setncatts(var_dict)
+        dst['mass_flux_basal_melt'][0,:] = oc_edge_flux_per_area['mass_basal_melt'][:].data
+
+        x = dst.createVariable('mass_flux_calving', \
+                               nc_dtype, ('time','yt_ocean','xt_ocean'))
+        var_dict = col.OrderedDict([
+             ('long_name', ("average mass flux from PISM diagnostic output variable "
+                            "'tendency_of_ice_amount_due_to_discharge_accumulator' "
+                            "in reporting interval")),
+             ('units', 'kg/m^2/s'),
+             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
+             ('reporting_interval', reporting_interval ),
+             ('reporting_interval_units', 'years'),
+             ('cell_methods', 'time: point'),
+             ('coordinates', 'geolon_t geolat_t')])
+        dst['mass_flux_calving'].setncatts(var_dict)
+        dst['mass_flux_calving'][0,:] = oc_edge_flux_per_area['mass_calving'][:].data
+
+
+        #### ---- heat flux variables ---- 
         x = dst.createVariable('heat_flux', nc_dtype, ('time','yt_ocean','xt_ocean'))
         var_dict = col.OrderedDict([
              ('long_name', ("average heat flux calculated from PISM diagnostic output variables"
@@ -624,8 +687,35 @@ if __name__ == "__main__":
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon_t geolat_t')])
         dst['heat_flux'].setncatts(var_dict)        
-        dst['heat_flux'][0,:] = oc_edge_flux['heat'][:].data
+        dst['heat_flux'][0,:] = oc_edge_flux_per_area['energy_net'][:].data
 
+        x = dst.createVariable('heat_flux_basal_melt', nc_dtype, ('time','yt_ocean','xt_ocean'))
+        var_dict = col.OrderedDict([
+             ('long_name', ("average heat flux calculated from PISM diagnostic output variable "
+                            "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' "
+                            "in reporting interval")),
+             ('units', 'W/m^2'),
+             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
+             ('reporting_interval', reporting_interval ),
+             ('reporting_interval_units', 'years'),
+             ('cell_methods', 'time: point'),
+             ('coordinates', 'geolon_t geolat_t')])
+        dst['heat_flux_basal_melt'].setncatts(var_dict)        
+        dst['heat_flux_basal_melt'][0,:] = oc_edge_flux_per_area['energy_basal_melt'][:].data
+
+        x = dst.createVariable('heat_flux_calving', nc_dtype, ('time','yt_ocean','xt_ocean'))
+        var_dict = col.OrderedDict([
+             ('long_name', ("average heat flux calculated from PISM diagnostic output variable "
+                            " 'tendency_of_ice_amount_due_to_discharge_accumulator' "
+                            "in reporting interval")),
+             ('units', 'W/m^2'),
+             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
+             ('reporting_interval', reporting_interval ),
+             ('reporting_interval_units', 'years'),
+             ('cell_methods', 'time: point'),
+             ('coordinates', 'geolon_t geolat_t')])
+        dst['heat_flux_calving'].setncatts(var_dict)
+        dst['heat_flux_calving'][0,:] = oc_edge_flux_per_area['energy_calving'][:].data
 
     ### ---------------------- save basin depths file ---------------------------
     #   write basin mean topography of ice shelf areas to basin_shelf_depth_file 
