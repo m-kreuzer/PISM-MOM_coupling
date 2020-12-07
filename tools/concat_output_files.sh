@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 module load intel/2018.1 nco
 

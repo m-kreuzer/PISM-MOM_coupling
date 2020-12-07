@@ -506,8 +506,11 @@ process_pism_to_mom(){
         -d $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc \
         -v
     RESULT=$?
+
+    {% if not settings.use_prescribed_basin_shelf_depth==True %}
     # save file path for usage in next process_mom_to_pism call
     BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc
+    {% endif %}
 
     # modify data table to include PISM output fluxes
     cd $ROOT_WORK_DIR/POEM
@@ -841,9 +844,9 @@ RESULT=$?
 return_check $RESULT "PISMbasin-to-MOMcell_mapping.py"
 
 
+{% if not settings.use_prescribed_basin_shelf_depth==True %}
 # create basin_shelf_depth_file
 echo " >> create basin_shelf_depth_file from prerun output"
-#BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc
 $ROOT_WORK_DIR/inter-model-processing/PISM-to-MOM_processing.py \
     -o $PISM_PRE_OUT                                            \
     -e $PISM_WORK_DIR/prerun/prerun.pism_snap.nc                \
@@ -856,6 +859,10 @@ RESULT=$?
 return_check $RESULT "PISM-to-MOM_processing.py"
 # save file path for usage in next process_mom_to_pism call
 BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc
+{% else %}
+# use prescribed basin shelf depths from file
+BASIN_SHELF_DEPTH_FILE={{settings.prescribed_basin_shelf_depth_path}}
+{% endif %}
 
 
 # set PISM-to-MOM when restarting from coupled run

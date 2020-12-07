@@ -24,7 +24,7 @@ coupling_timestep = 10      # in years, must be greater or equal 1
 max_cpl_iteration = 10      # number of coupling iterations
 
 
-# coupled_restart
+# - - - - - - - - - - - - - - - - - - restart - - - - - - - - - - - - - - - - -
 # option to restart a coupled setup from a previous run
 #  -> gives the opportunity to add PISM input fluxes to MOM from last coupling 
 #     iteration of the previous run
@@ -37,11 +37,8 @@ pism_to_mom_flux_restart_file = '12811.fluxes.nc'
 restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_gmd-2020-230_run04"
 pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
 
-
-# ------------------------------- POEM settings --------------------------------
-
-poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
-do_ocean_anomaly    = True
+# - - - - - - - - - - - - - - - - ocean anomaly - - - - - - - - - - - - - - -  -
+do_ocean_anomaly    = False
 
 # in case of coupled restart with do_ocean_anomaly:
 #     specify ocean anomaly reference file from previous run
@@ -59,7 +56,22 @@ calc_ocn_anomaly['yr_step'] = "10"
 calc_ocn_anomaly['name_format_in']  = "%06g0101.ocean-yearly.nc"
 calc_ocn_anomaly['name_format_out'] = "%06g-%06g.ocean-yearly.mean.nc"
 
+# - - - - - - - - - - - - - - - basin shelf depth - - - - - - - - - - - - - - -
+# option to use static basin shelf depth values read from file
+#  -> gives possibility to use prescribed shelf depth values
+#  -> depths are used by regriddedMOM-to-PISM_processing.py to select basin
+#     temperatures and salinity from vertical profile
+#  -> if option is not used then basin shelf depth is calculated each coupling
+#     time step in PISM-to-MOM_processing.py
 
+use_prescribed_basin_shelf_depth = True
+prescribed_basin_shelf_depth_path = '/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/basin_shelf_depth/basin_shelf_depth_oceanic_gateways.nc'
+
+
+
+# ------------------------------- POEM settings --------------------------------
+
+poem_exp_dir        = os.path.join(experiment_dir, 'POEM')
 
 # ------------------------------- PISM settings --------------------------------
 
@@ -102,6 +114,10 @@ pism_ocnkill_file = "bedmap2_"+grid_id+".nc"
 #pism_ocnkill_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
 pism_ocnkill_data_path = os.path.join(pism_ocnkill_data_dir,pism_ocnkill_file)
 
+
+
+
+# - - - - - - - - - - - - - - - - config file - - - - - - - - - - - - - - -  -
 
 # set pism parameters that apply to all runs (unless part of the ensemble)
 pism_config_file = os.path.join(pism_code_dir,"src/pism_config.cdl")
@@ -212,14 +228,14 @@ override_params = collections.OrderedDict([
 ###("hydrology.use_const_bmelt", "yes"),
 ])
 
-### PISM options
+# - - - - - - - - - - - - - - - command line options - - - - - - - - - - - - - -
 pism_general_opt = "-verbose 2 -options_left -o_format netcdf4_parallel -log_view"
 pism_atm_opt = "-atmosphere pik -atmosphere_pik_temp_file initdata/"+pism_atm_file+" -surface pdd"
 pism_add_opt = "-ocean_kill_file initdata/"+pism_ocnkill_file
 
 
 
-### PISM output
+# - - - - - - - - - - - - - - - - - - output - - - - - - - - - - - - - - - - -
 
 # set extra variables
 pism_extra_vars = "mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount,amount_fluxes,ice_mass,pico_contshelf_mask"

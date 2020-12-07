@@ -488,8 +488,6 @@ if __name__ == "__main__":
         else:
             pism_basin_shelf_depth[idx] = np.mean(pism_shelf_topg[pism_basins==val])
 
-    print("pism_basin_flux['mass_net']", pism_basin_flux['mass_net'])
-                            
     # create output structure on MOM grid
     oc_dummy = np.zeros_like(oc_edge_basin, dtype=pism_tend_bmf_dtype)
     oc_edge_flux = {}.fromkeys(pism_fluxes_total.keys())
@@ -742,7 +740,8 @@ if __name__ == "__main__":
         # create variables
         x = dst.createVariable('basin', int, 'n_basin')
         var_dict = col.OrderedDict([
-             ('long_name', "list of valid PISM/PICO basins")])
+             ('name', "PISM-PICO basin"),
+             ('long_name', "list of valid PISM-PICO basins")])
         dst['basin'].setncatts(var_dict)      
         dst['basin'][:] = pism_basin_list[:]
 
