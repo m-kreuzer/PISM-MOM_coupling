@@ -591,8 +591,8 @@ concat_output_files(){
     ncrcat --overwrite $(echo `seq -f "%06g0101.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.PISM_input.nc
     cd $ROOT_WORK_DIR/x_PISM-to-MOM
-    #ncrcat --overwrite $(echo `seq -f "%06g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
-    #    $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
+    ncrcat --overwrite $(echo `seq -f "%06g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
     ncrcat --overwrite $(echo `seq -f "%06g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
     cd $ROOT_WORK_DIR
