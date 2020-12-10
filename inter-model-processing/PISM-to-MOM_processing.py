@@ -254,6 +254,13 @@ if __name__ == "__main__":
         # cut of time dimension and take first time slice
         pism_basins = pism_basins[0,:,:]
     
+    # read PICO contshelf mask
+    pism_contshelf_mask = np.squeeze(nc_fh.variables['pico_contshelf_mask'][:])
+    pism_contshelf_mask_ndim = len(pism_contshelf_mask.shape)
+    if pism_contshelf_mask_ndim == 3:
+        # cut of time dimension and take first time slice
+        pism_contshelf_mask = pism_contshelf_mask[0,:,:]
+
     # read reporting interval, unit: [years]
     d = nc_fh['pism_config'].__dict__
     pism_extra_times__str = d['output.extra.times']           
@@ -389,10 +396,17 @@ if __name__ == "__main__":
     # proj4_str = ("+lon_0=0.0 +ellps=WGS84 +datum=WGS84 +lat_ts=-71.0 "
     #              "+proj=stere +x_0=0.0 +units=m +y_0=0.0 +lat_0=-90.0 ")
     
-    ### create subset of topography for grid cells either floating or at edge
-    #   of ice shield
-    pism_floating_mask = (pism_mask==3) | (pism_iasv!=0)
-    pism_shelf_topg = np.ma.array(pism_topg, mask=~pism_floating_mask)
+    #### create subset of topography for grid cells either floating or at edge
+    ##   of ice shield
+    #pism_floating_mask = (pism_mask==3) | (pism_iasv!=0)
+    #pism_shelf_topg = np.ma.array(pism_topg, mask=~pism_floating_mask)
+    ### create subset of topography for continental shelf grid cells
+    #   pism/pico continental shelf mask 
+    #       <=> continental shelf (topg above threshold) AND no land ice
+    #    0 = False
+    #    1 = True, but not relevant
+    #    2 = True and relevant
+    pism_contshelf_topg = np.ma.array(pism_topg, mask=~(pism_contshelf_mask==2))
     
     
     # aggregate mass from ice to ocean for mass & energy flux calculations
@@ -463,7 +477,7 @@ if __name__ == "__main__":
             pism_basin_flux[k][idx] = np.sum(pism_fluxes_total[k][pism_basins==val])
 
         # calculate basin mean topography for shelf ice
-        basin_mean_depth = np.mean(pism_shelf_topg[pism_basins==val])
+        basin_mean_depth = np.mean(pism_contshelf_topg[pism_basins==val])
         if (basin_mean_depth is np.ma.masked):
             # default depth in meters
             pism_basin_shelf_depth[idx] = -500
