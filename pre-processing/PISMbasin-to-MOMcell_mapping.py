@@ -33,7 +33,7 @@ Arguments:
     -b basin_file
         a netCDF file with PISM/PICO variable 'basins'
     -m mom_file
-        a MOM output file (netCDF) with variable 'temp'
+        a MOM output file (netCDF) with variable 'temp' and 'area_t'
     -o out_file
         name of netCDF output file to store mapping of PISM basins to MOM cells
     -t (optional)
@@ -56,7 +56,6 @@ import numpy as np
 import copy
 import collections as col
 import time
-#import matplotlib.pyplot as plt
 import argparse
 try:
     import netCDF4
@@ -212,7 +211,7 @@ if __name__ == "__main__":
     basin_lon_s = copy.deepcopy(basin_lon)
     basin_lon_s[basin_lon_s < -180] +=360
     basin_lon_s[basin_lon_s >  180] -=360
-    
+
     # read basin array    
     pism_basins = np.squeeze(nc_fh.variables['basins'][:])#.astype(np.int32)
     # check basin dimension
@@ -258,14 +257,23 @@ if __name__ == "__main__":
     ocean_lon_s[ocean_lon_s < -180] +=360
     ocean_lon_s[ocean_lon_s >  180] -=360
 
-    # read basin array    
+    # read tracer area
+    oc_area = np.squeeze(nc_fh.variables['area_t'][:])
+    # check area dimension
+    ocean_a_ndim = len(oc_area.shape)
+    if ocean_a_ndim != 2:
+        s = ("Ocean variable 'area_t' from file '{}' is of dimension {}. "
+             "Expected: 2")
+        raise ValueError( s.format(args.MOM_file, ocean_a_ndim))
+
+    # read temperature
     oc_temp = np.squeeze(nc_fh.variables['temp'][:])#.astype(np.int32)
-    # check basin dimension
-    ocean_ndim = len(oc_temp.shape)
-    if ocean_ndim != 3:
+    # check temp dimension
+    ocean_t_ndim = len(oc_temp.shape)
+    if ocean_t_ndim != 3:
         s = ("Ocean variable 'temp' from file '{}' is of dimension {}. "
              "Expected: 3")
-        raise ValueError( s.format(args.MOM_file, ocean_ndim))  
+        raise ValueError( s.format(args.MOM_file, ocean_t_ndim))
         
     oc_nlat = oc_temp.shape[1]
     oc_nlon = oc_temp.shape[2]
@@ -322,10 +330,6 @@ if __name__ == "__main__":
                                                  oc_south_edge['mask']*-1,    \
                                                  mask= oc_south_edge['mask'], \
                                                  dtype= float)
-#    # initialize all non-masked values
-#    for k in ['pism_i', 'pism_j', 'pism_basin', 'pism_basin_ratio']:
-#        oc_south_edge[k][oc_south_edge[k].mask == False ] = -1
-                 
     
     # find corresponding PISM indices for ocean edge cell centers via coordinates
     for j in range(oc_nlat):
@@ -339,16 +343,16 @@ if __name__ == "__main__":
                 oc_south_edge['pism_j'][j,i] = pism_index[1]
 
     
-    # create PISM field for verification
-    ocean_edge_on_pism_grid = np.empty_like(pism_basins.data)
-    ocean_edge_on_pism_grid[:] = np.nan
-    
-    fill_val = -40
-    for j in range(oc_nlat):
-        for i in range(oc_nlon):
-            if oc_south_edge['mask'][j,i] == False:
-                ocean_edge_on_pism_grid[oc_south_edge['pism_i'][j,i], \
-                                        oc_south_edge['pism_j'][j,i]] = fill_val
+    ## create PISM field for verification
+    #ocean_edge_on_pism_grid = np.empty_like(pism_basins.data)
+    #ocean_edge_on_pism_grid[:] = np.nan
+    #
+    #fill_val = -40
+    #for j in range(oc_nlat):
+    #    for i in range(oc_nlon):
+    #        if oc_south_edge['mask'][j,i] == False:
+    #            ocean_edge_on_pism_grid[oc_south_edge['pism_i'][j,i], \
+    #                                    oc_south_edge['pism_j'][j,i]] = fill_val
 
     
     # identify corresponding basin for each ocean edge cell 
@@ -364,7 +368,8 @@ if __name__ == "__main__":
     mom_basin_list_tmp, mom_basin_count_tmp = \
                     np.unique(oc_south_edge['pism_basin'], return_counts=True)
     mom_basin_list    = mom_basin_list_tmp[~mom_basin_list_tmp.mask].data
-    mom_basin_count     = mom_basin_count_tmp[~mom_basin_list_tmp.mask]
+    mom_basin_count   = mom_basin_count_tmp[~mom_basin_list_tmp.mask]
+    mom_basin_area    = np.zeros_like(mom_basin_list, dtype=np.float)
 
     pism_basin_list = np.unique(pism_basins).data
     # remove basin 0
@@ -374,13 +379,33 @@ if __name__ == "__main__":
     assert set(mom_basin_list) == set(pism_basin_list), \
             'not all basins on PISM grid have a corresponding MOM cell!'
             
+    # calculate cummulative area of ocean cells associated with each basin
+    for j in range(oc_nlat):
+        for i in range(oc_nlon):
+            if oc_south_edge['mask'][j,i] == False:
+                basin = oc_south_edge['pism_basin'][j,i]
+                mom_basin_area[np.where(mom_basin_list == basin)]  += oc_area[j,i]
+
+
     # write basin ratio for each ocean edge cell
     for j in range(oc_nlat):
         for i in range(oc_nlon):
             if oc_south_edge['mask'][j,i] == False:
                 basin = oc_south_edge['pism_basin'][j,i]
-                count = mom_basin_count[np.where(mom_basin_list == basin)]
-                oc_south_edge['pism_basin_ratio'][j,i] =  1 / count[0]
+                basin_area = mom_basin_area[np.where(mom_basin_list == basin)]
+                oc_south_edge['pism_basin_ratio'][j,i] =  oc_area[j,i] / basin_area
+                # old version: ratio only by number of ocean cells per basin
+                #count = mom_basin_count[np.where(mom_basin_list == basin)]
+                #oc_south_edge['pism_basin_ratio'][j,i] =  1 / count[0]
+
+    # check whether ratios of ocean cells in same basin add up to 1
+    mom_basin_ratio_check = np.empty_like(mom_basin_area)*np.nan
+    for b in mom_basin_list:
+        basin_mask = (oc_south_edge['pism_basin'] == b)
+        basin_ratio_sum = np.sum(oc_south_edge['pism_basin_ratio'][basin_mask])
+        assert np.isclose(1, basin_ratio_sum), \
+                'MOM cell area ratios in basin %s are not summing up to 1 but to %f' \
+                % (b, basin_ratio_sum)
                       
     t_process_end = time.time()
     
