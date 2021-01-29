@@ -27,11 +27,11 @@ echo PISM_TIME_END:     $PISM_TIME_END
 -extra_file prerun/prerun.pism_extra.nc  \
 -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
 -extra_vars basal_mass_flux_floating,basins,amount_fluxes,pico_contshelf_mask \
--save_file prerun/prerun.pism_snap.nc \
--save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
 -o prerun/prerun.pism_out.nc \
     > prerun/prerun.pism.out 2>&1
 
+#-save_file prerun/prerun.pism_snap.nc \
+#-save_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
 
 RESULT=$?
 

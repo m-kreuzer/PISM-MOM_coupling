@@ -499,7 +499,7 @@ process_pism_to_mom(){
 
     ./PISM-to-MOM_processing.py                                             \
         -o $PISM_PRE_OUT                                                    \
-        -e $PISM_WORK_DIR/results/$PISM_TIME_END_PAD.pism_snap.nc           \
+        -e $PISM_WORK_DIR/results/$PISM_TIME_END_PAD.pism_extra.nc          \
         -m $ROOT_WORK_DIR/pre-processing/PISMbasin-to-MOMcell_mapping.nc    \
         -a $MOM_PRE_OUT                                                     \
         -f $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc        \
@@ -849,7 +849,7 @@ return_check $RESULT "PISMbasin-to-MOMcell_mapping.py"
 echo " >> create basin_shelf_depth_file from prerun output"
 $ROOT_WORK_DIR/inter-model-processing/PISM-to-MOM_processing.py \
     -o $PISM_PRE_OUT                                            \
-    -e $PISM_WORK_DIR/prerun/prerun.pism_snap.nc                \
+    -e $PISM_WORK_DIR/prerun/prerun.pism_extra.nc               \
     -m PISMbasin-to-MOMcell_mapping.nc                          \
     -a $MOM_PRE_OUT                                             \
     -f $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.fluxes.nc            \
