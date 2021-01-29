@@ -890,13 +890,13 @@ echo "ocean anomaly approach enabled"
     # ........................................................................ #
     {% if settings.use_ocean_anomaly_from_prev_run==True %}
 echo "using ocean anomaly reference file {{settings.ocean_anomaly_reference_path}}"
-OCEAN_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/\
-    {{settings.ocean_anomaly_reference_file}}
+OCEAN_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/{{settings.ocean_anomaly_reference_file}}
+echo OCEAN_ANOMALY_REFERENCE_FILE=$OCEAN_ANOMALY_REFERENCE_FILE
 
     # ........................................................................ #
     {% else %} # compute ocean anomaly reference state
-echo "computing ocean anomaly reference state as mean of PISM-to-MOM files in "\
-    {{settings.restart_dir}}
+echo "computing ocean anomaly reference state from " \
+    {{settings.calc_ocn_anomaly['path']}}
 
 cd {{settings.calc_ocn_anomaly['path']}}
 echo "  > [ocean anomaly reference] average yearly model output (possibly "\
