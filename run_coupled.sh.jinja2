@@ -445,8 +445,9 @@ process_mom_to_pism() {
 
     echo "  > bilinear regridding MOM output to PISM grid"
     OCEAN_OUT=$POEM_WORK_DIR/history/$POEM_TIME_END.ocean-yearly.nc
-    REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.sparse.nc
-    ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN
+    REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.mean.nc
+    ncra -v temp,salt -F -d time,1,,1 $OCEAN_OUT $REGRID_IN
+    #ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN
     REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
     WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
     cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
@@ -470,14 +471,21 @@ process_mom_to_pism() {
     #       PISM-PICO forcing and add difference of 
     #       regriddedMOM-to-PISM_processing.py output from current to first 
     #       coupling time step
+    echo OCEAN_ANOMALY_REFERENCE_FILE=$OCEAN_ANOMALY_REFERENCE_FILE
     ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
         $OCEAN_ANOMALY_REFERENCE_FILE \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
+    RESULT=$?
+    return_check $RESULT "ncbo"
     ncbo -O --op_typ=add $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_ocn_file}} \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    RESULT=$?
+    return_check $RESULT "ncbo"
     ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    RESULT=$?
+    return_check $RESULT "ncks"
     {% else %}
     # don't use ocean anomaly approach:
     #       make PISM input file the same as regriddedMOM-to-PISM_processing.py output
