@@ -535,6 +535,8 @@ process_pism_to_mom(){
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 concat_output_files(){
+START_CONCAT_FILES=$(date +%s.%N)
+
     # concatenate MOM output
     cd $POEM_WORK_DIR/history
     INPUT_FILES=$(echo `seq -f "%06g0101.ice-monthly.nc" \
@@ -604,6 +606,9 @@ concat_output_files(){
     ncrcat --overwrite $(echo `seq -f "%06g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
     cd $ROOT_WORK_DIR
+
+END_CONCAT_FILES=$(date +%s.%N)
+TIME_CONCAT_FILES=$(echo "$END_CONCAT_FILES - $START_CONCAT_FILES" | bc)
 
 }
 
@@ -1049,6 +1054,7 @@ print_stat POEM_postprocessing $TIME_POEM_POSTPROC $TIME_SCRIPT
 print_stat PISM_runs $TIME_PISM $TIME_SCRIPT
 print_stat MOM-to-PISM_processing $TIME_MOM_to_PISM_PROCESS $TIME_SCRIPT
 print_stat PISM-to-MOM_processing $TIME_PISM_to_MOM_PROCESS $TIME_SCRIPT
+print_stat concat_output_files $TIME_CONCAT_FILES $TIME_SCRIPT
 printf "%$width.${width}s\n" " $sep_str"
 
 echo
