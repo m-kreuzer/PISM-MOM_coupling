@@ -329,7 +329,7 @@ poem_run_postprocess() {
     cd RESTART
     for i in *.res*; do
         rm ../INPUT/$i
-        mv $i ../INPUT/. 
+        cp $i ../INPUT/. 
     done
     cd $OLDPWD
 

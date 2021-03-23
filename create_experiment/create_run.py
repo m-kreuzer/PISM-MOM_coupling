@@ -179,7 +179,7 @@ def create_run(settings=settings, experiment=settings.experiment):
                 #subprocess.run("ls", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 subprocess.call(cmd, shell=True)
             print("   - copied MOM restart files from {} to POEM/INPUT".format(
-                    settings.pism_to_mom_flux_restart_file, settings.restart_dir))
+                    poem_restart_files_dir))
         else:
             print("WARNING: path %s does not exist! Need to copy MOM restart files to INPUT dir by hand..." %
                     poem_restart_files_dir)
