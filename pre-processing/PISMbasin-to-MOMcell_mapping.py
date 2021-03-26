@@ -371,7 +371,8 @@ if __name__ == "__main__":
     mom_basin_count   = mom_basin_count_tmp[~mom_basin_list_tmp.mask]
     mom_basin_area    = np.zeros_like(mom_basin_list, dtype=np.float)
 
-    pism_basin_list = np.unique(pism_basins).data
+    #pism_basin_list = np.unique(pism_basins).data
+    pism_basin_list = np.unique(pism_basins)
     # remove basin 0
     pism_basin_list = np.delete(pism_basin_list, np.where(pism_basin_list==0) ) 
     
