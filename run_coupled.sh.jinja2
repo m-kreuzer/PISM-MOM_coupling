@@ -445,9 +445,17 @@ process_mom_to_pism() {
 
     echo "  > bilinear regridding MOM output to PISM grid"
     OCEAN_OUT=$POEM_WORK_DIR/history/$POEM_TIME_END.ocean-yearly.nc
+    {% if settings.ocean_to_ice_timeseries==True -%}
+    # don't average ocean output over coupling time step before regridding
+    # but extract temp, salt for regridding
+    REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.sparse.nc
+    ncks -O -v temp,salt,time_bounds $OCEAN_OUT $REGRID_IN
+    {% else %}
+    # average ocean output over coupling time step before regridding
     REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.mean.nc
-    ncra -v temp,salt -F -d time,1,,1 $OCEAN_OUT $REGRID_IN
-    #ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN
+    ncra -O -v temp,salt -F -d time,1,,1 $OCEAN_OUT $REGRID_IN
+    #ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN     # only last timestep 
+    {% endif %}
     REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
     WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
     cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
@@ -467,25 +475,30 @@ process_mom_to_pism() {
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
     {% if settings.do_ocean_anomaly==True -%}
-    # anomaly approach: use pism_ocn_file (e.g. Schmidtko data) for 
+    ### anomaly approach: use pism_ocn_file (e.g. Schmidtko data) for 
     #       PISM-PICO forcing and add difference of 
     #       regriddedMOM-to-PISM_processing.py output from current to first 
     #       coupling time step
     echo OCEAN_ANOMALY_REFERENCE_FILE=$OCEAN_ANOMALY_REFERENCE_FILE
+    echo OCEAN_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_ANOMALY_REFERENCE_FILE_NOTIME
+    # difference from current ocean output to reference
     ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $OCEAN_ANOMALY_REFERENCE_FILE \
+        $OCEAN_ANOMALY_REFERENCE_FILE_NOTIME \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
     RESULT=$?
     return_check $RESULT "ncbo"
+    # add difference to given ocean forcing file
     ncbo -O --op_typ=add $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_ocn_file}} \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
     RESULT=$?
     return_check $RESULT "ncbo"
-    ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
+    # copy time variable to PISM forcing file (omitted by ncbo add operation above)
+    ncks -A -v time,time_bounds $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
     RESULT=$?
     return_check $RESULT "ncks"
+
     {% else %}
     # don't use ocean anomaly approach:
     #       make PISM input file the same as regriddedMOM-to-PISM_processing.py output
@@ -664,7 +677,7 @@ module load pism/stable1.0
 
 # load anaconda python environment for pre & inter-model processing scripts
 module load anaconda
-source activate py3_netcdf
+source activate py3_netcdf_xarray
 conda info --envs
 conda list
 
@@ -955,6 +968,16 @@ cd $ROOT_WORK_DIR
 
     {% endif %}
     # ........................................................................ #
+
+# removing time dimension from ocean anomaly reference file 
+#  -> needed for clean broadcasting with ncbo
+FILE_EXTENSION="${OCEAN_ANOMALY_REFERENCE_FILE##*.}"
+FILE_PATH_NO_EXTENSION="${OCEAN_ANOMALY_REFERENCE_FILE%.*}"
+OCEAN_ANOMALY_REFERENCE_FILE_NOTIME=$FILE_PATH_NO_EXTENSION.no-time.$FILE_EXTENSION
+
+echo OCEAN_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_ANOMALY_REFERENCE_FILE_NOTIME
+ncwa -O -a time $OCEAN_ANOMALY_REFERENCE_FILE $OCEAN_ANOMALY_REFERENCE_FILE_NOTIME
+
 
 # ____________________________________________________________________________ #
 {% else %}

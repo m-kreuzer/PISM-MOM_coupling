@@ -37,6 +37,12 @@ pism_to_mom_flux_restart_file = '12811.fluxes.nc'
 restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_gmd-2020-230_run04"
 pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
 
+# - - - - - - - - - - - - - - MOM -> PISM timeseries - - - - - - - - - - - - - - 
+# option to pass a time series of ocean forcing to PISM when coupling time step
+# is greater than a year. Otherwise the ocean forcing is averaged over the 
+# coupling time step before being processed and passed to PISM.
+ocean_to_ice_timeseries = True
+
 # - - - - - - - - - - - - - - - - ocean anomaly - - - - - - - - - - - - - - -  -
 do_ocean_anomaly    = False
 
