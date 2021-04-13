@@ -656,7 +656,7 @@ if __name__ == "__main__":
                                         'dtype':'double'}
 
     ### write output
-    ds_field_out.to_netcdf(args.out_file, encoding=encoding_dict)
+    ds_field_out.to_netcdf(args.out_file, unlimited_dims='time', encoding=encoding_dict)
 
     t_write_outfile_end = time.time()
     t_main_end = time.time()

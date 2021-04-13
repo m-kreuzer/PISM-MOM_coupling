@@ -30,7 +30,7 @@
 #SBATCH --partition=broadwell
 {% else %}
 #SBATCH --tasks-per-node=16
-#SBATCH --partition=haswell
+##SBATCH --partition=haswell
 {% endif %}
 
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
@@ -494,10 +494,17 @@ process_mom_to_pism() {
     RESULT=$?
     return_check $RESULT "ncbo"
     # copy time variable to PISM forcing file (omitted by ncbo add operation above)
-    ncks -A -v time,time_bounds $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+    ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
     RESULT=$?
     return_check $RESULT "ncks"
+        {% if settings.ocean_to_ice_timeseries==True -%}
+    ncks -A -v time_bounds \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+    RESULT=$?
+    return_check $RESULT "ncks"
+        {% endif %}
 
     {% else %}
     # don't use ocean anomaly approach:
