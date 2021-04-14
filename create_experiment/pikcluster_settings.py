@@ -11,7 +11,8 @@ coupl_template_dir = "/p/projects/pism/kreuzer/software/PISM-MOM_coupling"
 
 ### PISM paths
 #pism_code_dir = "/p/projects/pism/kreuzer/software/pism1.2.1"
-pism_code_dir = "/p/projects/climber3/kreuzer/PISM/pism1.1"
+#pism_code_dir = "/p/projects/climber3/kreuzer/PISM/pism1.1"
+pism_code_dir = "/p/projects/pism/kreuzer/software/pism1.1.4_extra-double"
 #pism_code_dir = "/home/reese/pism_code/pism2019/pism"
 pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
 
@@ -19,7 +20,7 @@ pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
 # POEM project directory with tools like mppnccombine, time_stamp.csh, ...
 poem_proj_dir = "/p/projects/climber3/kreuzer/POEM/trunk"
 # POEM template directory with all namelist & input files
-poem_template_dir = "/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/MOM5_SIS-no_antarctic_river_runoff"
+poem_template_dir = "/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/MOM5_SIS-EM3-no_antarctic_river_runoff"
 
 
 
@@ -32,11 +33,15 @@ submit_command="sbatch run_coupled.sh"
 # ---------------------------- resource management ----------------------------- 
 slurm_tasks = 32
 #slurm_partition="broadwell"
-slurm_exclusive = True
-slurm_qos = 'priority'
+slurm_exclusive = False
 
-slurm_time = "23:00:00"
+#slurm_qos = 'priority'
+#slurm_time = "23:00:00"
+slurm_qos = 'medium'
+slurm_time = "4-23:00:00"
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 
-slurm_add_directives = "#SBATCH --constraint=haswell,tasksmax"
+#slurm_add_directives = "#SBATCH --constraint=haswell,tasksmax"
+slurm_add_directives = "#SBATCH --constraint=tasksmax"
+#slurm_add_directives = ""
