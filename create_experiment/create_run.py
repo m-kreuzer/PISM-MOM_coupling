@@ -31,7 +31,7 @@ def stdout_redirected(to=os.devnull, stdout=None):
     stdout_fd = fileno(stdout)
     # copy stdout_fd before it is overwritten
     #NOTE: `copied` is inheritable on Windows when duplicating a standard stream
-    with os.fdopen(os.dup(stdout_fd), 'wb') as copied: 
+    with os.fdopen(os.dup(stdout_fd), 'wb') as copied:
         stdout.flush()  # flush library buffers that dup2 knows nothing about
         try:
             os.dup2(fileno(to), stdout_fd)  # $ exec >&to
@@ -127,7 +127,7 @@ def create_run(settings=settings, experiment=settings.experiment):
         dir_path = os.path.join(settings.experiment_dir,d) 
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
-    print(" > created experiment directory " + settings.experiment_dir)
+    print(f" > created experiment directory {settings.experiment_dir}")
 
     # create main coupling script from template
     create_script_from_template(settings, "run_coupled.sh.jinja2")
@@ -138,13 +138,13 @@ def create_run(settings=settings, experiment=settings.experiment):
         fpath = os.path.join(settings.pism_exp_dir, f)
         if not os.path.exists(fpath):
             os.makedirs(fpath)
-            print("   - created directory PISM/"+f)
+            print(f"   - created directory PISM/{f}")
 
     # copy PISM binary to experiment dir
     if not os.path.exists(settings.pism_exp_bin_dir):
         os.makedirs(settings.pism_exp_bin_dir)
     shutil.copy2(settings.pism_sys_bin, settings.pism_exp_bin_dir)
-    print("   - copied PISM binary {} to PISM/bin".format(settings.pism_sys_bin))
+    print(f"   - copied PISM binary {settings.pism_sys_bin} to PISM/bin")
 
     # copy PISM input files to PISM/initdata/
     pism_input_files_to_copy = [
@@ -154,17 +154,7 @@ def create_run(settings=settings, experiment=settings.experiment):
             settings.pism_ocnkill_data_path]
     for f in pism_input_files_to_copy:
         shutil.copy2(f, os.path.join(settings.pism_exp_dir, 'initdata'))
-        print("   - copied PISM input file {} to PISM/initdata".format(f))
-
-    #shutil.copy2(settings.pism_infile_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_infile_path))
-    #shutil.copy2(settings.pism_atm_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_atm_data_path))
-    #shutil.copy2(settings.pism_ocn_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocn_data_path))
-    #shutil.copy2(settings.pism_ocnkill_data_path, os.path.join(settings.pism_exp_dir, 'initdata'))
-    #print("   - copied PISM input file {} to PISM/initdata".format(settings.pism_ocnkill_data_path))
-
+        print(f"   - copied PISM input file {f} to PISM/initdata")
 
     # prepare pism config_override file
     pism_config_dict = get_pism_config_as_dict(settings)
@@ -191,33 +181,39 @@ def create_run(settings=settings, experiment=settings.experiment):
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
         except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
+            print(f'Failed to delete {file_path}. Reason: {e}')
     # copy from template
-    #shutil.copytree(settings.poem_template_dir, settings.poem_exp_dir, dirs_exist_ok=True, symlinks=True)
-    dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir, preserve_symlinks=1, update=1, verbose=1)
-    print("   - copied POEM template {} to POEM".format(settings.poem_template_dir))
+    #shutil.copytree(settings.poem_template_dir, settings.poem_exp_dir, 
+    #        dirs_exist_ok=True, symlinks=True)
+    dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir, 
+            preserve_symlinks=1, update=1, verbose=1)
+    print(f"   - copied POEM template {settings.poem_template_dir} to POEM")
 
     # further stuff to do when doing a restart from a previous coupled run
     if settings.coupled_restart==True :
         # copy PISM-to-MOM fluxes file if doing a restart from previous run
         shutil.copy2(settings.pism_to_mom_flux_restart_path, 
                 os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
-        print("   - copied PISM-to-MOM flux file {} from {} to restart from previous run".format(settings.pism_to_mom_flux_restart_file, settings.restart_dir))
+        print(f"   - copied PISM-to-MOM flux file "\
+                f"{settings.pism_to_mom_flux_restart_file} from "\
+                f"{settings.restart_dir} to restart from previous run")
 
         # copy MOM restart files from previous run
         poem_input_dir = os.path.join(settings.poem_exp_dir,'INPUT')
         poem_restart_files_dir = os.path.join(settings.restart_dir,'POEM/INPUT')
         if os.path.exists(poem_restart_files_dir):
             with helpers.cd( str(poem_restart_files_dir) ):
-                cmd = "for i in *.res*; do rm %s/$i; cp -a $i %s ; done" % (poem_input_dir, poem_input_dir)
+                cmd = f"for i in *.res*; do rm {poem_input_dir}/$i; "\
+                        f"cp -a $i {poem_input_dir} ; done"
                 #subprocess.run("ls", capture_output=True)
                 #subprocess.run("ls", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 subprocess.call(cmd, shell=True)
-            print("   - copied MOM restart files from {} to POEM/INPUT".format(
-                    poem_restart_files_dir))
+            print(f"   - copied MOM restart files from {poem_restart_files_dir} "\
+                    "to POEM/INPUT")
         else:
-            print("WARNING: path %s does not exist! Need to copy MOM restart files to INPUT dir by hand..." %
-                    poem_restart_files_dir)
+            warmings.warm(f"WARNING: path {poem_restart_files_dir} does not "\
+                    f"exist! Need to copy MOM restart files to INPUT dir by "\
+                    f"hand...")
 
         if (settings.do_ocean_anomaly==True and 
             settings.use_ocean_anomaly_from_prev_run==True):
@@ -225,9 +221,13 @@ def create_run(settings=settings, experiment=settings.experiment):
             if os.path.exists(settings.ocean_anomaly_reference_path):
                 shutil.copy2(settings.ocean_anomaly_reference_path, 
                     os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
-                print("   - copied ocean anomaly reference file {} of {} to compute ocean anomalies to same reference like in previous run".format(settings.ocean_anomaly_reference_file, settings.restart_dir))
+                print(f"   - copied ocean anomaly reference file "\
+                        f"{settings.ocean_anomaly_reference_file} of "\
+                        f"{settings.restart_dir} to compute ocean anomalies to "\
+                        f"same reference like in previous run")
             else:
-                warnings.warn("path %s does not exist!"  % settings.ocean_anomaly_reference_path)
+                warnings.warn(f"path {settings.ocean_anomaly_reference_path} "\
+                    f"does not exist!")
 
 
 
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     # redirect standard output to logfile
     orig_stdout = sys.stdout
     logfile = "create_run.log"
-    print("writing script output to '{}'".format(logfile))
+    print(f"writing script output to '{logfile}'")
     print("  -> check there for possible errors")
     with open(logfile, "w") as f:
         #sys.stdout = f
@@ -252,5 +252,5 @@ if __name__ == "__main__":
     # copy logfile to experiment location
     logfile_dst = os.path.join(settings.experiment_dir, logfile)
     shutil.copy2(logfile, logfile_dst)
-    print("script ended sucessfully; logfile copied to {}".format(logfile_dst))
+    print(f"script ended sucessfully; logfile copied to {logfile_dst}")
 
