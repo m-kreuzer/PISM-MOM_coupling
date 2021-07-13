@@ -653,6 +653,8 @@ START_CONCAT_FILES=$(date +%s.%N)
         $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
     ncrcat --overwrite $(echo `seq -f "%06g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
+    ncrcat --overwrite $(echo `seq -f "%06g.fluxes.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
     cd $ROOT_WORK_DIR
 
 END_CONCAT_FILES=$(date +%s.%N)
