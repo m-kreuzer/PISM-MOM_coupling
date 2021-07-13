@@ -458,6 +458,8 @@ process_mom_to_pism() {
     {% endif %}
     REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
     WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
+    # remove global attribute _NCProperties from POEM output which causes cdo to crash
+    ncatted -O -a _NCProperties,global,d,, $REGRID_IN
     cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
     RESULT=$?
     return_check $RESULT "cdo_regridding"
@@ -540,11 +542,37 @@ process_pism_to_mom(){
     BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc
     {% endif %}
 
-    # modify data table to include PISM output fluxes
+    {% if settings.runoff_slc==True -%}
+    ### ice sheet runoff contributing to sea level rise (runoff_slc)
+
+    # difference between current PISM runoff fluxes and reference
+    ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc \
+        $RUNOFF_REFERENCE_PATH \
+        $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.anomaly.nc
+    RESULT=$?
+    return_check $RESULT "ncbo"
+
+    ## modify data table to include PISM output fluxes
+    #  write PISM runoff fluxes files to table:
+    #  - reference runoff
+    #  - sea level changing runoff
+    cd $ROOT_WORK_DIR/POEM
+    cp data_table-dummy data_table-pism_in
+    sed "s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
+    sed "s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.anomaly.nc/" -i data_table-pism_in
+    ln -sf data_table-pism_in data_table
+
+    {% else %}
+    ## modify data table to include PISM output fluxes
+    #  - write PISM runoff fluxes file to table
+    #  - comment lines for sea level changing input
     cd $ROOT_WORK_DIR/POEM
     cp data_table-dummy data_table-pism_in 
-    sed "s/FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
+    sed "s/RUNOFF_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
+    sed -e '/.*RUNOFF_SLC_FILE_NAME_DUMMY/ s/^./#&/' -i data_table-pism_in
     ln -sf data_table-pism_in data_table
+    {% endif %}
+
 
     return_check $RESULT "PISM-to-MOM_processing.py"
 
@@ -849,6 +877,8 @@ return_check $RESULT "cdo-weight-generation"
 echo "  > regrid prerun output from MOM to PISM grid "
 REGRID_IN=$MOM_PRE_OUT
 REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/prerun.regrid.MOM-to-PISM.bil.cdo.nc
+# remove global attribute _NCProperties from POEM output which causes cdo to crash
+ncatted -O -a _NCProperties,global,d,, $REGRID_IN
 cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS $REGRID_IN $REGRID_OUT
 RESULT=$?
 return_check $RESULT "cdo_regridding"
@@ -897,8 +927,30 @@ BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc
 BASIN_SHELF_DEPTH_FILE={{settings.prescribed_basin_shelf_depth_path}}
 {% endif %}
 
+### ice sheet runoff contributing to sea level rise (runoff_slc)
+{% if settings.runoff_slc==True -%}
+echo
+echo "sea level changing ice sheet runoff enabled"
+# check if reference file has 1 timestamp max (no time series)
+RUNOFF_REFERENCE_FILE={{settings.runoff_reference_file}}
+RUNOFF_REFERENCE_PATH=$ROOT_WORK_DIR/x_PISM-to-MOM/$RUNOFF_REFERENCE_FILE
+RUNOFF_REF_TIME_DIM=$(ncks --trd -M $RUNOFF_REFERENCE_PATH | \
+    grep "Root record dimension .: name = time" | \
+    cut -f 2 -d ',' | awk '{print $3}')
+if [ "$RUNOFF_REF_TIME_DIM" == "1" ] || [ "$RUNOFF_REF_TIME_DIM" == "" ] ; then 
+    echo "  > [runoff_slc] $RUNOFF_REFERENCE_FILE has no multiple time stamps"
+else
+    echo "  > [runoff_slc] ERROR: $RUNOFF_REFERENCE_FILE has multiple time"\
+        "stamps! Only 1 allowed or no time dimension."
+    exit_script 3
+fi
+{% else %}
+echo
+echo "sea level changing ice sheet runoff disabled"
+{% endif %}
 
-# set PISM-to-MOM when restarting from coupled run
+
+### set PISM-to-MOM when restarting from coupled run
 if [ -z ${PISM_TO_MOM_FLUX_RESTART_FILE+x} ]; then 
     echo "PISM_TO_MOM_FLUX_RESTART_FILE is unset"; 
     echo " -> no restart from coupled run"
@@ -907,10 +959,36 @@ else
     echo " -> restart from coupled run"
     echo " -> modifying data_table for first coupling iteration"
 
-    # modify data table to include PISM output fluxes for first restart iteration
+    {% if settings.runoff_slc==True -%}
+    ### ice sheet runoff contributing to sea level rise (runoff_slc)
+
+    # difference between current PISM runoff fluxes and reference
+    FILE_EXTENSION="${PISM_TO_MOM_FLUX_RESTART_FILE##*.}"
+    FILE_PATH_NO_EXTENSION="${PISM_TO_MOM_FLUX_RESTART_FILE%.*}"
+    PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE=$FILE_PATH_NO_EXTENSION.anomaly.$FILE_EXTENSION
+    ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TO_MOM_FLUX_RESTART_FILE \
+        $RUNOFF_REFERENCE_PATH \
+        $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE
+    RESULT=$?
+    return_check $RESULT "ncbo"
+
+    ## modify data table to include PISM output fluxes for first restart iteration
+    #  write PISM runoff fluxes files to table:
+    #  - reference runoff
+    #  - sea level changing runoff
     cd $ROOT_WORK_DIR/POEM
     cp data_table-dummy data_table-pism_in 
-    sed "s/FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_FILE/" -i data_table-pism_in
+    sed "s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
+    sed "s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE/" -i data_table-pism_in
+    {% else %}
+    ## modify data table to include PISM output fluxes for first restart iteration
+    #  - write PISM runoff fluxes file to table 
+    #  - comment lines for sea level changing input
+    cd $ROOT_WORK_DIR/POEM
+    cp data_table-dummy data_table-pism_in 
+    sed "s/RUNOFF_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_FILE/" -i data_table-pism_in
+    sed -e '/.*RUNOFF_SLC_FILE_NAME_DUMMY/ s/^./#&/' -i data_table-pism_in
+    {% endif %}
     ln -sf data_table-pism_in data_table    # for CPL_ITERATION==1
     cd $ROOT_WORK_DIR
 fi
@@ -950,6 +1028,8 @@ echo "  > [ocean anomaly reference] regrid averaged output from MOM to PISM grid
 REGRID_IN={{settings.calc_ocn_anomaly['path']}}/$AVG_OUT_FILE
 REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/ocean_mean.regrid.MOM-to-PISM.bil.cdo.nc
 WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
+# remove global attribute _NCProperties from POEM output which causes cdo to crash
+ncatted -O -a _NCProperties,global,d,, $REGRID_IN
 cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
 RESULT=$?
 return_check $RESULT "cdo_regridding"
@@ -992,6 +1072,8 @@ echo
 echo "ocean anomaly approach disabled"
 {% endif %}
 # ____________________________________________________________________________ #
+
+
 
 
 END_PREPROC=$(date +%s.%N)

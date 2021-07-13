@@ -43,8 +43,33 @@ pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_
 # coupling time step before being processed and passed to PISM.
 ocean_to_ice_timeseries = True
 
-# - - - - - - - - - - - - - - - - ocean anomaly - - - - - - - - - - - - - - -  -
-do_ocean_anomaly    = False
+ocean_to_ice_timeseries = False
+
+# - - - - - - - - - - - - - - ice sheet runoff SLC - - - - - - - - - - - - - - -
+# In ocean/sea ice only configuration (no atm), the ocean model uses a
+# normalisation of surface mass fluxes (precip-evap+river=0) to keep the mass
+# of the ocean and sea ice system constant.
+# (In MOM5 this is done via the `zero_net_water_coupler` flag in the `ocean_sbc`
+# namelist).
+# To avoid that changes in the ice sheet mass (and subsequently ice-to-ocean
+# runoff) are being balanced out when provided to the ocean via the river routing
+# scheme, the ice sheet runoff can be split:
+#  (1) regular mass flux to ocean in steady state (average at end of ice sheet
+#       standalone spinup
+#  (2) anomaly to the steady state/spinup mean
+# While (1) is provided via the regular river runoff mechanism, (2) is given to
+# MOM5 via the new implemented `runoff_slc` data table entry (which adds it to
+# the same runoff field, but excludes it from the pme+river=0 normalisation)
+# With the `runoff_slc` flag this split can be enabled. It might be reasonable
+# to switch it off during spinup phase of coupled ice/ocean simulations.
+# The provided `runoff_reference_file` is required to have one timestamp
+# only.
+runoff_slc = True
+runoff_reference_file = "equi_16km_110000yrs.mean_last_1ka.fluxes.nc"
+runoff_reference_path = os.path.join("/p/projects/pism/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run02/output_processed", runoff_reference_file)
+
+# - - - - - - - - - - - - - - - - ocean anomaly - - - - - - - - - - - - - - - -
+do_ocean_anomaly    = True
 
 # in case of coupled restart with do_ocean_anomaly:
 #     specify ocean anomaly reference file from previous run
@@ -53,7 +78,7 @@ use_ocean_anomaly_from_prev_run = False
 ocean_anomaly_reference_file = "12811.fluxes.nc" 
 ocean_anomaly_reference_path = os.path.join(restart_dir, 'x_PISM-to-MOM', ocean_anomaly_reference_file)
 #     or specify MOM output files used for computing ocean anomaly reference state
-#       -> used if do_ocean_anomally==True and use_ocean_anomaly_from_prev_run==False
+#       -> used if do_ocean_anomaly==True and use_ocean_anomaly_from_prev_run==False
 calc_ocn_anomaly = {}
 calc_ocn_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_equi_10000yrs_PISM_runoff_run02_post/history"
 calc_ocn_anomaly['yr_start'] = "7811"

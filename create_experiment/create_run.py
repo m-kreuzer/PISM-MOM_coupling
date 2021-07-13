@@ -230,6 +230,20 @@ def create_run(settings=settings, experiment=settings.experiment):
                     f"does not exist!")
 
 
+    # copying PISM runoff reference file for calculation of ice to ocean runoff
+    # with sea level impact
+    if settings.runoff_slc == True:
+        # copy ocean anomaly reference file from previous run
+        if os.path.exists(settings.runoff_reference_path):
+            shutil.copy2(settings.runoff_reference_path,
+                os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+            print(f"   - copied PISM runoff reference file "\
+                    f"{settings.runoff_reference_path} to compute ice "\
+                    f"to ocean runoff with sea level impact")
+        else:
+            warnings.warn(f"WARNING: tried to copy PISM runoff reference file, "\
+                    f"but path {settings.ocean_anomaly_reference_path} does "\
+                    f"not exist!")
 
 if __name__ == "__main__":
 
