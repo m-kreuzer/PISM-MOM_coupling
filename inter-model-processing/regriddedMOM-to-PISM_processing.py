@@ -260,6 +260,7 @@ if __name__ == "__main__":
     else:
         ds_field_out = cp.deepcopy(ds_field)
 
+
     for f in args.var_fill:
         ds_field_out[f] = ds_field_out[f]*np.nan
         # copy attributes
@@ -268,10 +269,6 @@ if __name__ == "__main__":
                 ds_field_out[f].attrs[k] = ds_field[f].attrs[k]
         ds_field_out[f].attrs['units'] = ds_field[f].attrs['units']
 
-    # extract vertical axis
-    ocean_z = ds_field['st_ocean']              # units: dbars (interpreting as m)
-    ocean_z = -1 * ocean_z                      # positive = upwards
-    
     # read field arrays 
     for f in args.var_fill:
         field_ndim = len(ds_field[f].shape)
@@ -492,67 +489,92 @@ if __name__ == "__main__":
     assert set(basin_list) == set(shelf_depth_basin_list), \
                 assert_str.format(args.basin_file, args.basin_shelf_depth_file)
 
+    # case: dataset holds vertical axis 'st_ocean'
+    if 'st_ocean' in ds_field.dims:
+        # extract vertical axis
+        ocean_z = ds_field['st_ocean']              # units: dbars (interpreting as m)
+        ocean_z = -1 * ocean_z                      # positive = upwards
 
-    # iterate basins 
-    for b_idx, b_val in enumerate(shelf_depth_basin_list):
-        if args.verbose:
-            print('\t > basin ', b_val, ' / ', shelf_depth_basin_list.max())
-            
-        # depth of current basin: mean_shelf_topg[idx]
-        # find higher and lower ocean levels 
-        z_idx_closest = np.abs(ocean_z.data - mean_shelf_topg[b_idx]).argmin()
-        if (ocean_z.data[z_idx_closest] - mean_shelf_topg[b_idx]) < 0:
-            z_idx_lower = z_idx_closest
-            z_idx_higher = z_idx_closest - 1
-            # special case for (mean_shelf_topg >= uppermost ocean level)
-            if z_idx_closest == 0:
-                z_idx_lower = 0
-                z_idx_higher = 0
-        else:
-            z_idx_lower = z_idx_closest + 1
-            z_idx_higher = z_idx_closest 
-        
-        
-        # define sampling points
-        z_l = ocean_z.data[z_idx_lower]     # z_lower
-        z_h = ocean_z.data[z_idx_higher]    # z_higher
-        z_i = mean_shelf_topg[b_idx]        # z_interpolate
-        dz = z_h - z_l                      # delta(z_l,z_h)
-        
-        # iterate fields
-        for f in args.var_fill:
-            # extract data from xarray Dataset, do the filling and put it back in
-            da_data = ds_field_out[f].data      # dim: (time, y, x)
+        # iterate basins
+        for b_idx, b_val in enumerate(shelf_depth_basin_list):
+            if args.verbose:
+                print('\t > basin ', b_val, ' / ', shelf_depth_basin_list.max())
 
-            if 'st_ocean' in ds_field[f].dims:
-                # iterate time
-                for t,t_val in enumerate(ds_field[f].time):
-                    bf_l = ds_field[f].data[t,z_idx_lower, basins==b_val]   # basin field lower
-                    bf_h = ds_field[f].data[t,z_idx_higher, basins==b_val]  # basin field higher
-                    bf_i = np.zeros_like(bf_l)                              # basin field interpolate
-                    bf_i[:] = np.nan
+            # depth of current basin: mean_shelf_topg[b_idx]
+            # find higher and lower ocean levels
+            z_idx_closest = np.abs(ocean_z.data - mean_shelf_topg[b_idx]).argmin()
+            if (ocean_z.data[z_idx_closest] - mean_shelf_topg[b_idx]) < 0:
+                z_idx_lower = z_idx_closest
+                z_idx_higher = z_idx_closest - 1
+                # special case for (mean_shelf_topg >= uppermost ocean level)
+                if z_idx_closest == 0:
+                    z_idx_lower = 0
+                    z_idx_higher = 0
+            else:
+                z_idx_lower = z_idx_closest + 1
+                z_idx_higher = z_idx_closest
 
-                    # use higher values if lower values not present
-                    if any(np.isnan(bf_l)):
-                        bf_i[:] = bf_h[:]
-                    # use uppermost ocean level when mean_shelf_topg >= ocean_z[0]
-                    elif ( (z_idx_lower == 0) and (z_idx_higher == 0) ):
-                        bf_i[:] = bf_h[:]
-                    # regular interpolation case
-                    else:
-                        # compute linear interpolation for each basin grid point between 
-                        #   higher and lower depth
-                        for bf_idx, bf_val in enumerate(bf_l):
-                            bf_i[bf_idx] =      (z_h - z_i) / dz * bf_l[bf_idx] \
-                                              + (z_i - z_l) / dz * bf_h[bf_idx]
-                    # store interpolated basin field
-                    da_data[t,basins.data==b_val] = bf_i
-                    #fields[f]['field_out'][basins==b_val] = bf_i
 
-            else:   # special case: no depth
-                for t,t_val in enumerate(ds_field[f].time):
-                    # copy to new data structure 
-                    da_data[t,basins.data==b_val] = ds_field[f].data[t, basins==b_val]
+            # define sampling points
+            z_l = ocean_z.data[z_idx_lower]     # z_lower
+            z_h = ocean_z.data[z_idx_higher]    # z_higher
+            z_i = mean_shelf_topg[b_idx]        # z_interpolate
+            dz = z_h - z_l                      # delta(z_l,z_h)
+
+            # iterate fields
+            for f in args.var_fill:
+                # extract data from xarray Dataset, do the filling and put it back in
+                da_data = ds_field_out[f].data      # dim: (time, y, x)
+
+                # case: field has vertical axis
+                if 'st_ocean' in ds_field[f].dims:
+                    # iterate time
+                    for t,t_val in enumerate(ds_field[f].time):
+                        bf_l = ds_field[f].data[t,z_idx_lower, basins==b_val]   # basin field lower
+                        bf_h = ds_field[f].data[t,z_idx_higher, basins==b_val]  # basin field higher
+                        bf_i = np.zeros_like(bf_l)                              # basin field interpolate
+                        bf_i[:] = np.nan
+
+                        # use higher values if lower values not present
+                        if any(np.isnan(bf_l)):
+                            bf_i[:] = bf_h[:]
+                        # use uppermost ocean level when mean_shelf_topg >= ocean_z[0]
+                        elif ( (z_idx_lower == 0) and (z_idx_higher == 0) ):
+                            bf_i[:] = bf_h[:]
+                        # regular interpolation case
+                        else:
+                            # compute linear interpolation for each basin grid point between
+                            #   higher and lower depth
+                            for bf_idx, bf_val in enumerate(bf_l):
+                                bf_i[bf_idx] =      (z_h - z_i) / dz * bf_l[bf_idx] \
+                                                  + (z_i - z_l) / dz * bf_h[bf_idx]
+                        # store interpolated basin field
+                        da_data[t,basins.data==b_val] = bf_i
+                        #fields[f]['field_out'][basins==b_val] = bf_i
+
+                # case: field has no vertical axis -> no depth interpolation
+                else:
+                    for t,t_val in enumerate(ds_field[f].time):
+                        # copy to new data structure
+                        da_data[t,basins.data==b_val] = ds_field[f].data[t, basins==b_val]
+
+    # case: dataset has no vertical axis
+    else:
+
+        # iterate basins
+        for b_idx, b_val in enumerate(shelf_depth_basin_list):
+            if args.verbose:
+                print('\t > basin ', b_val, ' / ', shelf_depth_basin_list.max())
+
+            # iterate fields
+            for f in args.var_fill:
+                ds_field_out[f].data = cp.deepcopy(ds_field[f].data)
+                ## extract data from xarray Dataset, do the filling and put it back in
+                #da_data = ds_field_out[f].data      # dim: (time, y, x)
+
+                #for t,t_val in enumerate(ds_field[f].time):
+                #    # copy to new data structure
+                #    da_data[t,basins.data==b_val] = ds_field[f].data[t, basins==b_val]
 
     t_interp_end = time.time()    
     
@@ -649,9 +671,13 @@ if __name__ == "__main__":
     # rename variables
     variable_rename = { 'temp':'theta_ocean', 
                         'salt':'salinity_ocean',
+                        'eta_t':'delta_SL',
                         'temp_basin_mean':'theta_ocean_basin_mean',
-                        'salt_basin_mean':'salinity_ocean_basin_mean'} 
-    ds_field_out = ds_field_out.rename_vars(variable_rename)
+                        'salt_basin_mean':'salinity_ocean_basin_mean',
+                        'eta_t_basin_mean':'delta_SL_basin_mean'}
+    for var_old, var_new in variable_rename.items():
+        if var_old in ds_field_out.variables:
+            ds_field_out = ds_field_out.rename_vars({var_old:var_new})
 
 
     # add basins and mean_shelf_depth for output
