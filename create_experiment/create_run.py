@@ -215,25 +215,38 @@ def create_run(settings=settings, experiment=settings.experiment):
                     f"exist! Need to copy MOM restart files to INPUT dir by "\
                     f"hand...")
 
-        if (settings.do_ocean_anomaly==True and 
-            settings.use_ocean_anomaly_from_prev_run==True):
-            # copy ocean anomaly reference file from previous run
-            if os.path.exists(settings.ocean_anomaly_reference_path):
-                shutil.copy2(settings.ocean_anomaly_reference_path, 
+        if (settings.do_ocean_tracer_anomaly==True and 
+            settings.use_ocean_tracer_anomaly_from_prev_run==True):
+            # copy ocean tracer anomaly reference file from previous run
+            if os.path.exists(settings.ocean_tracer_anomaly_reference_path):
+                shutil.copy2(settings.ocean_tracer_anomaly_reference_path, 
                     os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
-                print(f"   - copied ocean anomaly reference file "\
-                        f"{settings.ocean_anomaly_reference_file} of "\
-                        f"{settings.restart_dir} to compute ocean anomalies to "\
-                        f"same reference like in previous run")
+                print(f"   - copied ocean tracer anomaly reference file "\
+                        f"{settings.ocean_tracer_anomaly_reference_file} of "\
+                        f"{settings.restart_dir} to compute ocean tracer anomalies "\
+                        f"to same reference like in previous run")
             else:
-                warnings.warn(f"path {settings.ocean_anomaly_reference_path} "\
+                warnings.warn(f"path {settings.ocean_tracer_anomaly_reference_path} "\
                     f"does not exist!")
 
+        if (settings.do_ocean_sealevel_anomaly==True and 
+            settings.use_ocean_sealevel_anomaly_from_prev_run==True):
+            # copy ocean sealevel anomaly reference file from previous run
+            if os.path.exists(settings.ocean_sealevel_anomaly_reference_path):
+                shutil.copy2(settings.ocean_sealevel_anomaly_reference_path, 
+                    os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
+                print(f"   - copied ocean sealevel anomaly reference file "\
+                        f"{settings.ocean_sealevel_anomaly_reference_file} of "\
+                        f"{settings.restart_dir} to compute ocean sealevel anomalies "\
+                        f"to same reference like in previous run")
+            else:
+                warnings.warn(f"path {settings.ocean_sealevel_anomaly_reference_path} "\
+                    f"does not exist!")
+    # [end] if settings.coupled_restart==True
 
     # copying PISM runoff reference file for calculation of ice to ocean runoff
     # with sea level impact
     if settings.runoff_slc == True:
-        # copy ocean anomaly reference file from previous run
         if os.path.exists(settings.runoff_reference_path):
             shutil.copy2(settings.runoff_reference_path,
                 os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
@@ -242,7 +255,7 @@ def create_run(settings=settings, experiment=settings.experiment):
                     f"to ocean runoff with sea level impact")
         else:
             warnings.warn(f"WARNING: tried to copy PISM runoff reference file, "\
-                    f"but path {settings.ocean_anomaly_reference_path} does "\
+                    f"but path {settings.runoff_reference_path} does "\
                     f"not exist!")
 
 if __name__ == "__main__":

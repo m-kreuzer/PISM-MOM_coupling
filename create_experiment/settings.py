@@ -68,24 +68,43 @@ runoff_slc = True
 runoff_reference_file = "equi_16km_110000yrs.mean_last_1ka.fluxes.nc"
 runoff_reference_path = os.path.join("/p/projects/pism/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run02/output_processed", runoff_reference_file)
 
-# - - - - - - - - - - - - - - - - ocean anomaly - - - - - - - - - - - - - - - -
-do_ocean_anomaly    = True
+# - - - - - - - - - - - - - - - ocean tracer anomaly - - - - - - - - - - - - - -
+do_ocean_tracer_anomaly    = True
 
-# in case of coupled restart with do_ocean_anomaly:
-#     specify ocean anomaly reference file from previous run
-use_ocean_anomaly_from_prev_run = False
-#ocean_anomaly_reference_file = "001234-002345.mean_MOM.nc" 
-ocean_anomaly_reference_file = "12811.fluxes.nc" 
-ocean_anomaly_reference_path = os.path.join(restart_dir, 'x_PISM-to-MOM', ocean_anomaly_reference_file)
-#     or specify MOM output files used for computing ocean anomaly reference state
-#       -> used if do_ocean_anomaly==True and use_ocean_anomaly_from_prev_run==False
-calc_ocn_anomaly = {}
-calc_ocn_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_equi_10000yrs_PISM_runoff_run02_post/history"
-calc_ocn_anomaly['yr_start'] = "7811"
-calc_ocn_anomaly['yr_end'] = "7811"
-calc_ocn_anomaly['yr_step'] = "10"
-calc_ocn_anomaly['name_format_in']  = "%06g0101.ocean-yearly.nc"
-calc_ocn_anomaly['name_format_out'] = "%06g-%06g.ocean-yearly.mean.nc"
+# in case of coupled restart with do_ocean_tracer_anomaly:
+#     specify ocean tracer anomaly reference file from previous run
+use_ocean_tracer_anomaly_from_prev_run = False
+#ocean_tracer_anomaly_reference_file = "001234-002345.mean_MOM.nc" 
+ocean_tracer_anomaly_reference_file = "12811.fluxes.nc" 
+ocean_tracer_anomaly_reference_path = os.path.join(restart_dir, 'x_PISM-to-MOM', ocean_tracer_anomaly_reference_file)
+#     or specify MOM output files used for computing ocean tracer anomaly reference state
+#       -> used if do_ocean_tracer_anomaly==True and use_ocean_tracer_anomaly_from_prev_run==False
+calc_ocn_tracer_anomaly = {}
+calc_ocn_tracer_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run06_snap/history"
+calc_ocn_tracer_anomaly['yr_start'] = "13090"
+calc_ocn_tracer_anomaly['yr_end'] = "13090"
+calc_ocn_tracer_anomaly['yr_step'] = "10"
+calc_ocn_tracer_anomaly['name_format_in']  = "%06g0101.ocean-decadal.nc"
+calc_ocn_tracer_anomaly['name_format_out'] = "%06g-%06g.ocean-decadal.tracer_mean.nc"
+
+# - - - - - - - - - - - - - - ocean sealevel anomaly - - - - - - - - - - - - - -
+do_ocean_sealevel_anomaly    = True
+
+# in case of coupled restart with do_ocean_sealevel_anomaly:
+#     specify ocean sealevel anomaly reference file from previous run
+use_ocean_sealevel_anomaly_from_prev_run = False
+#ocean_sealevel_anomaly_reference_file = "001234-002345.mean_MOM.nc" 
+ocean_sealevel_anomaly_reference_file = "12811.fluxes.nc" 
+ocean_sealevel_anomaly_reference_path = os.path.join(restart_dir, 'x_PISM-to-MOM', ocean_sealevel_anomaly_reference_file)
+#     or specify MOM output files used for computing ocean sealevel anomaly reference state
+#       -> used if do_ocean_sealevel_anomaly==True and use_ocean_sealevel_anomaly_from_prev_run==False
+calc_ocn_sealevel_anomaly = {}
+calc_ocn_sealevel_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run06_snap/history"
+calc_ocn_sealevel_anomaly['yr_start'] = "13090"
+calc_ocn_sealevel_anomaly['yr_end'] = "13090"
+calc_ocn_sealevel_anomaly['yr_step'] = "10"
+calc_ocn_sealevel_anomaly['name_format_in']  = "%06g0101.ocean-decadal.nc"
+calc_ocn_sealevel_anomaly['name_format_out'] = "%06g-%06g.ocean-decadal.sealevel_mean.nc"
 
 # - - - - - - - - - - - - - - - basin shelf depth - - - - - - - - - - - - - - -
 # option to use static basin shelf depth values read from file
