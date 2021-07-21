@@ -274,7 +274,7 @@ poem_run_postprocess() {
     for i in *.nc 
       do mv $i history/$enddate.$i
     done
-    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out stocks.out
+    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out 
     
     mkdir -p fms.out/$SLURM_JOBID
     mv $enddate.fms.out* fms.out/$SLURM_JOBID
@@ -297,23 +297,23 @@ poem_run_postprocess() {
          rm icebergs.res.nc.????
       fi
     
-      # Land restarts need to be combined with  combine-ncc
-      # More simply just tar them up in this version
-      land_files="cana glac lake land snow soil vegn1 vegn2"
-      for file in $land_files
-      do
-         input_files="`/bin/ls ${file}.res.nc.????`"
-         if [ ${#input_files} -gt 0 ]
-         then
-             tar czf ${file}.res.nc.tar $input_files
-             if [ $? != 0 ]
-            then
-                 echo "ERROR: in creating land restarts tarfile"
-                 exit 1
-             fi
-             rm $input_files
-         fi
-      done
+      ## Land restarts need to be combined with  combine-ncc
+      ## More simply just tar them up in this version
+      #land_files="cana glac lake land snow soil vegn1 vegn2"
+      #for file in $land_files
+      #do
+      #   input_files="`/bin/ls ${file}.res.nc.????`"
+      #   if [ ${#input_files} -gt 0 ]
+      #   then
+      #       tar czf ${file}.res.nc.tar $input_files
+      #       if [ $? != 0 ]
+      #      then
+      #           echo "ERROR: in creating land restarts tarfile"
+      #           exit 1
+      #       fi
+      #       rm $input_files
+      #   fi
+      #done
     
       # now combine all the remaining restart files
       bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
