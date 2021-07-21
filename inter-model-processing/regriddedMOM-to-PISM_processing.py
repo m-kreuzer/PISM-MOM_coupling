@@ -75,7 +75,7 @@ import numpy as np
 import xarray as xr
 import cftime
 ## for debugging
-#import code 
+import code 
 #import matplotlib.pyplot as plt
 #import warnings
 ##warnings.filterwarnings('error')
@@ -255,7 +255,11 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # create condensed data structure (no depth) for output
-    ds_field_out = ds_field.isel(st_ocean=0, drop=True)
+    if 'st_ocean' in ds_field.dims:
+        ds_field_out = ds_field.isel(st_ocean=0, drop=True)
+    else:
+        ds_field_out = cp.deepcopy(ds_field)
+
     for f in args.var_fill:
         ds_field_out[f] = ds_field_out[f]*np.nan
         # copy attributes
@@ -272,10 +276,10 @@ if __name__ == "__main__":
     for f in args.var_fill:
         field_ndim = len(ds_field[f].shape)
 
-        if ( field_ndim != 4) :
+        if ( not (field_ndim == 3 or field_ndim == 4) ) :
             err_str = "VAR_FILL variable '" + f + "' in FIELD_FILE '" + \
                     args.field_file + "' has dimensions " + \
-                    str(ds_field[f].dims) + ". Expected: (time,z,y,x)."
+                    str(ds_field[f].dims) + ". Expected: (time,z,y,x) or (time,y,x)."
             raise ValueError( str(err_str) )
 
         with xr.set_options(keep_attrs=True):
@@ -419,7 +423,6 @@ if __name__ == "__main__":
             # check field dimension
             field = da_data[t,:]
             field_shape = field.shape
-            depth_levels = field_shape[0]
 
             if (field_shape[-2:] != basins.shape[-2:]) :
                 err_str = "VAR_FILL variable '" + f + "' in FIELD_FILE '" + \
@@ -437,20 +440,36 @@ if __name__ == "__main__":
                             " of EDGE_FILE '" + args.edge_file + "'!" 
                 raise ValueError( str(err_str) ) 
             
-            # calculate basin mean of edge cells and apply for empty cells
-            for z,z_val in enumerate(ds_field[f].st_ocean):
+            if 'st_ocean' in ds_field[f].dims:
+                # calculate basin mean of edge cells and apply for empty cells
+                for z,z_val in enumerate(ds_field[f].st_ocean):
+                    for b in basin_vals:
+                        ### create masks
+                        # mask of current basin
+                        m__basin = (basins.data==b)
+                        # mask of field edge AND current basin
+                        m__fedge_A_basin = field_edge.data[z,:] & m__basin
+                        # mask of missing fields AND current basin
+                        m__fmiss_A_basin = np.isnan(da_data[t,z,:]) & m__basin
+
+                        ### calculate mean and write to array 
+                        mean_field_basin_edge = np.nanmean(da_data[t,z,m__fedge_A_basin])
+                        da_data[t,z,m__fmiss_A_basin] = mean_field_basin_edge
+            else:
+                # calculate basin mean of edge cells and apply for empty cells
                 for b in basin_vals:
                     ### create masks
                     # mask of current basin
                     m__basin = (basins.data==b)
                     # mask of field edge AND current basin
-                    m__fedge_A_basin = field_edge.data[z,:] & m__basin
+                    m__fedge_A_basin = field_edge.data[0,:] & m__basin
                     # mask of missing fields AND current basin
-                    m__fmiss_A_basin = np.isnan(da_data[t,z,:]) & m__basin
+                    m__fmiss_A_basin = np.isnan(da_data[t,:]) & m__basin
 
                     ### calculate mean and write to array 
-                    mean_field_basin_edge = np.nanmean(da_data[t,z,m__fedge_A_basin])
-                    da_data[t,z,m__fmiss_A_basin] = mean_field_basin_edge
+                    mean_field_basin_edge = np.nanmean(da_data[t,m__fedge_A_basin])
+                    da_data[t,m__fmiss_A_basin] = mean_field_basin_edge
+
 
         # apparently modifications of da_data are reflected in ds_field[f] and the line below is not needed
         #ds_field[f'{f}_fill'] = xr.DataArray(da_data, coords=ds_field[f].coords)
@@ -495,40 +514,45 @@ if __name__ == "__main__":
         
         
         # define sampling points
-        z_l = ocean_z.data[z_idx_lower]      # z_lower
-        z_h = ocean_z.data[z_idx_higher]     # z_higher
-        z_i = mean_shelf_topg[b_idx]    # z_interpolate
-        dz = z_h - z_l                  # delta(z_l,z_h)
+        z_l = ocean_z.data[z_idx_lower]     # z_lower
+        z_h = ocean_z.data[z_idx_higher]    # z_higher
+        z_i = mean_shelf_topg[b_idx]        # z_interpolate
+        dz = z_h - z_l                      # delta(z_l,z_h)
         
         # iterate fields
         for f in args.var_fill:
             # extract data from xarray Dataset, do the filling and put it back in
             da_data = ds_field_out[f].data      # dim: (time, y, x)
 
-            # iterate time
-            for t,t_val in enumerate(ds_field[f].time):
-                bf_l = ds_field[f].data[t,z_idx_lower, basins==b_val]     # basin field lower
-                bf_h = ds_field[f].data[t,z_idx_higher, basins==b_val]    # basin field higher
-                bf_i = np.zeros_like(bf_l)      # basin field interpolate
-                bf_i[:] = np.nan
-                
-                # use higher values if lower values not present
-                if any(np.isnan(bf_l)):
-                    bf_i[:] = bf_h[:]
-                # use uppermost ocean level when mean_shelf_topg >= ocean_z[0]
-                elif ( (z_idx_lower == 0) and (z_idx_higher == 0) ):
-                    bf_i[:] = bf_h[:]
-                # regular interpolation case
-                else:
-                    # compute linear interpolation for each basin grid point between 
-                    #   higher and lower depth
-                    for bf_idx, bf_val in enumerate(bf_l):
-                        bf_i[bf_idx] =      (z_h - z_i) / dz * bf_l[bf_idx] \
-                                          + (z_i - z_l) / dz * bf_h[bf_idx]
-                # store interpolated basin field
-                da_data[t,basins.data==b_val] = bf_i
-                #fields[f]['field_out'][basins==b_val] = bf_i
-    
+            if 'st_ocean' in ds_field[f].dims:
+                # iterate time
+                for t,t_val in enumerate(ds_field[f].time):
+                    bf_l = ds_field[f].data[t,z_idx_lower, basins==b_val]   # basin field lower
+                    bf_h = ds_field[f].data[t,z_idx_higher, basins==b_val]  # basin field higher
+                    bf_i = np.zeros_like(bf_l)                              # basin field interpolate
+                    bf_i[:] = np.nan
+
+                    # use higher values if lower values not present
+                    if any(np.isnan(bf_l)):
+                        bf_i[:] = bf_h[:]
+                    # use uppermost ocean level when mean_shelf_topg >= ocean_z[0]
+                    elif ( (z_idx_lower == 0) and (z_idx_higher == 0) ):
+                        bf_i[:] = bf_h[:]
+                    # regular interpolation case
+                    else:
+                        # compute linear interpolation for each basin grid point between 
+                        #   higher and lower depth
+                        for bf_idx, bf_val in enumerate(bf_l):
+                            bf_i[bf_idx] =      (z_h - z_i) / dz * bf_l[bf_idx] \
+                                              + (z_i - z_l) / dz * bf_h[bf_idx]
+                    # store interpolated basin field
+                    da_data[t,basins.data==b_val] = bf_i
+                    #fields[f]['field_out'][basins==b_val] = bf_i
+
+            else:   # special case: no depth
+                for t,t_val in enumerate(ds_field[f].time):
+                    # copy to new data structure 
+                    da_data[t,basins.data==b_val] = ds_field[f].data[t, basins==b_val]
 
     t_interp_end = time.time()    
     
@@ -555,9 +579,11 @@ if __name__ == "__main__":
                 m__basin_contshelf = m__basin & m__contshelf
 
                 # calculate mean and write to array 
-                basin_mean = ds_field_out[f].data[t,m__basin_contshelf].mean()
-                da_data[t,m__basin_contshelf] = basin_mean
-                #fields[f]['field_out_basin_mean'][m__basin_contshelf] = basin_mean
+                basin_select = ds_field_out[f].data[t,m__basin_contshelf]
+                if basin_select.size > 0:
+                    da_data[t,m__basin_contshelf] = basin_select.mean()
+                else:
+                    da_data[t,m__basin_contshelf] = np.nan
 
     t_basin_ave_end = time.time()
     
