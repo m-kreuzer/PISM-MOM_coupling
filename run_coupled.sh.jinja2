@@ -274,7 +274,7 @@ poem_run_postprocess() {
     for i in *.nc 
       do mv $i history/$enddate.$i
     done
-    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out stocks.out
+    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out 
     
     mkdir -p fms.out/$SLURM_JOBID
     mv $enddate.fms.out* fms.out/$SLURM_JOBID
@@ -297,23 +297,23 @@ poem_run_postprocess() {
          rm icebergs.res.nc.????
       fi
     
-      # Land restarts need to be combined with  combine-ncc
-      # More simply just tar them up in this version
-      land_files="cana glac lake land snow soil vegn1 vegn2"
-      for file in $land_files
-      do
-         input_files="`/bin/ls ${file}.res.nc.????`"
-         if [ ${#input_files} -gt 0 ]
-         then
-             tar czf ${file}.res.nc.tar $input_files
-             if [ $? != 0 ]
-            then
-                 echo "ERROR: in creating land restarts tarfile"
-                 exit 1
-             fi
-             rm $input_files
-         fi
-      done
+      ## Land restarts need to be combined with  combine-ncc
+      ## More simply just tar them up in this version
+      #land_files="cana glac lake land snow soil vegn1 vegn2"
+      #for file in $land_files
+      #do
+      #   input_files="`/bin/ls ${file}.res.nc.????`"
+      #   if [ ${#input_files} -gt 0 ]
+      #   then
+      #       tar czf ${file}.res.nc.tar $input_files
+      #       if [ $? != 0 ]
+      #      then
+      #           echo "ERROR: in creating land restarts tarfile"
+      #           exit 1
+      #       fi
+      #       rm $input_files
+      #   fi
+      #done
     
       # now combine all the remaining restart files
       bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
@@ -447,13 +447,13 @@ process_mom_to_pism() {
     OCEAN_OUT=$POEM_WORK_DIR/history/$POEM_TIME_END.ocean-yearly.nc
     {% if settings.ocean_to_ice_timeseries==True -%}
     # don't average ocean output over coupling time step before regridding
-    # but extract temp, salt for regridding
+    # but extract temp, salt, eta_t for regridding
     REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.sparse.nc
-    ncks -O -v temp,salt,time_bounds $OCEAN_OUT $REGRID_IN
+    ncks -O -v temp,salt,eta_t,time_bounds $OCEAN_OUT $REGRID_IN
     {% else %}
     # average ocean output over coupling time step before regridding
     REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.mean.nc
-    ncra -O -v temp,salt -F -d time,1,,1 $OCEAN_OUT $REGRID_IN
+    ncra -O -v temp,salt,eta_t -F -d time,1,,1 $OCEAN_OUT $REGRID_IN
     #ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN     # only last timestep 
     {% endif %}
     REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
@@ -469,52 +469,118 @@ process_mom_to_pism() {
         -i $REGRID_OUT                                                      \
         -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
         -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
-        -f temp salt                                                        \
+        -f temp salt eta_t                                                  \
         -d $BASIN_SHELF_DEPTH_FILE                                          \
         -o $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc     \
         -v
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
-    {% if settings.do_ocean_anomaly==True -%}
-    ### anomaly approach: use pism_ocn_file (e.g. Schmidtko data) for 
-    #       PISM-PICO forcing and add difference of 
-    #       regriddedMOM-to-PISM_processing.py output from current to first 
-    #       coupling time step
-    echo OCEAN_ANOMALY_REFERENCE_FILE=$OCEAN_ANOMALY_REFERENCE_FILE
-    echo OCEAN_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_ANOMALY_REFERENCE_FILE_NOTIME
-    # difference from current ocean output to reference
-    ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $OCEAN_ANOMALY_REFERENCE_FILE_NOTIME \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc
+    {% if settings.do_ocean_tracer_anomaly==True -%}
+    ### ocean tracer anomaly approach: use regular PISM ocean forcing (e.g. 
+    #       Schmidtko data) but add difference of 
+    #       regriddedMOM-to-PISM_processing.py output from current coupling
+    #       time step to reference file
+    echo OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$OCEAN_TRACER_ANOMALY_REFERENCE_FILE
+    echo OCEAN_TRACER_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_TRACER_ANOMALY_REFERENCE_FILE_NOTIME
+
+    # difference from current ocean output to reference (temp, salt)
+    ncbo -O -v theta_ocean,salinity_ocean --op_typ=subtract \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $OCEAN_TRACER_ANOMALY_REFERENCE_FILE_NOTIME \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc
     RESULT=$?
     return_check $RESULT "ncbo"
-    # add difference to given ocean forcing file
-    ncbo -O --op_typ=add $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_ocn_file}} \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.anomaly.nc \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+
+    # add difference to given ocean forcing file (temp, salt)
+    ncbo -O --op_typ=add \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc \
+        $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_ocn_file}} \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc
     RESULT=$?
     return_check $RESULT "ncbo"
-    # copy time variable to PISM forcing file (omitted by ncbo add operation above)
-    ncks -A -v time $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+
+    # copy time and basins variables to PISM forcing file (omitted by ncbo add operation above)
+    ncks -A -v time,basins \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc
     RESULT=$?
     return_check $RESULT "ncks"
+
         {% if settings.ocean_to_ice_timeseries==True -%}
     ncks -A -v time_bounds \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.PISM_input.nc
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc
     RESULT=$?
     return_check $RESULT "ncks"
         {% endif %}
 
     {% else %}
-    # don't use ocean anomaly approach:
+    # don't use ocean tracer anomaly approach:
     #       make PISM input file the same as regriddedMOM-to-PISM_processing.py output
     cd $ROOT_WORK_DIR/x_MOM-to-PISM
-    ln -sf $POEM_TIME_END.processed_MOM.nc $POEM_TIME_END.PISM_input.nc
+    ln -sf $POEM_TIME_END.processed_MOM.nc $POEM_TIME_END.tracer.PISM_input.nc
     cd $ROOT_WORK_DIR/inter-model-processing
-    {% endif %}
+    {% endif %} # settings.do_ocean_tracer_anomaly==True
+
+
+
+
+    {% if settings.do_ocean_sealevel_anomaly==True -%}
+    ### ocean sealevel anomaly approach: force PISM with sea level change
+    #       from ocean model. Calculated through difference of current local 
+    #       sea level (output of regriddedMOM-to-PISM_processing.py) to 
+    #       reference file.
+    echo OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE
+    echo OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME
+
+    # difference from current ocean output to reference (temp, salt)
+    ncbo -O -v delta_SL --op_typ=subtract \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+    RESULT=$?
+    return_check $RESULT "ncbo"
+
+    # copy time variable to PISM forcing file (omitted by ncbo add operation above)
+    ncks -A -v time \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+    RESULT=$?
+    return_check $RESULT "ncks"
+
+    # rename variable eta_t to delta_SL 
+    #ncrename -v eta_t,delta_SL \
+    #    $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+    #RESULT=$?
+    #return_check $RESULT "ncrename"
+
+    # set NaNs to 0
+    ncatted -O -a _FillValue,delta_SL,m,f,0 \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+    RESULT=$?
+    return_check $RESULT "ncatted"
+    ncatted -O -a _FillValue,delta_SL,d,, \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+    RESULT=$?
+    return_check $RESULT "ncatted"
+
+        {% if settings.ocean_to_ice_timeseries==True -%}
+    ncks -A -v time_bounds \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+    RESULT=$?
+    return_check $RESULT "ncks"
+        {% endif %}
+
+    # create symlink from PISM input file to sealevel anomaly file
+    cd $ROOT_WORK_DIR/x_MOM-to-PISM
+    ln -sf $POEM_TIME_END.sealevel.processed_MOM.anomaly.nc $POEM_TIME_END.sealevel.PISM_input.nc
+    cd $ROOT_WORK_DIR/inter-model-processing
+    {% endif %} # settings.do_ocean_sealevel_anomaly==True
+
+
+
 
     END_MOM_to_PISM_PROCESS=$(date +%s.%N)
     TIME_MOM_to_PISM_PROCESS_T=$(echo "$END_MOM_to_PISM_PROCESS - $START_MOM_to_PISM_PROCESS" | bc)
@@ -995,40 +1061,40 @@ else
     cd $ROOT_WORK_DIR
 fi
 
-### ocean anomaly reference file
+### ocean tracer anomaly reference file
 # ____________________________________________________________________________ #
-{% if settings.do_ocean_anomaly==True -%}
+{% if settings.do_ocean_tracer_anomaly==True -%}
 echo
-echo "ocean anomaly approach enabled"
+echo "ocean tracer anomaly approach enabled"
     # ........................................................................ #
-    {% if settings.use_ocean_anomaly_from_prev_run==True %}
-echo "using ocean anomaly reference file {{settings.ocean_anomaly_reference_path}}"
-OCEAN_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/{{settings.ocean_anomaly_reference_file}}
-echo OCEAN_ANOMALY_REFERENCE_FILE=$OCEAN_ANOMALY_REFERENCE_FILE
+    {% if settings.use_ocean_tracer_anomaly_from_prev_run==True %}
+echo "using ocean tracer anomaly reference file {{settings.ocean_tracer_anomaly_reference_path}}"
+OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/{{settings.ocean_tracer_anomaly_reference_file}}
+echo OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$OCEAN_TRACER_ANOMALY_REFERENCE_FILE
 
     # ........................................................................ #
-    {% else %} # compute ocean anomaly reference state
-echo "computing ocean anomaly reference state from " \
-    {{settings.calc_ocn_anomaly['path']}}
+    {% else %} # compute ocean tracer anomaly reference state
+echo "computing ocean tracer anomaly reference state from " \
+    {{settings.calc_ocn_tracer_anomaly['path']}}
 
-cd {{settings.calc_ocn_anomaly['path']}}
-echo "  > [ocean anomaly reference] average yearly model output (possibly "\
+cd {{settings.calc_ocn_tracer_anomaly['path']}}
+echo "  > [ocean tracer anomaly reference] average model output (possibly "\
     "spread across multile files)"
-INPUT_FILES=$(echo `seq -f "{{settings.calc_ocn_anomaly['name_format_in']}}" \
-                           "{{settings.calc_ocn_anomaly['yr_start']}}"       \
-                           "{{settings.calc_ocn_anomaly['yr_step']}}"        \
-                           "{{settings.calc_ocn_anomaly['yr_end']}}" `)
-AVG_OUT_FILE=$(echo `printf "{{settings.calc_ocn_anomaly['name_format_out']}}" \
-                           "{{settings.calc_ocn_anomaly['yr_start']}}"         \
-                           "{{settings.calc_ocn_anomaly['yr_end']}}" `)
+INPUT_FILES=$(echo `seq -f "{{settings.calc_ocn_tracer_anomaly['name_format_in']}}" \
+                           "{{settings.calc_ocn_tracer_anomaly['yr_start']}}"       \
+                           "{{settings.calc_ocn_tracer_anomaly['yr_step']}}"        \
+                           "{{settings.calc_ocn_tracer_anomaly['yr_end']}}" `)
+AVG_OUT_FILE=$(echo `printf "{{settings.calc_ocn_tracer_anomaly['name_format_out']}}" \
+                           "{{settings.calc_ocn_tracer_anomaly['yr_start']}}"         \
+                           "{{settings.calc_ocn_tracer_anomaly['yr_end']}}" `)
 ncra --overwrite -v temp,salt $INPUT_FILES $AVG_OUT_FILE
 RESULT=$?
 return_check $RESULT "ncra-operation"
 cd $ROOT_WORK_DIR
 
-echo "  > [ocean anomaly reference] regrid averaged output from MOM to PISM grid "
-REGRID_IN={{settings.calc_ocn_anomaly['path']}}/$AVG_OUT_FILE
-REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/ocean_mean.regrid.MOM-to-PISM.bil.cdo.nc
+echo "  > [ocean tracer anomaly reference] regrid averaged output from MOM to PISM grid "
+REGRID_IN={{settings.calc_ocn_tracer_anomaly['path']}}/$AVG_OUT_FILE
+REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/ocean_tracer_mean.regrid.MOM-to-PISM.bil.cdo.nc
 WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
 # remove global attribute _NCProperties from POEM output which causes cdo to crash
 ncatted -O -a _NCProperties,global,d,, $REGRID_IN
@@ -1036,20 +1102,20 @@ cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
 RESULT=$?
 return_check $RESULT "cdo_regridding"
 
-echo "  > [ocean anomaly reference] regriddedMOM-to-PISM_processing script"
+echo "  > [ocean tracer anomaly reference] regriddedMOM-to-PISM_processing script"
 cd $ROOT_WORK_DIR/inter-model-processing
 
-OUTFILE=$(echo `printf "%06g-%06g.mean.processed_MOM.nc"              \
-                       "{{settings.calc_ocn_anomaly['yr_start']}}"  \
-                       "{{settings.calc_ocn_anomaly['yr_end']}}" `)
-OCEAN_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
+OUTFILE=$(echo `printf "%06g-%06g.tracer_mean.processed_MOM.nc"            \
+                       "{{settings.calc_ocn_tracer_anomaly['yr_start']}}"  \
+                       "{{settings.calc_ocn_tracer_anomaly['yr_end']}}" `)
+OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
 ./regriddedMOM-to-PISM_processing.py                                    \
     -i $REGRID_OUT                                                      \
     -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
     -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
     -f temp salt                                                        \
     -d $BASIN_SHELF_DEPTH_FILE                                          \
-    -o $OCEAN_ANOMALY_REFERENCE_FILE                                    \
+    -o $OCEAN_TRACER_ANOMALY_REFERENCE_FILE                             \
     -v
 RESULT=$?
 return_check $RESULT "regriddedMOM-to-PISM_processing.py"
@@ -1058,23 +1124,105 @@ cd $ROOT_WORK_DIR
     {% endif %}
     # ........................................................................ #
 
-# removing time dimension from ocean anomaly reference file 
+# removing time dimension from ocean tracer anomaly reference file 
 #  -> needed for clean broadcasting with ncbo
-FILE_EXTENSION="${OCEAN_ANOMALY_REFERENCE_FILE##*.}"
-FILE_PATH_NO_EXTENSION="${OCEAN_ANOMALY_REFERENCE_FILE%.*}"
-OCEAN_ANOMALY_REFERENCE_FILE_NOTIME=$FILE_PATH_NO_EXTENSION.no-time.$FILE_EXTENSION
+FILE_EXTENSION="${OCEAN_TRACER_ANOMALY_REFERENCE_FILE##*.}"
+FILE_PATH_NO_EXTENSION="${OCEAN_TRACER_ANOMALY_REFERENCE_FILE%.*}"
+OCEAN_TRACER_ANOMALY_REFERENCE_FILE_NOTIME=$FILE_PATH_NO_EXTENSION.no-time.$FILE_EXTENSION
 
-echo OCEAN_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_ANOMALY_REFERENCE_FILE_NOTIME
-ncwa -O -a time $OCEAN_ANOMALY_REFERENCE_FILE $OCEAN_ANOMALY_REFERENCE_FILE_NOTIME
+echo OCEAN_TRACER_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_TRACER_ANOMALY_REFERENCE_FILE_NOTIME
+ncwa -O -a time $OCEAN_TRACER_ANOMALY_REFERENCE_FILE $OCEAN_TRACER_ANOMALY_REFERENCE_FILE_NOTIME
 
 
 # ____________________________________________________________________________ #
 {% else %}
 echo
-echo "ocean anomaly approach disabled"
+echo "ocean tracer anomaly approach disabled"
 {% endif %}
 # ____________________________________________________________________________ #
 
+
+
+
+### ocean sealevel anomaly reference file
+# ____________________________________________________________________________ #
+{% if settings.do_ocean_sealevel_anomaly==True -%}
+echo
+echo "ocean sealevel anomaly approach enabled"
+    # ........................................................................ #
+    {% if settings.use_ocean_sealevel_anomaly_from_prev_run==True %}
+echo "using ocean sealevel anomaly reference file {{settings.ocean_sealevel_anomaly_reference_path}}"
+OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/{{settings.ocean_sealevel_anomaly_reference_file}}
+echo OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE
+
+    # ........................................................................ #
+    {% else %} # compute ocean sealevel anomaly reference state
+echo "computing ocean sealevel anomaly reference state from " \
+    {{settings.calc_ocn_sealevel_anomaly['path']}}
+
+cd {{settings.calc_ocn_sealevel_anomaly['path']}}
+echo "  > [ocean sealevel anomaly reference] average model output (possibly "\
+    "spread across multile files)"
+INPUT_FILES=$(echo `seq -f "{{settings.calc_ocn_sealevel_anomaly['name_format_in']}}" \
+                           "{{settings.calc_ocn_sealevel_anomaly['yr_start']}}"       \
+                           "{{settings.calc_ocn_sealevel_anomaly['yr_step']}}"        \
+                           "{{settings.calc_ocn_sealevel_anomaly['yr_end']}}" `)
+AVG_OUT_FILE=$(echo `printf "{{settings.calc_ocn_sealevel_anomaly['name_format_out']}}" \
+                           "{{settings.calc_ocn_sealevel_anomaly['yr_start']}}"         \
+                           "{{settings.calc_ocn_sealevel_anomaly['yr_end']}}" `)
+ncra --overwrite -v eta_t $INPUT_FILES $AVG_OUT_FILE
+RESULT=$?
+return_check $RESULT "ncra-operation"
+cd $ROOT_WORK_DIR
+
+echo "  > [ocean sealevel anomaly reference] regrid averaged output from MOM to PISM grid "
+REGRID_IN={{settings.calc_ocn_sealevel_anomaly['path']}}/$AVG_OUT_FILE
+REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/ocean_sealevel_mean.regrid.MOM-to-PISM.bil.cdo.nc
+WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
+# remove global attribute _NCProperties from POEM output which causes cdo to crash
+ncatted -O -a _NCProperties,global,d,, $REGRID_IN
+cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
+RESULT=$?
+return_check $RESULT "cdo_regridding"
+
+echo "  > [ocean sealevel anomaly reference] regriddedMOM-to-PISM_processing script"
+cd $ROOT_WORK_DIR/inter-model-processing
+
+OUTFILE=$(echo `printf "%06g-%06g.sealevel_mean.processed_MOM.nc"              \
+                       "{{settings.calc_ocn_sealevel_anomaly['yr_start']}}"  \
+                       "{{settings.calc_ocn_sealevel_anomaly['yr_end']}}" `)
+OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
+./regriddedMOM-to-PISM_processing.py                                    \
+    -i $REGRID_OUT                                                      \
+    -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
+    -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
+    -f eta_t                                                            \
+    -d $BASIN_SHELF_DEPTH_FILE                                          \
+    -o $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE                           \
+    -v
+RESULT=$?
+return_check $RESULT "regriddedMOM-to-PISM_processing.py"
+cd $ROOT_WORK_DIR
+
+    {% endif %}
+    # ........................................................................ #
+
+# removing time dimension from ocean sealevel anomaly reference file 
+#  -> needed for clean broadcasting with ncbo
+FILE_EXTENSION="${OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE##*.}"
+FILE_PATH_NO_EXTENSION="${OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE%.*}"
+OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME=$FILE_PATH_NO_EXTENSION.no-time.$FILE_EXTENSION
+
+echo OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME
+ncwa -O -a time $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME
+
+
+# ____________________________________________________________________________ #
+{% else %}
+echo
+echo "ocean sealevel anomaly approach disabled"
+{% endif %}
+# ____________________________________________________________________________ #
 
 
 
