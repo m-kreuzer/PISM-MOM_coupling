@@ -37,7 +37,7 @@ Arguments:
         PISM output file with flux variables 'mask', 'ice_area_specific_volume' 
         and 'topg'
     -e PISM_extra_file
-        input file from PISM extra-outout with flux variables
+        input file from PISM extra-output with flux variables
         'surface_runoff_flux', 'tendency_of_ice_amount_due_to_basal_mass_flux' 
         and 'tendency_of_ice_amount_due_to_discharge'.
         Caution: variables contain accumulated fluxes over reporting interval,
