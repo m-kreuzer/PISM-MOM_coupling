@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#  Copyright (C) 2019, 2020 PISM-MOM_coupling authors, see AUTHORS file
+#  Copyright (C) 2019-2021 PISM-MOM_coupling authors, see AUTHORS file
 #
 #  This file is part of PISM-MOM_coupling
 #
@@ -19,7 +19,7 @@
 
 """ Redistributing mass and energy fluxes from PISM/PICO to MOM cells.
 
-useage: ./PISM-to-MOM_processing -o PISM_output_file -e PISM_extra_file
+usage: ./PISM-to-MOM_processing -o PISM_output_file -e PISM_extra_file
             -m PISM_MOM_mapping_file -a MOM_file -f fluxes_out_file 
             -d basin_shelf_depth_file [-t] [-v]
 
