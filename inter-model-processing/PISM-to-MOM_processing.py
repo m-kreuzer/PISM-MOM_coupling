@@ -98,7 +98,7 @@ if __name__ == "__main__":
                         help=("PISM output file with flux variables "
                               "'mask', 'ice_area_specific_volume' and "
                               "'topg'"))
-    parser.add_argument('-e', '--extra_output', 
+    parser.add_argument('-e', '--extra-output', 
                         action="store", 
                         dest="PISM_extra_file", 
                         required=True, 

@@ -466,13 +466,13 @@ process_mom_to_pism() {
 
     echo "  > regriddedMOM-to-PISM_processing script"
     ./regriddedMOM-to-PISM_processing.py                                    \
-        -i $REGRID_OUT                                                      \
-        -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
-        -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
-        -f temp salt eta_t                                                  \
-        -d $BASIN_SHELF_DEPTH_FILE                                          \
-        -o $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc     \
-        -v
+        --input     $REGRID_OUT                                                      \
+        --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
+        --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
+        --fill      temp salt eta_t                                                  \
+        --depth     $BASIN_SHELF_DEPTH_FILE                                          \
+        --output    $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc     \
+        --verbose
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
@@ -593,14 +593,14 @@ process_pism_to_mom(){
     START_PISM_to_MOM_PROCESS=$(date +%s.%N)
     cd $ROOT_WORK_DIR/inter-model-processing
 
-    ./PISM-to-MOM_processing.py                                             \
-        -o $PISM_PRE_OUT                                                    \
-        -e $PISM_WORK_DIR/results/$PISM_TIME_END_PAD.pism_extra.nc          \
-        -m $ROOT_WORK_DIR/pre-processing/PISMbasin-to-MOMcell_mapping.nc    \
-        -a $MOM_PRE_OUT                                                     \
-        -f $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc        \
-        -d $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc \
-        -v
+    ./PISM-to-MOM_processing.py                                                          \
+        --output        $PISM_PRE_OUT                                                    \
+        --extra-output  $PISM_WORK_DIR/results/$PISM_TIME_END_PAD.pism_extra.nc          \
+        --mapping       $ROOT_WORK_DIR/pre-processing/PISMbasin-to-MOMcell_mapping.nc    \
+        --area          $MOM_PRE_OUT                                                     \
+        --flux-out      $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc        \
+        --depth-out     $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc \
+        --verbose
     RESULT=$?
 
     {% if not settings.use_prescribed_basin_shelf_depth==True %}
@@ -886,10 +886,10 @@ PISM_SHIFTED_RESTART_PATH_FILE=$ROOT_WORK_DIR/pre-processing/PISM_restart_timesh
 #
 echo " >> synchronise timestamps of PISM and MOM/POEM"
 ./PISM_timeshift.py                         \
-    -p $PISM_RESTART_FILE                   \
-    -c $POEM_WORK_DIR/INPUT/coupler.res     \
-    -s $PISM_SHIFTED_RESTART_PATH_FILE      \
-    -v
+    --pism-restart                  $PISM_RESTART_FILE                   \
+    --climate-restart               $POEM_WORK_DIR/INPUT/coupler.res     \
+    --pism-restart-timeshift-path   $PISM_SHIFTED_RESTART_PATH_FILE      \
+    --verbose
 RESULT=$?
 return_check $RESULT "PISM_timeshift.py"
 
@@ -955,11 +955,11 @@ return_check $RESULT "cdo_regridding"
 #   on PISM grid
 echo " >> identify edges on PISM grid"
 ./find_edge.py                      \
-    -i $REGRID_OUT                  \
-    -o pism_edges.nc                \
-    -f temp                         \
-    -e temp salt area_t average_DT  \
-    -v
+    --input     $REGRID_OUT                  \
+    --output    pism_edges.nc                \
+    --field     temp                         \
+    --exclude   temp salt area_t average_DT  \
+    --verbose
 RESULT=$?
 return_check $RESULT "find_edge.py"
 
@@ -967,10 +967,10 @@ return_check $RESULT "find_edge.py"
 # create mapping between PISM basin and southern MOM cells
 echo " >> calculate mapping of PISM basins to MOM cells"
 ./PISMbasin-to-MOMcell_mapping.py       \
-    -b $PISM_PRE_OUT                    \
-    -m $MOM_PRE_OUT                     \
-    -o PISMbasin-to-MOMcell_mapping.nc  \
-    -v
+    --basins    $PISM_PRE_OUT                    \
+    --mom       $MOM_PRE_OUT                     \
+    --output    PISMbasin-to-MOMcell_mapping.nc  \
+    --verbose
 RESULT=$?
 return_check $RESULT "PISMbasin-to-MOMcell_mapping.py"
 
@@ -979,13 +979,13 @@ return_check $RESULT "PISMbasin-to-MOMcell_mapping.py"
 # create basin_shelf_depth_file
 echo " >> create basin_shelf_depth_file from prerun output"
 $ROOT_WORK_DIR/inter-model-processing/PISM-to-MOM_processing.py \
-    -o $PISM_PRE_OUT                                            \
-    -e $PISM_WORK_DIR/prerun/prerun.pism_extra.nc               \
-    -m PISMbasin-to-MOMcell_mapping.nc                          \
-    -a $MOM_PRE_OUT                                             \
-    -f $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.fluxes.nc            \
-    -d $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc \
-    -v
+    --output        $PISM_PRE_OUT                                            \
+    --extra-output  $PISM_WORK_DIR/prerun/prerun.pism_extra.nc               \
+    --mapping       PISMbasin-to-MOMcell_mapping.nc                          \
+    --area          $MOM_PRE_OUT                                             \
+    --flux-out      $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.fluxes.nc            \
+    --depth-out     $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc \
+    --verbose
 RESULT=$?
 return_check $RESULT "PISM-to-MOM_processing.py"
 # save file path for usage in next process_mom_to_pism call
@@ -1110,13 +1110,13 @@ OUTFILE=$(echo `printf "%06g-%06g.tracer_mean.processed_MOM.nc"            \
                        "{{settings.calc_ocn_tracer_anomaly['yr_end']}}" `)
 OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
 ./regriddedMOM-to-PISM_processing.py                                    \
-    -i $REGRID_OUT                                                      \
-    -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
-    -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
-    -f temp salt                                                        \
-    -d $BASIN_SHELF_DEPTH_FILE                                          \
-    -o $OCEAN_TRACER_ANOMALY_REFERENCE_FILE                             \
-    -v
+    --input     $REGRID_OUT                                                      \
+    --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
+    --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
+    --fill      temp salt                                                        \
+    --depth     $BASIN_SHELF_DEPTH_FILE                                          \
+    --output    $OCEAN_TRACER_ANOMALY_REFERENCE_FILE                             \
+    --verbose   
 RESULT=$?
 return_check $RESULT "regriddedMOM-to-PISM_processing.py"
 cd $ROOT_WORK_DIR
@@ -1193,13 +1193,13 @@ OUTFILE=$(echo `printf "%06g-%06g.sealevel_mean.processed_MOM.nc"              \
                        "{{settings.calc_ocn_sealevel_anomaly['yr_end']}}" `)
 OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
 ./regriddedMOM-to-PISM_processing.py                                    \
-    -i $REGRID_OUT                                                      \
-    -b $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
-    -e $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
-    -f eta_t                                                            \
-    -d $BASIN_SHELF_DEPTH_FILE                                          \
-    -o $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE                           \
-    -v
+    --input     $REGRID_OUT                                                      \
+    --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
+    --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
+    --fill      eta_t                                                            \
+    --depth     $BASIN_SHELF_DEPTH_FILE                                          \
+    --output    $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE                           \
+    --verbose   
 RESULT=$?
 return_check $RESULT "regriddedMOM-to-PISM_processing.py"
 cd $ROOT_WORK_DIR
