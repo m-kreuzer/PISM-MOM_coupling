@@ -23,9 +23,11 @@ usage: ./PISM-to-MOM_processing -o PISM_output_file -e PISM_extra_file
             -m PISM_MOM_mapping_file -a MOM_file -f fluxes_out_file 
             -d basin_shelf_depth_file [-t] [-v]
 
-Mass and energy fluxes are computed from PISM extra output file (from multiple 
-variables). Conversion to total fluxes per PISM grid cell is done assuming 
-uniform grid cell area.
+Mass and energy fluxes to be passed from ice to ocean models are computed from 
+PISM extra output file (from multiple variables). Additionally an ice to ocean 
+reference runoff mass flux is computed from PISM's surface accumulation to 
+represent the equilibrium runoff under present surface forcing. Conversion to 
+total fluxes per PISM grid cell is done assuming uniform grid cell area.
 Fluxes are aggregated in PICO basins and distributed to southern ocean edge 
 cells via previous computed mapping. Fluxes on the ocean grid are again converted
 into unit fluxes per area via division with corresponding MOM grid cell area.
@@ -33,31 +35,36 @@ The output file can be used by the FMS data overwrite mechanism to put PISM
 fluxes to ocean/sea-ice surface.
 
 Arguments:
-    -o PISM_output_file
+    -o, --output PISM_output_file
         PISM output file with flux variables 'mask', 'ice_area_specific_volume' 
         and 'topg'
-    -e PISM_extra_file
+    -e, --extra-output PISM_extra_file
         input file from PISM extra-output with flux variables
         'surface_runoff_flux', 'tendency_of_ice_amount_due_to_basal_mass_flux' 
         and 'tendency_of_ice_amount_due_to_discharge'.
         Caution: variables contain accumulated fluxes over reporting interval,
         which is the interval of writing out the extra variables. 
-    -m PISM_MOM_mapping_file
+    -m, --mapping PISM_MOM_mapping_file
         input file with PICO basin to MOM cell mapping from 
         PISMbasin-to-MOMcell_mapping script
-    -a MOM_file
+    -a, --area MOM_file
         input file with MOM grid area variable 'area_t'
-    -f fluxes_out_file
+    -f, --flux-out fluxes_out_file
         file to store processed fluxes which serve as MOM_input
-    -d basin_shelf_depth_file
+    -d, --depth-out basin_shelf_depth_file
         file to store basin shelf depths which determine vertical layer of 
         ocean boundary condition input to PISM/PICO
-    -t (optional)
+    -r, --runoff-reference-out runoff_reference_file
+        file to store the ice to ocean runoff reference which is computed from
+        PISM's surface accumulation and used to calculate the sea level
+        changing fraction of the ice to ocean runoff fluxes stored by
+        --flux-out
+    -t, --time (optional)
         print script time statistics
-    -v (optional)
+    -v, --verbose (optional)
         print verbose output
         
-This script requires the ouput of script PISMbasin-to-MOMcell-mapping.py 
+This script requires the output of script PISMbasin-to-MOMcell-mapping.py 
 
 This script was created as a processing tool for distributing the flux output
 of the landice model PISM/PICO to the grid of ocean model MOM5. This was done
@@ -77,6 +84,7 @@ try:
     from netCDF4 import Dataset as CDF
 except:
     raise ImportError("netCDF4 is not installed!")
+import code
     
 if __name__ == "__main__":
     
@@ -130,6 +138,15 @@ if __name__ == "__main__":
                         help=("file to store basin shelf depths which determine"
                               "vertical layer of ocean boundary condition input"
                               "to PISM/PICO"))
+    parser.add_argument('-r', '--runoff-reference-out',
+                        action="store",
+                        dest="runoff_reference_file",
+                        required=False,
+                        help=("file to store the ice to ocean runoff reference "
+                              "which is computed from PISM's surface accumulation "
+                              "and used to calculate the sea level changing "
+                              "fraction of the ice to ocean runoff fluxes "
+                              "stored by --flux-out"))
     parser.add_argument('-t', '--time',
                         action="store_true", 
                         help="print script timings")
@@ -246,6 +263,19 @@ if __name__ == "__main__":
     else:
         pism_surf_runoff = np.zeros_like(pism_tend_discharge)
 
+    if args.runoff_reference_file:
+        try:
+            pism_surf_accum = np.squeeze(nc_fh.variables['surface_accumulation_flux'][:])
+            pism_surf_accum_dtype = nc_fh.variables['surface_accumulation_flux'].dtype
+            pism_surf_accum_ndim = len(pism_surf_accum.shape)
+            if pism_surf_accum_ndim != 2:
+                raise ValueError( str("flux field is of dimension " + \
+                                str( pism_surf_accum_ndim ) + ". Expected: 2.") )
+        except KeyError:
+            raise KeyError("PISM's extra output does not have variable "
+                "'surface_accumulation_flux', which is needed for calculation "
+                "of ice to ocean runoff reference (-r/--runoff-reference-out flag)")
+
 
     # read PISM basins
     pism_basins = np.squeeze(nc_fh.variables['basins'][:])
@@ -279,7 +309,7 @@ if __name__ == "__main__":
         raise FileNotFoundError( s.format(args.PISM_output_file) )
         
     pism_mask = np.squeeze(nc_fh.variables['mask'][:])
-    pism_iasv = np.squeeze(nc_fh.variables['ice_area_specific_volume'][:])
+    #pism_iasv = np.squeeze(nc_fh.variables['ice_area_specific_volume'][:])
     pism_topg = np.squeeze(nc_fh.variables['topg'][:])
     
     nc_fh.close()
@@ -445,8 +475,16 @@ if __name__ == "__main__":
         pism_heatflux_total[k] = cp.deepcopy(pism_massflux_energy[k] * pism_cell_area_uniform \
                                     / seconds_p_year * latent_heat_of_fusion)
 
+    if args.runoff_reference_file:
+        pism_surf_accum_total = pism_surf_accum * pism_cell_area_uniform \
+                                    / seconds_p_year
+
     # combine dictioniaries
-    pism_fluxes_total = {**pism_massflux_total,**pism_heatflux_total}
+    if args.runoff_reference_file:
+        pism_fluxes_total = {**pism_massflux_total,**pism_heatflux_total,
+                'surf_accumulation': pism_surf_accum_total}
+    else:
+        pism_fluxes_total = {**pism_massflux_total,**pism_heatflux_total}
     
     ### ------------- aggregation of fluxes per basin ----------------
     if args.verbose:
@@ -710,6 +748,111 @@ if __name__ == "__main__":
              ('coordinates', 'geolon_t geolat_t')])
         dst['heat_flux_calving'].setncatts(var_dict)
         dst['heat_flux_calving'][0,:] = oc_edge_flux_per_area['energy_calving'][:].data
+
+    # copy area variable to file
+    with CDF(args.MOM_file, 'r') as src,   \
+         CDF(args.PISM_to_MOM_fluxes_file, "a") as dst:
+        # copy area_t variable
+        for name, variable in src.variables.items():
+            if name in ['area_t']:
+                #code.interact(local=locals())
+                x = dst.createVariable(name, variable.datatype, variable.dimensions)
+                dst[name].setncatts(src[name].__dict__)
+                dst[name][:] = src[name][:]
+
+
+    ### ------------------ save runoff reference to file -----------------------
+    #   write redistributed ice to ocean reference runoff (surface accumulation)
+    #   to file runoff_reference_file
+    if args.runoff_reference_file:
+        with CDF(args.PISM_MOM_mapping_file, 'r') as src,   \
+             CDF(args.runoff_reference_file, "w") as dst:
+            # copy global attributes all at once via dictionary
+            glob_dict = src.__dict__
+            glob_dict['filename'] = os.path.basename(args.runoff_reference_file)
+            glob_dict['title'] = "ice to ocean reference runoff fluxes computed " \
+                "from PISM extra output variable 'surface_accumulation_flux' " \
+                "and redistributed to MOM grid"
+
+            if 'history' in glob_dict.keys():
+                glob_dict['history'] = histstr + glob_dict['history']
+            elif 'History' in glob_dict.keys():
+                glob_dict['History'] = histstr + glob_dict['History']
+            else:
+                glob_dict['history'] = histstr
+            dst.setncatts(glob_dict)
+
+            # copy dimensions
+            for name, dimension in src.dimensions.items():
+                if name in dim_copy:
+                    dst.createDimension(name, len(dimension) )
+
+            # create time dimension
+            dst.createDimension('time', None)
+            #dst.createDimension('nv', pism_extra_nv)
+
+            # write time variable
+            dst.createVariable('time', np.double, ("time",) )
+            dst['time'].setncatts(pism_extra_time_dict)
+            dst['time'][:] = pism_extra_time
+
+            #dst.createVariable('time_bounds', np.double, ("time","nv",) )
+            #dst['time_bounds'].setncatts(pism_extra_time_bounds_dict)
+            #dst['time_bounds'][:] = pism_extra_time_bounds
+
+
+            # copy variables
+            for name, variable in src.variables.items():
+                if name in var_copy:
+                    x = dst.createVariable(name, variable.datatype, variable.dimensions)
+                    # fix wrong valid range attribute in geolon_t
+                    if name == 'geolon_t':
+                        d = src[name].__dict__
+                        d['valid_range'][0] = -360
+                        dst[name].setncatts(d)
+                        dst[name][:] = ocean_lon[:]
+                    else:
+                        # copy variable attributes all at once via dictionary
+                        dst[name].setncatts(src[name].__dict__)
+                        dst[name][:] = src[name][:]
+
+            ### write new variables
+            if pism_surf_accum_dtype == 'float32':
+                nc_dtype = 'f4'
+            elif pism_surf_accum_dtype == 'float64':
+                nc_dtype = 'f8'
+            else:
+                s = 'pism_surf_accum_dtype is "{}". Only "float32" and "float64" are allowed.'
+                raise ValueError(s.format(pism_tend_bmf_dtype))
+
+            #### ---- runoff reference variable ----
+            x = dst.createVariable('mass_flux', \
+                                   'f4', ('time','yt_ocean','xt_ocean'))
+            var_dict = col.OrderedDict([
+                 ('long_name', ("ice to ocean reference runoff flux computed "
+                                "as the mean of PISM extra output variable "
+                                "'surface_accumulation_flux' over reporting "
+                                "interval and redistributed to MOM grid")),
+                 ('units', 'kg/m^2/s'),
+                 ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
+                 ('reporting_interval', reporting_interval ),
+                 ('reporting_interval_units', 'years'),
+                 ('cell_methods', 'time: point'),
+                 ('coordinates', 'geolon_t geolat_t')])
+            dst['mass_flux'].setncatts(var_dict)
+            dst['mass_flux'][0,:] = oc_edge_flux_per_area['surf_accumulation'][:].data
+
+
+        with CDF(args.MOM_file, 'r') as src,   \
+             CDF(args.runoff_reference_file, "a") as dst:
+            # copy area_t variable
+            for name, variable in src.variables.items():
+                if name in ['area_t']:
+                    #code.interact(local=locals())
+                    x = dst.createVariable(name, variable.datatype, variable.dimensions)
+                    dst[name].setncatts(src[name].__dict__)
+                    dst[name][:] = src[name][:]
+
 
     ### ---------------------- save basin depths file ---------------------------
     #   write basin mean topography of ice shelf areas to basin_shelf_depth_file 
