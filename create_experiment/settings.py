@@ -314,7 +314,7 @@ override_params = collections.OrderedDict([
 
 # - - - - - - - - - - - - - - - command line options - - - - - - - - - - - - - -
 pism_general_opt = "-verbose 2 -options_left -o_format netcdf4_parallel -log_view"
-pism_atm_opt = "-atmosphere pik -atmosphere_pik_temp_file initdata/"+pism_atm_file+" -surface pdd"
+pism_atm_opt = "-atmosphere pik -atmosphere_pik era_interim_lon -atmosphere_pik_file initdata/"+pism_atm_file+" -surface pdd"
 pism_add_opt = "-ocean_kill_file initdata/"+pism_ocnkill_file
 
 
