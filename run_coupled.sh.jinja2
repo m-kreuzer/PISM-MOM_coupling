@@ -64,15 +64,11 @@ MAX_CPL_ITERATION={{settings.max_cpl_iteration}}       # number of coupling iter
 PISM_RESTART_FILE={{settings.pism_exp_dir}}/initdata/{{settings.pism_infile}}
 
 # when continuing from a previous coupled run:
-# set filename of last PISM output file processed by PISM-to-MOM_processing.py
-#   file must be in $ROOT_WORK_DIR/x_PISM-to-MOM
-#   -> only set if restarting from a coupled run
 {% if settings.coupled_restart==True %}
-PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
+COUPLED_RESTART=true
 {% else %}
-#PISM_TO_MOM_FLUX_RESTART_FILE=
+COUPLED_RESTART=false
 {% endif %}
-
 
 
 # ------------------------------ define functions-------------------------------
@@ -600,16 +596,29 @@ process_pism_to_mom(){
         --area          $MOM_PRE_OUT                                                     \
         --flux-out      $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc        \
         --depth-out     $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc \
+        {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) -%}
+        --runoff-reference-out  $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff_reference.nc \
+        {% endif -%}
         --verbose
     RESULT=$?
+    return_check $RESULT "PISM-to-MOM_processing.py"
 
     {% if not settings.use_prescribed_basin_shelf_depth==True %}
     # save file path for usage in next process_mom_to_pism call
     BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc
     {% endif %}
 
-    {% if settings.runoff_slc==True -%}
-    ### ice sheet runoff contributing to sea level rise (runoff_slc)
+    {% if settings.do_runoff_slc==True -%}
+    ### ice sheet runoff contributing to sea level rise (do_runoff_slc)
+    echo "[runoff_slc] -> calculate ice to ocean runoff anomaly to reference"
+
+    {% if settings.runoff_reference_surf_accum==True -%}
+    RUNOFF_REFERENCE_FILE=$PISM_TIME_END_PAD.runoff_reference.nc
+    {% else %}
+    RUNOFF_REFERENCE_FILE={{settings.runoff_reference_file}}
+    {% endif %}
+    echo RUNOFF_REFERENCE_FILE=$RUNOFF_REFERENCE_FILE
+    RUNOFF_REFERENCE_PATH=$ROOT_WORK_DIR/x_PISM-to-MOM/$RUNOFF_REFERENCE_FILE
 
     # difference between current PISM runoff fluxes and reference
     ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc \
@@ -618,17 +627,23 @@ process_pism_to_mom(){
     RESULT=$?
     return_check $RESULT "ncbo"
 
-    ## modify data table to include PISM output fluxes
-    #  write PISM runoff fluxes files to table:
-    #  - reference runoff
-    #  - sea level changing runoff
+    # modify data_table
+    echo "[runoff_slc] -> modify data table to include PISM output fluxes"
+    echo "      runoff_add (mass)              RUNOFF_REFERENCE_FILE"
+    echo "      runoff_hflx_add (energy)       PISM_TIME_END_PAD.fluxes.nc"
+    echo "      runoff_slc (mass)              PISM_TIME_END_PAD.fluxes.anomaly.nc"
+    echo "      runoff_hflx_slc (energy)       <comment>"
     cd $ROOT_WORK_DIR/POEM
     cp data_table-dummy data_table-pism_in
-    sed "s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
-    sed "s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.anomaly.nc/" -i data_table-pism_in
+    sed -e "/.*runoff_add/ s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
+    sed -e "/.*runoff_hflx_add/ s/RUNOFF_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
+    sed -e "/.*runoff_slc/ s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.anomaly.nc/" -i data_table-pism_in
+    sed -e '/.*runoff_hflx_slc/ s/^./#&/' -i data_table-pism_in
     ln -sf data_table-pism_in data_table
 
-    {% else %}
+    {% else %}  # settings.do_runoff_slc==False
+
+    echo " -> modify data table to include PISM output fluxes"
     ## modify data table to include PISM output fluxes
     #  - write PISM runoff fluxes file to table
     #  - comment lines for sea level changing input
@@ -637,10 +652,9 @@ process_pism_to_mom(){
     sed "s/RUNOFF_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
     sed -e '/.*RUNOFF_SLC_FILE_NAME_DUMMY/ s/^./#&/' -i data_table-pism_in
     ln -sf data_table-pism_in data_table
-    {% endif %}
 
+    {% endif %} # settings.do_runoff_slc
 
-    return_check $RESULT "PISM-to-MOM_processing.py"
 
     END_PISM_to_MOM_PROCESS=$(date +%s.%N)
     TIME_PISM_to_MOM_PROCESS_T=$(echo "$END_PISM_to_MOM_PROCESS - $START_PISM_to_MOM_PROCESS" | bc)
@@ -995,71 +1009,142 @@ BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc
 BASIN_SHELF_DEPTH_FILE={{settings.prescribed_basin_shelf_depth_path}}
 {% endif %}
 
-### ice sheet runoff contributing to sea level rise (runoff_slc)
-{% if settings.runoff_slc==True -%}
+### ice sheet runoff contributing to sea level rise (do_runoff_slc)
+#   set RUNOFF_REFERENCE_FILE for different cases
+{% if settings.do_runoff_slc==True -%}
 echo
-echo "sea level changing ice sheet runoff enabled"
-# check if reference file has 1 timestamp max (no time series)
-RUNOFF_REFERENCE_FILE={{settings.runoff_reference_file}}
-RUNOFF_REFERENCE_PATH=$ROOT_WORK_DIR/x_PISM-to-MOM/$RUNOFF_REFERENCE_FILE
-RUNOFF_REF_TIME_DIM=$(ncks --trd -M $RUNOFF_REFERENCE_PATH | \
-    grep "Root record dimension .: name = time" | \
-    cut -f 2 -d ',' | awk '{print $3}')
-if [ "$RUNOFF_REF_TIME_DIM" == "1" ] || [ "$RUNOFF_REF_TIME_DIM" == "" ] ; then 
-    echo "  > [runoff_slc] $RUNOFF_REFERENCE_FILE has no multiple time stamps"
-else
-    echo "  > [runoff_slc] ERROR: $RUNOFF_REFERENCE_FILE has multiple time"\
-        "stamps! Only 1 allowed or no time dimension."
-    exit_script 3
+echo "[runoff_slc] sea level changing due to ice sheet runoff: enabled"
+
+
+{% if settings.runoff_reference_surf_accum==True -%}
+echo
+echo "[runoff_slc] -> using PISM's surface accumulation as runoff reference"
+if [ $COUPLED_RESTART = true ]; then 
+    echo " -> set ice to ocean runoff reference file similar to last iteration"\
+        "of previous run"
+    RUNOFF_REFERENCE_FILE={{settings.runoff_reference_restart_file}}
+    echo RUNOFF_REFERENCE_FILE={{settings.runoff_reference_restart_file}}
 fi
-{% else %}
+
+{% else %} # runoff_reference_surf_accum==False
 echo
-echo "sea level changing ice sheet runoff disabled"
-{% endif %}
+echo "[runoff_slc] -> using provided runoff reference file"
+RUNOFF_REFERENCE_FILE={{settings.runoff_reference_file}}
+echo RUNOFF_REFERENCE_FILE={{settings.runoff_reference_file}}
+
+{% endif %} # runoff_reference_surf_accum
+
+## if RUNOFF_REFERENCE_FILE is set, check that it has maximum only one 
+#   timestamp (no time series)
+if [ -n "$RUNOFF_REFERENCE_FILE" ]; then
+    echo "[runoff_slc] -> checking if RUNOFF_REFERENCE_FILE has maximum "\
+        "only one time stamp (no time series)"
+
+    RUNOFF_REFERENCE_PATH=$ROOT_WORK_DIR/x_PISM-to-MOM/$RUNOFF_REFERENCE_FILE
+    RUNOFF_REF_TIME_DIM=$(ncks --trd -M $RUNOFF_REFERENCE_PATH | \
+        grep "Root record dimension .: name = time" | \
+        cut -f 2 -d ',' | awk '{print $3}')
+    if [ "$RUNOFF_REF_TIME_DIM" == "1" ] || [ "$RUNOFF_REF_TIME_DIM" == "" ] ; then 
+        echo "  > [runoff_slc] -> RUNOFF_REFERENCE_FILE $RUNOFF_REFERENCE_FILE "\
+            "has no multiple time stamps"
+    else
+        echo "  > [runoff_slc] ERROR: RUNOFF_REFERENCE_FILE "\
+            "$RUNOFF_REFERENCE_FILE has multiple time stamps! Only 1 allowed "\
+            "or no time dimension."
+        exit_script 3
+    fi
+fi
+{% else %}  # do_runoff_slc==False
+echo
+echo "[runoff_slc] sea level changing due to ice sheet runoff: disabled"
+{% endif %} # do_runoff_slc
 
 
-### set PISM-to-MOM when restarting from coupled run
-if [ -z ${PISM_TO_MOM_FLUX_RESTART_FILE+x} ]; then 
-    echo "PISM_TO_MOM_FLUX_RESTART_FILE is unset"; 
-    echo " -> no restart from coupled run"
-else 
-    echo "PISM_TO_MOM_FLUX_RESTART_FILE is set to '$PISM_TO_MOM_FLUX_RESTART_FILE'"; 
+### set MOM data_table for first coupling iteration and different options
+#   calculate RUNOFF_ANOMALY_FILE if necessary
+if [ $COUPLED_RESTART = true ]; then 
     echo " -> restart from coupled run"
     echo " -> modifying data_table for first coupling iteration"
+    echo "    "
 
-    {% if settings.runoff_slc==True -%}
-    ### ice sheet runoff contributing to sea level rise (runoff_slc)
+    {% if settings.do_runoff_slc==True -%}
+    ### ice sheet runoff contributing to sea level rise (do_runoff_slc)
+    echo "[runoff_slc] -> using the provided ice to ocean fluxes restart file"
+    PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
+    echo PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
 
+    echo "[runoff_slc] -> calculating the ice to ocean runoff anomaly fluxes "\
+        "with respect to the given RUNOFF_REFERENCE_FILE $RUNOFF_REFERENCE_FILE"
     # difference between current PISM runoff fluxes and reference
     FILE_EXTENSION="${PISM_TO_MOM_FLUX_RESTART_FILE##*.}"
     FILE_PATH_NO_EXTENSION="${PISM_TO_MOM_FLUX_RESTART_FILE%.*}"
     PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE=$FILE_PATH_NO_EXTENSION.anomaly.$FILE_EXTENSION
+    echo PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE=$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE
     ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TO_MOM_FLUX_RESTART_FILE \
         $RUNOFF_REFERENCE_PATH \
         $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE
     RESULT=$?
     return_check $RESULT "ncbo"
 
-    ## modify data table to include PISM output fluxes for first restart iteration
-    #  write PISM runoff fluxes files to table:
-    #  - reference runoff
-    #  - sea level changing runoff
+    ### modify data table to include PISM output fluxes for first restart iteration
+    ##  write PISM runoff fluxes files to table:
+    ##  - reference runoff
+    ##  - sea level changing runoff
+    #echo "[runoff_slc] -> adapting data_table using RUNOFF_REFERENCE_FILE and "\
+    #    "PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE" 
+    #cd $ROOT_WORK_DIR/POEM
+    #cp data_table-dummy data_table-pism_in 
+    #sed "s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
+    #sed "s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE/" -i data_table-pism_in
+
+    # modify data_table
+    echo "[runoff_slc] -> modify data table to include PISM output fluxes for first restart iteration"
+    echo "      runoff_add (mass)              RUNOFF_REFERENCE_FILE"
+    echo "      runoff_hflx_add (energy)       PISM_TO_MOM_FLUX_RESTART_FILE"
+    echo "      runoff_slc (mass)              PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE"
+    echo "      runoff_hflx_slc (energy)       <comment>"
     cd $ROOT_WORK_DIR/POEM
-    cp data_table-dummy data_table-pism_in 
-    sed "s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
-    sed "s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE/" -i data_table-pism_in
-    {% else %}
+    cp data_table-dummy data_table-pism_in
+    sed -e "/.*runoff_add/ s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
+    sed -e "/.*runoff_hflx_add/ s/RUNOFF_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_FILE/" -i data_table-pism_in
+    sed -e "/.*runoff_slc/ s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE/" -i data_table-pism_in
+    sed -e '/.*runoff_hflx_slc/ s/^./#&/' -i data_table-pism_in
+
+    {% else %} #do_runoff_slc==False
     ## modify data table to include PISM output fluxes for first restart iteration
     #  - write PISM runoff fluxes file to table 
     #  - comment lines for sea level changing input
+    PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
+    echo PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
+    echo " -> adapting data_table using PISM_TO_MOM_FLUX_RESTART_FILE"
     cd $ROOT_WORK_DIR/POEM
     cp data_table-dummy data_table-pism_in 
     sed "s/RUNOFF_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_FILE/" -i data_table-pism_in
     sed -e '/.*RUNOFF_SLC_FILE_NAME_DUMMY/ s/^./#&/' -i data_table-pism_in
-    {% endif %}
+
+    {% endif %} # do_runoff_slc
+
     ln -sf data_table-pism_in data_table    # for CPL_ITERATION==1
     cd $ROOT_WORK_DIR
-fi
+
+else # COUPLED_RESTART = false
+    echo " -> no restart from coupled run"
+    echo " -> modifying data_table for first coupling iteration:"
+    echo "    - use prescribed PISM to MOM initial fluxes: "\
+        "x_PISM-to-MOM/{{settings.pism_to_mom_flux_init_file}}"
+    echo "    - don't use fluxes for sea level change"
+
+    ## modify data table to include prescribed PISM to MOM initial fluxes
+    #  - write PISM runoff fluxes files to table
+    #  - comment lines for sea level changing input
+    cd $ROOT_WORK_DIR/POEM
+    cp data_table-dummy data_table-pism_in
+    sed "s/RUNOFF_FILE_NAME_DUMMY/{{settings.pism_to_mom_flux_init_file}}/" -i data_table-pism_in
+    sed -e '/.*RUNOFF_SLC_FILE_NAME_DUMMY/ s/^./#&/' -i data_table-pism_in
+    ln -sf data_table-pism_in data_table    # for CPL_ITERATION==1
+    cd $ROOT_WORK_DIR
+
+fi # COUPLED_RESTART
 
 ### ocean tracer anomaly reference file
 # ____________________________________________________________________________ #

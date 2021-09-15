@@ -40,10 +40,17 @@ pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/exper
 #     and pism_infile_dir below)
 #  -> MOM restart files are automatically copied from $restart_dir/POEM/INPUT/
 #     if path exists
-coupled_restart = True
-pism_to_mom_flux_restart_file = '12811.fluxes.nc'
-restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_gmd-2020-230_run04"
+coupled_restart = False
+restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_runoff_slc_surf_accum_dev03"
+
+pism_to_mom_flux_restart_file = '013094.fluxes.nc'
 pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
+
+# in case do_runoff_slc = True and runoff_reference_surf_accum = True
+#   specify the runoff reference file computed from PISM's surface accumulation
+#   in the last coupling time step of the previous run
+runoff_reference_restart_file = '013094.runoff_reference.nc'
+runoff_reference_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', runoff_reference_restart_file)
 
 # - - - - - - - - - - - - - - MOM -> PISM timeseries - - - - - - - - - - - - - - 
 # option to pass a time series of ocean forcing to PISM when coupling time step
@@ -62,19 +69,38 @@ ocean_to_ice_timeseries = False
 # To avoid that changes in the ice sheet mass (and subsequently ice-to-ocean
 # runoff) are being balanced out when provided to the ocean via the river routing
 # scheme, the ice sheet runoff can be split:
-#  (1) regular mass flux to ocean in steady state (average at end of ice sheet
+#  (1) reference mass flux to ocean in steady state/ ice sheet equilibrium (average at end of ice sheet
 #       standalone spinup
-#  (2) anomaly to the steady state/spinup mean
-# While (1) is provided via the regular river runoff mechanism, (2) is given to
-# MOM5 via the new implemented `runoff_slc` data table entry (which adds it to
-# the same runoff field, but excludes it from the pme+river=0 normalisation)
-# With the `runoff_slc` flag this split can be enabled. It might be reasonable
-# to switch it off during spinup phase of coupled ice/ocean simulations.
-# The provided `runoff_reference_file` is required to have one timestamp
-# only.
-runoff_slc = True
+#  (2) anomaly/difference to (1), the reference runoff
+# While (1) is provided to MOM via the regular river runoff mechanism, (2) is
+# given to MOM5 via the new implemented `runoff_slc` data table entry (which
+# adds it to the same runoff field, but excludes it from the pme+river=0
+# normalisation). With the `do_runoff_slc` flag this split can be enabled. It might
+# be reasonable to switch it off during spinup phase of coupled ice/ocean
+# simulations. 
+# There are two possiblities to choose the ice to ocean reference runoff:
+#  (a) compute it from PISM's surface accumulation
+#       In ice sheet equilibrium, the surface accumulation flux should balance
+#       the mass flux from ice to ocean. This method is recommended especially
+#       with transient surface forcing on the ice sheet. To use this option,
+#       set `runoff_reference_surf_accum = True`
+#  (b) provide a file with the reference ice to ocean runoff This can be
+#       computed manually as an average ice to ocean mass flux from an
+#       standalone ice spinup/equilibrium state. 
+#       WARNING: As the runoff (especially the calving) shows quasi-stochastic
+#       behaviour, it is very likely that the computed mean does not exactly
+#       represent the ice to ocean mean runoff. This introduces a systematic
+#       positive/negative bias when computing the anomalies, which piles up in
+#       a constant mass drift of the coupled ice-ocean system.  This drift can
+#       be reduced, using a manual correction of the reference while on basis
+#       of the coupled mass drift. 
+#       This option is used when `runoff_reference_surf_accum = False`. In this
+#       case the variables `runoff_reference_file` (one timestamp only!) and
+#       `runoff_reference_path` are used. 
+do_runoff_slc = True
+runoff_reference_surf_accum = True
 runoff_reference_file = "equi_16km_110000yrs.mean_last_1ka.fluxes.nc"
-runoff_reference_path = os.path.join("/p/projects/pism/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run02/output_processed", runoff_reference_file)
+runoff_reference_path = os.path.join("/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run03/output_processed", runoff_reference_file)
 
 # - - - - - - - - - - - - - - - ocean tracer anomaly - - - - - - - - - - - - - -
 do_ocean_tracer_anomaly    = True
@@ -296,7 +322,8 @@ pism_add_opt = "-ocean_kill_file initdata/"+pism_ocnkill_file
 # - - - - - - - - - - - - - - - - - - output - - - - - - - - - - - - - - - - -
 
 # set extra variables
-pism_extra_vars = "mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount,amount_fluxes,ice_mass,pico_contshelf_mask"
+pism_extra_vars = "mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount,amount_fluxes,ice_mass,pico_contshelf_mask,pdd_fluxes,pdd_rates,climatic_mass_balance "
+
 
 # set pism diagnostic timesteps
 pism_diag_extra_timestep = coupling_timestep
