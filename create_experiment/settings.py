@@ -24,6 +24,14 @@ coupling_timestep = 10      # in years, must be greater or equal 1
 max_cpl_iteration = 10      # number of coupling iterations
 
 
+# - - - - - - - - - ice -> ocean fluxes [1st coupling iteration] - - - - - - - -
+
+# in case of no coupled restart:
+# specify ice-to-ocean runoff for first coupling iteration as ocean runs before
+# ice and default setup for ocean has no Antarctic runoff from land/ice
+pism_to_mom_flux_init_file = 'equi_16km_110000yrs.mean_last_1ka.fluxes.nc'
+pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run03/output_processed/', pism_to_mom_flux_init_file)
+
 # - - - - - - - - - - - - - - - - - - restart - - - - - - - - - - - - - - - - -
 # option to restart a coupled setup from a previous run
 #  -> gives the opportunity to add PISM input fluxes to MOM from last coupling 

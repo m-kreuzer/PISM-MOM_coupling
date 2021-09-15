@@ -189,6 +189,17 @@ def create_run(settings=settings, experiment=settings.experiment):
             preserve_symlinks=1, update=1, verbose=1)
     print(f"   - copied POEM template {settings.poem_template_dir} to POEM")
 
+    # a new coupled run (not restarting from a previous coupled run)
+    if settings.coupled_restart==False:
+        # copy inital PISM-to-MOM fluxes for the first coupling iteration
+        shutil.copy2(settings.pism_to_mom_flux_init_path,
+                os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+        print(f"   - copied initial PISM-to-MOM flux file "\
+                f"{settings.pism_to_mom_flux_init_file} from "\
+                f"{settings.pism_to_mom_flux_init_path} for ice to ocean "\
+                f"fluxes in first coupling iteration")
+
+
     # further stuff to do when doing a restart from a previous coupled run
     if settings.coupled_restart==True :
         # copy PISM-to-MOM fluxes file if doing a restart from previous run
