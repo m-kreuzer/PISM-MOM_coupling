@@ -18,8 +18,10 @@
 {{settings.pism_add_opt}} \
 -ocean pico \
 -ocean_pico_file ../x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc  \
+{% if ( settings.do_ocean_sealevel_anomaly==True ) -%}
 -sea_level constant,delta_sl_2d \
 -ocean.delta_sl_2d.file ../x_MOM-to-PISM/$POEM_TIME_END.sealevel.PISM_input.nc \
+{% endif -%}
 -extra_file results/$PISM_TIME_END_PAD.pism_extra.nc \
 -extra_times $PISM_TIME_BEGIN:{{settings.pism_diag_extra_timestep}}:$PISM_TIME_END \
 -extra_vars {{settings.pism_extra_vars}} \
