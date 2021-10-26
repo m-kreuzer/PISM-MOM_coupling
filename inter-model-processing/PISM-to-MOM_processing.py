@@ -21,7 +21,7 @@
 
 usage: ./PISM-to-MOM_processing -o PISM_output_file -e PISM_extra_file
             -m PISM_MOM_mapping_file -a MOM_file -f fluxes_out_file 
-            -d basin_shelf_depth_file [-t] [-v]
+            -d basin_shelf_topg_depth_file [-t] [-v]
 
 Mass and energy fluxes to be passed from ice to ocean models are computed from 
 PISM extra output file (from multiple variables). Additionally an ice to ocean 
@@ -51,7 +51,7 @@ Arguments:
         input file with MOM grid area variable 'area_t'
     -f, --flux-out fluxes_out_file
         file to store processed fluxes which serve as MOM_input
-    -d, --depth-out basin_shelf_depth_file
+    -d, --depth-out basin_shelf_topg_depth_file
         file to store basin shelf depths which determine vertical layer of 
         ocean boundary condition input to PISM/PICO
     -r, --runoff-reference-out runoff_reference_file
@@ -131,9 +131,9 @@ if __name__ == "__main__":
                         required=True, 
                         help=("file to store processed fluxes which serve as "
                               "MOM input"))
-    parser.add_argument('-d', '--depth-out', 
+    parser.add_argument('-b', '--topg-depth-out', 
                         action="store", 
-                        dest="basin_shelf_depth_file", 
+                        dest="basin_shelf_topg_depth_file", 
                         required=True, 
                         help=("file to store basin shelf depths which determine"
                               "vertical layer of ocean boundary condition input"
@@ -228,13 +228,6 @@ if __name__ == "__main__":
     #if pism_bmf_ndim != 2:
     #    raise ValueError( str("flux field is of dimension " + \
     #                        str( pism_bmf_ndim ) + ". Expected: 2.") )
-
-    #pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux'][:])
-    #pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux'].dtype
-    #pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
-    #if pism_surf_runoff_ndim != 2:
-    #    raise ValueError( str("flux field is of dimension " + \
-    #                        str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
 
     varname = 'tendency_of_ice_amount_due_to_basal_mass_flux'
     pism_tend_bmf = np.squeeze(nc_fh.variables[varname][:])
@@ -505,8 +498,8 @@ if __name__ == "__main__":
         pism_basin_flux[k] = cp.deepcopy(pism_basin_dummy)
 
     # create datastructre for basin topography depth
-    pism_basin_shelf_depth = np.zeros_like(pism_basin_list, dtype=np.float64)
-    pism_basin_shelf_depth[:] = np.nan
+    pism_basin_shelf_topg_depth = np.zeros_like(pism_basin_list, dtype=np.float64)
+    pism_basin_shelf_topg_depth[:] = np.nan
     
     
     for idx, val in enumerate(pism_basin_list):
@@ -518,9 +511,9 @@ if __name__ == "__main__":
         basin_mean_depth = np.mean(pism_contshelf_topg[pism_basins==val])
         if (basin_mean_depth is np.ma.masked):
             # default depth in meters
-            pism_basin_shelf_depth[idx] = -500
+            pism_basin_shelf_topg_depth[idx] = -500
         else:
-            pism_basin_shelf_depth[idx] = basin_mean_depth
+            pism_basin_shelf_topg_depth[idx] = basin_mean_depth
 
     # create output structure on MOM grid
     oc_dummy = np.zeros_like(oc_edge_basin, dtype=pism_tend_bmf_dtype)
@@ -855,18 +848,18 @@ if __name__ == "__main__":
 
 
     ### ---------------------- save basin depths file ---------------------------
-    #   write basin mean topography of ice shelf areas to basin_shelf_depth_file 
+    #   write basin mean topography of ice shelf areas to basin_shelf_topg_depth_file 
     if args.verbose:
         print(" - write basin mean topography of ice shelf areas to file ",
-                  args.basin_shelf_depth_file)
+                  args.basin_shelf_topg_depth_file)
     
     cmd_line = ' '.join(sys.argv)
     histstr = time.asctime() + ': ' + cmd_line + "\n "
    
-    with CDF(args.basin_shelf_depth_file, "w") as dst:
+    with CDF(args.basin_shelf_topg_depth_file, "w") as dst:
         # create dictionary for global attributes
         glob_dict = dict({  \
-            'filename': os.path.basename( args.basin_shelf_depth_file),
+            'filename': os.path.basename( args.basin_shelf_topg_depth_file),
             'title':    'basin mean topography of ice shelf areas',
             'history':  histstr
             })
@@ -896,7 +889,7 @@ if __name__ == "__main__":
              ('positive', 'up'),
              ('fill_value', netCDF4._netCDF4.default_fillvals['f4'])])
         dst['mean_shelf_topg'].setncatts(var_dict)
-        dst['mean_shelf_topg'][0,:] = pism_basin_shelf_depth[:]
+        dst['mean_shelf_topg'][0,:] = pism_basin_shelf_topg_depth[:]
 
 
     t_write_file_end = time.time()
