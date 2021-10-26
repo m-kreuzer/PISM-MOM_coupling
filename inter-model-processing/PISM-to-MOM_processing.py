@@ -17,22 +17,27 @@
 #  You should have received a copy of the GNU General Public License
 #  along with PISM-MOM_coupling.  If not, see <https://www.gnu.org/licenses/>.
 
-""" Redistributing mass and energy fluxes from PISM/PICO to MOM cells.
+""" Processing PISM output as valid MOM input
 
 usage: ./PISM-to-MOM_processing -o PISM_output_file -e PISM_extra_file
             -m PISM_MOM_mapping_file -a MOM_file -f fluxes_out_file 
-            -d basin_shelf_topg_depth_file [-t] [-v]
+            -b basin_shelf_topg_depth_file [-t] [-v]
 
-Mass and energy fluxes to be passed from ice to ocean models are computed from 
-PISM extra output file (from multiple variables). Additionally an ice to ocean 
-reference runoff mass flux is computed from PISM's surface accumulation to 
-represent the equilibrium runoff under present surface forcing. Conversion to 
-total fluxes per PISM grid cell is done assuming uniform grid cell area.
-Fluxes are aggregated in PICO basins and distributed to southern ocean edge 
-cells via previous computed mapping. Fluxes on the ocean grid are again converted
-into unit fluxes per area via division with corresponding MOM grid cell area.
-The output file can be used by the FMS data overwrite mechanism to put PISM 
-fluxes to ocean/sea-ice surface.
+Mass and energy fluxes to be passed from ice model PISM to ocean model MOM5/6
+are computed from PISM extra output file (from multiple variables). Optionally
+an ice to ocean reference runoff mass flux is computed from PISM's surface
+accumulation to represent the equilibrium runoff under present surface forcing.
+Conversion to total fluxes per PISM grid cell is done assuming uniform grid
+cell area.  Fluxes are aggregated in PICO basins and distributed to southern
+ocean edge cells via previous computed mapping. Fluxes on the ocean grid are
+again converted into unit fluxes per area via division with corresponding MOM
+grid cell area.  The output file can be used by the FMS data overwrite
+mechanism to put PISM fluxes to ocean/sea-ice surface.  Additionally the basin
+mean topography depth is computed and stored, which is used to select the depth
+of temperature and salinity extraction from 3d ocean output it the
+regriddedMOM-to-PISM processing routine. Also optionally the basin mean depth
+of ice shelf fronts are computed to determine the input depth of basal melt
+fluxes into the ocean model.
 
 Arguments:
     -o, --output PISM_output_file
@@ -51,10 +56,17 @@ Arguments:
         input file with MOM grid area variable 'area_t'
     -f, --flux-out fluxes_out_file
         file to store processed fluxes which serve as MOM_input
-    -d, --depth-out basin_shelf_topg_depth_file
+    -b, --topg-depth-out basin_shelf_topg_depth_file
         file to store basin shelf depths which determine vertical layer of 
         ocean boundary condition input to PISM/PICO
-    -r, --runoff-reference-out runoff_reference_file
+    -s, --shelf-depth-out basin_shelf_front_depth_file (optional)
+        file to store basin shelf frontal depths which determine the vertical layer of 
+        basal melt input into MOM
+    --density-ice density_ice (optional)
+        set ice density used for frontal shelf depth calculation
+    --density-ocean density_ocean (optional)
+        set ocean density used for frontal shelf depth calculation
+    -r, --runoff-reference-out runoff_reference_file (optional)
         file to store the ice to ocean runoff reference which is computed from
         PISM's surface accumulation and used to calculate the sea level
         changing fraction of the ice to ocean runoff fluxes stored by
@@ -84,21 +96,33 @@ try:
     from netCDF4 import Dataset as CDF
 except:
     raise ImportError("netCDF4 is not installed!")
-import code
     
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(
-                description=
-                "Redistributing mass and energy fluxes from PISM/PICO to MOM cells.",
-                epilog=
-                ("Mass and energy fluxes are computed from PISM output file. "
-                 "Conversion to total fluxes per PISM grid cell is done "
-                 "assuming uniform grid cell area. Fluxes are aggregated in "
-                 "PICO basins and distributed to southern ocean edge cells "
-                 "via previous computed mapping. The output file can be used "
-                 "by the FMS data overwrite mechanism.")
-            )
+                description=(
+"Processing PISM output as valid MOM input. "
+"Mass and energy fluxes to be passed from ice model PISM to ocean model MOM5/6 "
+"are computed from PISM extra output file (from multiple variables). Optionally "
+"an ice to ocean reference runoff mass flux is computed from PISM's surface "
+"accumulation to represent the equilibrium runoff under present surface forcing. "
+"Conversion to total fluxes per PISM grid cell is done assuming uniform grid "
+"cell area.  Fluxes are aggregated in PICO basins and distributed to southern "
+"ocean edge cells via previous computed mapping. Fluxes on the ocean grid are "
+"again converted into unit fluxes per area via division with corresponding MOM "
+"grid cell area.  The output file can be used by the FMS data overwrite "
+"mechanism to put PISM fluxes to ocean/sea-ice surface.  Additionally the basin "
+"mean topography depth is computed and stored, which is used to select the depth "
+"of temperature and salinity extraction from 3d ocean output it the "
+"regriddedMOM-to-PISM processing routine. Also optionally the basin mean depth "
+"of ice shelf fronts are computed to determine the input depth of basal melt "
+"fluxes into the ocean model. "),
+                epilog=(
+"This script requires the output of script PISMbasin-to-MOMcell-mapping.py "
+" "
+"This script was created as a processing tool for distributing the flux output "
+"of the landice model PISM/PICO to the grid of ocean model MOM5. This was done "
+"in the scope of coupling PISM to the climate model POEM at PIK. "))
     parser.add_argument('-o', '--output', 
                         action="store", 
                         dest="PISM_output_file", 
@@ -135,9 +159,31 @@ if __name__ == "__main__":
                         action="store", 
                         dest="basin_shelf_topg_depth_file", 
                         required=True, 
-                        help=("file to store basin shelf depths which determine"
-                              "vertical layer of ocean boundary condition input"
-                              "to PISM/PICO"))
+                        help=("file to store basin shelf topography depths "
+                            "which determine vertical layer of ocean boundary "
+                            "condition input to PISM/PICO"))
+    parser.add_argument('-s', '--shelf-depth-out', 
+                        action="store", 
+                        dest="basin_shelf_front_depth_file", 
+                        required=False, 
+                        help=("file to store basin shelf frontal depths which "
+                            "determine the vertical layer basal melt input "
+                            "into MOM. Requires PISM extra output variables "
+                            "'pism_shelf_mask', 'pism_box_mask' and 'thk'"))
+    parser.add_argument('--density-ice', 
+                        action="store", 
+                        dest="density_ice", 
+                        required=False, 
+                        help=("set density of ice [kg/m^3] (default: 910). Used "
+                              "for computation of frontal shelf depths (when "
+                              "--shelf-depth-out is set)."))
+    parser.add_argument('--density-ocean', 
+                        action="store", 
+                        dest="density_ocean", 
+                        required=False, 
+                        help=("set density of ocean [kg/m^3] (default: 1028). Used "
+                              "for computation of frontal shelf depths (when "
+                              "--shelf-depth-out is set)."))
     parser.add_argument('-r', '--runoff-reference-out',
                         action="store",
                         dest="runoff_reference_file",
@@ -171,6 +217,13 @@ if __name__ == "__main__":
     latent_heat_of_fusion = 3.34 * 1e5          # unit: J/kg   
         # -> see: Reese et al 2018: Antarctic sub-shelf melt rates via PICO
         # consistent with HLF in mom5.0.2/src/shared/constants/constants.F90
+    dens_ice = 910                              # kg/m^3
+    dens_ocn = 1028                             # kg/m^3
+
+    if args.density_ice:
+        dens_ice = float(args.density_ice)
+    if args.density_ocean:
+        dens_ocn = float(args.density_ocean)
     
     # a list of possible x,y-dimensions names to read nc-files
     xdims = ['x', 'x1']
@@ -283,6 +336,26 @@ if __name__ == "__main__":
     if pism_contshelf_mask_ndim == 3:
         # cut of time dimension and take first time slice
         pism_contshelf_mask = pism_contshelf_mask[0,:,:]
+
+    if args.basin_shelf_front_depth_file:
+        pico_shelf_mask = np.squeeze(nc_fh.variables['pico_shelf_mask'][:])
+        pico_shelf_mask_ndim = len(pico_shelf_mask.shape)
+        if pico_shelf_mask_ndim == 3:
+            # cut of time dimension and take first time slice
+            pico_shelf_mask = pico_shelf_mask[0,:,:]
+
+        pico_box_mask = np.squeeze(nc_fh.variables['pico_box_mask'][:])
+        pico_box_mask_ndim = len(pico_box_mask.shape)
+        if pico_box_mask_ndim == 3:
+            # cut of time dimension and take first time slice
+            pico_box_mask = pico_box_mask[0,:,:]
+
+        pism_thk = np.squeeze(nc_fh.variables['thk'][:])
+        pism_thk_dtype = nc_fh.variables['thk'].dtype
+        pism_thk_ndim = len(pism_thk.shape)
+        if pism_thk_ndim == 3:
+            # cut of time dimension and take first time slice
+            pism_thk = pism_thk[0,:,:]
 
     # read reporting interval, unit: [years]
     d = nc_fh['pism_config'].__dict__
@@ -558,7 +631,51 @@ if __name__ == "__main__":
         print('\tmass: \t\t', error_rate_mass)
         print('\tenergy: \t', error_rate_energy)
     
-    
+
+
+    ### --------------- calculate frontal ice shelf draft depth ----------------
+    if args.basin_shelf_front_depth_file:
+        if args.verbose:
+            print(" - calculating frontal ice shelf draft depth ")
+        shelf_front_box_depth          = np.zeros_like(pism_basins,     dtype=np.float64)
+        shelf_front_box_depth_basin    = np.zeros_like(pism_basin_list, dtype=np.float64)
+        shelf_front_box_depth_ocean    = np.zeros_like(oc_edge_basin,   dtype=np.float64)
+        shelf_front_box_depth[:]       = np.nan
+        shelf_front_box_depth_basin[:] = np.nan
+        shelf_front_box_depth_ocean[:] = np.nan
+
+        shelf_list = np.unique(pico_shelf_mask)
+        shelf_list = shelf_list[shelf_list>0]
+
+        for s in shelf_list:
+            # create mask for last PICO box in shelf
+            m__shelf = (pico_shelf_mask == s)
+            list_boxes = np.unique(pico_box_mask[m__shelf])
+            if np.all(list_boxes.mask):
+                print(f"    shelf {int(s):4} (cells: {np.sum(m__shelf)}, avg "
+                        f"thk: {np.mean(pism_thk[m__shelf]):>6.1f}m) has no "
+                        f"PICO box value. Skipping.")
+                continue
+            else:
+                box_max = int(list_boxes.max())
+            m__box_max = (pico_box_mask == box_max)           
+            m__shelf_box_max = m__shelf & m__box_max
+            # compute depth below water surface
+            shelf_front_box_depth[m__shelf_box_max] = pism_thk[m__shelf_box_max] * dens_ice/dens_ocn
+
+        # aggregate depths as mean per basin
+        for b in pism_basin_list:
+            m__basin = (pism_basins == b)
+            shelf_front_box_depth_basin[b-1] = np.nanmean(shelf_front_box_depth[m__basin])
+
+        # map basin depth from PISM to MOM grid
+        #   multiplied by -1 as positive axis pointing upwards
+        for j in range(oc_nlat):
+            for i in range(oc_nlon):
+                if oc_edge_basin.mask[j,i] == False:
+                    list_index = np.where( pism_basin_list==oc_edge_basin[j,i] )
+                    shelf_front_box_depth_ocean[j,i] = -1*shelf_front_box_depth_basin[list_index] 
+
     t_process_end = time.time()
     
     ### ---------------------- save fluxes to file ---------------------------
@@ -758,6 +875,9 @@ if __name__ == "__main__":
     #   write redistributed ice to ocean reference runoff (surface accumulation)
     #   to file runoff_reference_file
     if args.runoff_reference_file:
+        if args.verbose:
+            print(" - write reference runoff to file ",
+                      args.runoff_reference_file)
         with CDF(args.PISM_MOM_mapping_file, 'r') as src,   \
              CDF(args.runoff_reference_file, "w") as dst:
             # copy global attributes all at once via dictionary
@@ -819,8 +939,8 @@ if __name__ == "__main__":
                 raise ValueError(s.format(pism_tend_bmf_dtype))
 
             #### ---- runoff reference variable ----
-            x = dst.createVariable('mass_flux', \
-                                   'f4', ('time','yt_ocean','xt_ocean'))
+            x = dst.createVariable('mass_flux', nc_dtype, \
+                                   ('time','yt_ocean','xt_ocean'))
             var_dict = col.OrderedDict([
                  ('long_name', ("ice to ocean reference runoff flux computed "
                                 "as the mean of PISM extra output variable "
@@ -847,7 +967,7 @@ if __name__ == "__main__":
                     dst[name][:] = src[name][:]
 
 
-    ### ---------------------- save basin depths file ---------------------------
+    ### ---------------------- save basin topography depths file ---------------------------
     #   write basin mean topography of ice shelf areas to basin_shelf_topg_depth_file 
     if args.verbose:
         print(" - write basin mean topography of ice shelf areas to file ",
@@ -890,6 +1010,87 @@ if __name__ == "__main__":
              ('fill_value', netCDF4._netCDF4.default_fillvals['f4'])])
         dst['mean_shelf_topg'].setncatts(var_dict)
         dst['mean_shelf_topg'][0,:] = pism_basin_shelf_topg_depth[:]
+
+
+    ### ---------------------- save shelf depth file ---------------------------
+    #   write mean ice shelf frontal depth to basin_shelf_front_depth_file
+    if args.basin_shelf_front_depth_file:
+        if args.verbose:
+            print(" - write basin mean shelf front depth to file ",
+                      args.basin_shelf_front_depth_file)
+        with CDF(args.PISM_MOM_mapping_file, 'r') as src,   \
+             CDF(args.basin_shelf_front_depth_file, "w") as dst:
+            # copy global attributes all at once via dictionary
+            glob_dict = src.__dict__
+            glob_dict['filename'] = os.path.basename(args.basin_shelf_front_depth_file)
+            glob_dict['title'] = "ice shelf front depth computed as last PICO" \
+                "box mean" 
+
+            if 'history' in glob_dict.keys():
+                glob_dict['history'] = histstr + glob_dict['history']
+            elif 'History' in glob_dict.keys():
+                glob_dict['History'] = histstr + glob_dict['History']
+            else:
+                glob_dict['history'] = histstr
+            dst.setncatts(glob_dict)
+
+            # copy dimensions
+            for name, dimension in src.dimensions.items():
+                if name in dim_copy:
+                    dst.createDimension(name, len(dimension) )
+
+            # create time dimension
+            dst.createDimension('time', None)
+            #dst.createDimension('nv', pism_extra_nv)
+
+            # write time variable
+            dst.createVariable('time', np.double, ("time",) )
+            dst['time'].setncatts(pism_extra_time_dict)
+            dst['time'][:] = pism_extra_time
+
+            #dst.createVariable('time_bounds', np.double, ("time","nv",) )
+            #dst['time_bounds'].setncatts(pism_extra_time_bounds_dict)
+            #dst['time_bounds'][:] = pism_extra_time_bounds
+
+
+            # copy variables
+            for name, variable in src.variables.items():
+                if name in var_copy:
+                    x = dst.createVariable(name, variable.datatype, variable.dimensions)
+                    # fix wrong valid range attribute in geolon_t
+                    if name == 'geolon_t':
+                        d = src[name].__dict__
+                        d['valid_range'][0] = -360
+                        dst[name].setncatts(d)
+                        dst[name][:] = ocean_lon[:]
+                    else:
+                        # copy variable attributes all at once via dictionary
+                        dst[name].setncatts(src[name].__dict__)
+                        dst[name][:] = src[name][:]
+
+            ### write new variables
+            if pism_thk_dtype == 'float32':
+                nc_dtype = 'f4'
+            elif pism_thk_dtype == 'float64':
+                nc_dtype = 'f8'
+            else:
+                raise ValueError(f'pism_thk_dtype is {pism_thk_dtype}. '
+                        'Only "float32" and "float64" are allowed.')
+
+            x = dst.createVariable('shelf_front_depth', nc_dtype, 
+                                   ('time','yt_ocean','xt_ocean'))
+            var_dict = col.OrderedDict([
+                 ('long_name', ("front depth of ice shelf draft, computed as "
+                                "the average over the last PICO box in every "
+                                "shelf, aggregated as mean for each basin")),
+                 ('units', 'm'),
+                 ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
+                 ('reporting_interval', reporting_interval ),
+                 ('reporting_interval_units', 'years'),
+                 ('cell_methods', 'time: point'),
+                 ('coordinates', 'geolon_t geolat_t')])
+            dst['shelf_front_depth'].setncatts(var_dict)
+            dst['shelf_front_depth'][0,:] = shelf_front_box_depth_ocean[:].data
 
 
     t_write_file_end = time.time()
