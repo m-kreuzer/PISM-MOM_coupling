@@ -642,7 +642,7 @@ if __name__ == "__main__":
         shelf_front_box_depth_ocean    = np.zeros_like(oc_edge_basin,   dtype=np.float64)
         shelf_front_box_depth[:]       = np.nan
         shelf_front_box_depth_basin[:] = np.nan
-        shelf_front_box_depth_ocean[:] = np.nan
+        #shelf_front_box_depth_ocean[:] = np.nan
 
         shelf_list = np.unique(pico_shelf_mask)
         shelf_list = shelf_list[shelf_list>0]
@@ -669,12 +669,11 @@ if __name__ == "__main__":
             shelf_front_box_depth_basin[b-1] = np.nanmean(shelf_front_box_depth[m__basin])
 
         # map basin depth from PISM to MOM grid
-        #   multiplied by -1 as positive axis pointing upwards
         for j in range(oc_nlat):
             for i in range(oc_nlon):
                 if oc_edge_basin.mask[j,i] == False:
                     list_index = np.where( pism_basin_list==oc_edge_basin[j,i] )
-                    shelf_front_box_depth_ocean[j,i] = -1*shelf_front_box_depth_basin[list_index] 
+                    shelf_front_box_depth_ocean[j,i] = shelf_front_box_depth_basin[list_index] 
 
     t_process_end = time.time()
     
@@ -1084,6 +1083,8 @@ if __name__ == "__main__":
                                 "the average over the last PICO box in every "
                                 "shelf, aggregated as mean for each basin")),
                  ('units', 'm'),
+                 ('axis', 'Z'),
+                 ('positive', 'down'),
                  ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
                  ('reporting_interval', reporting_interval ),
                  ('reporting_interval_units', 'years'),
