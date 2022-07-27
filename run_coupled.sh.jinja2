@@ -21,11 +21,11 @@
 #SBATCH --job-name={{settings.experiment}}
 
 #SBATCH --tasks={{settings.slurm_tasks}}
-{% if settings.slurm_exclusive==True -%}
+{% if settings.slurm_exclusive==True %}
 #SBATCH --exclusive
 {% endif %}
 
-{% if settings.slurm_partition=="broadwell" -%}
+{% if settings.slurm_partition=="broadwell" %}
 #SBATCH --tasks-per-node=32
 #SBATCH --partition=broadwell
 {% else %}
@@ -441,7 +441,7 @@ process_mom_to_pism() {
 
     echo "  > bilinear regridding MOM output to PISM grid"
     OCEAN_OUT=$POEM_WORK_DIR/history/$POEM_TIME_END.ocean-yearly.nc
-    {% if settings.ocean_to_ice_timeseries==True -%}
+    {% if settings.ocean_to_ice_timeseries==True %}
     # don't average ocean output over coupling time step before regridding
     # but extract temp, salt, eta_t for regridding
     REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.sparse.nc
@@ -466,13 +466,13 @@ process_mom_to_pism() {
         --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
         --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
         --fill      temp salt eta_t                                                  \
-        --depth     $BASIN_SHELF_DEPTH_FILE                                          \
+        --depth     $PICO_INPUT_DEPTH_FILE                                           \
         --output    $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc     \
         --verbose
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
         
-    {% if settings.do_ocean_tracer_anomaly==True -%}
+    {% if settings.do_ocean_tracer_anomaly==True %}
     ### ocean tracer anomaly approach: use regular PISM ocean forcing (e.g. 
     #       Schmidtko data) but add difference of 
     #       regriddedMOM-to-PISM_processing.py output from current coupling
@@ -503,7 +503,7 @@ process_mom_to_pism() {
     RESULT=$?
     return_check $RESULT "ncks"
 
-        {% if settings.ocean_to_ice_timeseries==True -%}
+        {% if settings.ocean_to_ice_timeseries==True %}
     ncks -A -v time_bounds \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc
@@ -517,12 +517,12 @@ process_mom_to_pism() {
     cd $ROOT_WORK_DIR/x_MOM-to-PISM
     ln -sf $POEM_TIME_END.processed_MOM.nc $POEM_TIME_END.tracer.PISM_input.nc
     cd $ROOT_WORK_DIR/inter-model-processing
-    {% endif %} # settings.do_ocean_tracer_anomaly==True
+    {% endif %}
 
 
 
 
-    {% if settings.do_ocean_sealevel_anomaly==True -%}
+    {% if settings.do_ocean_sealevel_anomaly==True %}
     ### ocean sealevel anomaly approach: force PISM with sea level change
     #       from ocean model. Calculated through difference of current local 
     #       sea level (output of regriddedMOM-to-PISM_processing.py) to 
@@ -561,7 +561,7 @@ process_mom_to_pism() {
     RESULT=$?
     return_check $RESULT "ncatted"
 
-        {% if settings.ocean_to_ice_timeseries==True -%}
+        {% if settings.ocean_to_ice_timeseries==True %}
     ncks -A -v time_bounds \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
         $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
@@ -573,7 +573,7 @@ process_mom_to_pism() {
     cd $ROOT_WORK_DIR/x_MOM-to-PISM
     ln -sf $POEM_TIME_END.sealevel.processed_MOM.anomaly.nc $POEM_TIME_END.sealevel.PISM_input.nc
     cd $ROOT_WORK_DIR/inter-model-processing
-    {% endif %} # settings.do_ocean_sealevel_anomaly==True
+    {% endif %}
 
 
 
@@ -589,71 +589,73 @@ process_pism_to_mom(){
     START_PISM_to_MOM_PROCESS=$(date +%s.%N)
     cd $ROOT_WORK_DIR/inter-model-processing
 
-    ./PISM-to-MOM_processing.py                                                          \
-        --output        $PISM_PRE_OUT                                                    \
-        --extra-output  $PISM_WORK_DIR/results/$PISM_TIME_END_PAD.pism_extra.nc          \
-        --mapping       $ROOT_WORK_DIR/pre-processing/PISMbasin-to-MOMcell_mapping.nc    \
-        --area          $MOM_PRE_OUT                                                     \
-        --flux-out      $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc        \
-        --depth-out     $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc \
-        {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) -%}
+    ./PISM-to-MOM_processing.py                                                                     \
+        --output          $PISM_PRE_OUT                                                             \
+        --extra-output    $PISM_WORK_DIR/results/$PISM_TIME_END_PAD.pism_extra.nc                   \
+        --mapping         $ROOT_WORK_DIR/pre-processing/PISMbasin-to-MOMcell_mapping.nc             \
+        --area            $MOM_PRE_OUT                                                              \
+        --flux-out        $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc                 \
+        --topg-depth-out  $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.pico_input_depth.nc       \
+        --shelf-depth-out $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basal_melt_input_depth.nc \
+        {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) %}
         --runoff-reference-out  $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff_reference.nc \
-        {% endif -%}
+        {% endif %}
         --verbose
     RESULT=$?
     return_check $RESULT "PISM-to-MOM_processing.py"
 
-    {% if not settings.use_prescribed_basin_shelf_depth==True %}
+    {% if not settings.use_prescribed_pico_input_depth==True %}
     # save file path for usage in next process_mom_to_pism call
-    BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.basin_shelf_depth.nc
+    PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.pico_input_depth.nc
     {% endif %}
 
-    {% if settings.do_runoff_slc==True -%}
-    ### ice sheet runoff contributing to sea level rise (do_runoff_slc)
-    echo "[runoff_slc] -> calculate ice to ocean runoff anomaly to reference"
+    {% if ( settings.insert_basal_melt_at_depth==True and (not settings.use_prescribed_basal_melt_input_depth==True ) ) %}
+    # save file path for usage in MOM data_table
+    BASAL_MELT_INPUT_DEPTH_FILE=$PISM_TIME_END_PAD.basal_melt_input_depth.nc
+    {% endif %}
 
-    {% if settings.runoff_reference_surf_accum==True -%}
+    {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) %}
+    echo RUNOFF_REFERENCE_FILE=$PISM_TIME_END_PAD.runoff_reference.nc
     RUNOFF_REFERENCE_FILE=$PISM_TIME_END_PAD.runoff_reference.nc
-    {% else %}
-    RUNOFF_REFERENCE_FILE={{settings.runoff_reference_file}}
     {% endif %}
-    echo RUNOFF_REFERENCE_FILE=$RUNOFF_REFERENCE_FILE
-    RUNOFF_REFERENCE_PATH=$ROOT_WORK_DIR/x_PISM-to-MOM/$RUNOFF_REFERENCE_FILE
 
-    # difference between current PISM runoff fluxes and reference
-    ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc \
-        $RUNOFF_REFERENCE_PATH \
-        $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.anomaly.nc
-    RESULT=$?
-    return_check $RESULT "ncbo"
 
-    # modify data_table
-    echo "[runoff_slc] -> modify data table to include PISM output fluxes"
-    echo "      runoff_add (mass)              RUNOFF_REFERENCE_FILE"
-    echo "      runoff_hflx_add (energy)       PISM_TIME_END_PAD.fluxes.nc"
-    echo "      runoff_slc (mass)              PISM_TIME_END_PAD.fluxes.anomaly.nc"
-    echo "      runoff_hflx_slc (energy)       <comment>"
+    echo "> modify MOM5 data_table (see template structure in preprocessing)"
+
     cd $ROOT_WORK_DIR/POEM
     cp data_table-dummy data_table-pism_in
-    sed -e "/.*runoff_add/ s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
-    sed -e "/.*runoff_hflx_add/ s/RUNOFF_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
-    sed -e "/.*runoff_slc/ s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.anomaly.nc/" -i data_table-pism_in
-    sed -e '/.*runoff_hflx_slc/ s/^./#&/' -i data_table-pism_in
-    ln -sf data_table-pism_in data_table
-
-    {% else %}  # settings.do_runoff_slc==False
-
-    echo " -> modify data table to include PISM output fluxes"
-    ## modify data table to include PISM output fluxes
-    #  - write PISM runoff fluxes file to table
-    #  - comment lines for sea level changing input
-    cd $ROOT_WORK_DIR/POEM
-    cp data_table-dummy data_table-pism_in 
     sed "s/RUNOFF_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
-    sed -e '/.*RUNOFF_SLC_FILE_NAME_DUMMY/ s/^./#&/' -i data_table-pism_in
-    ln -sf data_table-pism_in data_table
+    sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
 
-    {% endif %} # settings.do_runoff_slc
+    {% if not settings.insert_basal_melt_at_depth==True %}
+    ### basal melt at surface (via river runoff)
+    # add basal melt mass flux to surface runoff mass flux 
+    #(to be inserted together in MOM5's data_table via runoff_li)
+    cd $ROOT_WORK_DIR/x_PISM-to-MOM
+    ncap2 -O -s "mass_flux_surf_runoff_plus_basal=mass_flux_surf_runoff+mass_flux_basal_melt" \
+        $PISM_TIME_END_PAD.fluxes.nc $PISM_TIME_END_PAD.fluxes.nc.tmp
+    RESULT=$?
+    return_check $RESULT "ncap2"
+    ncatted -a long_name,mass_flux_surf_runoff_plus_basal,o,c,'mass_flux_surf_runoff + mass_flux_basal_melt' \
+        $PISM_TIME_END_PAD.fluxes.nc.tmp
+    RESULT=$?
+    return_check $RESULT "ncatted"
+    mv $PISM_TIME_END_PAD.fluxes.nc.tmp $PISM_TIME_END_PAD.fluxes.nc
+    cd $ROOT_WORK_DIR/POEM
+
+    sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff_plus_basal/" -i data_table-pism_in
+    # comment basal mass, heatflux and depth input entries
+    sed -e '/.*basal_li/ s/^./#&/' -i data_table-pism_in
+    sed -e '/.*basal_depth/ s/^./#&/' -i data_table-pism_in
+    {% else %}
+    ### basal melt at depth
+    sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff/" -i data_table-pism_in
+    # comment land ice surface runoff heat flux entry
+    sed -e '/.*runoff_li_hflx/ s/^./#&/' -i data_table-pism_in
+    sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_table-pism_in
+    {% endif %}
+
+    ln -sf data_table-pism_in data_table
 
 
     END_PISM_to_MOM_PROCESS=$(date +%s.%N)
@@ -732,12 +734,16 @@ START_CONCAT_FILES=$(date +%s.%N)
     ncrcat --overwrite $(echo `seq -f "%06g0101.tracer.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.tracer.PISM_input.nc
     cd $ROOT_WORK_DIR/x_PISM-to-MOM
-    ncrcat --overwrite $(echo `seq -f "%06g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
-        $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
     ncrcat --overwrite $(echo `seq -f "%06g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.fluxes.nc
-    ncrcat --overwrite $(echo `seq -f "%06g.fluxes.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
-        $SIM_START_YEAR-$SIM_END_YEAR.fluxes.anomaly.nc
+    ncrcat --overwrite $(echo `seq -f "%06g.pico_input_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.pico_input_depth.nc
+    ncrcat --overwrite $(echo `seq -f "%06g.basal_melt_input_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.basal_melt_input_depth.nc
+    ncrcat --overwrite $(echo `seq -f "%06g.runoff_reference.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.runoff_reference.nc
+    #ncrcat --overwrite $(echo `seq -f "%06g.fluxes.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    #    $SIM_START_YEAR-$SIM_END_YEAR.fluxes.anomaly.nc
     cd $ROOT_WORK_DIR
 
 END_CONCAT_FILES=$(date +%s.%N)
@@ -991,55 +997,163 @@ echo " >> calculate mapping of PISM basins to MOM cells"
 RESULT=$?
 return_check $RESULT "PISMbasin-to-MOMcell_mapping.py"
 
+echo " >> set PICO_INPUT_DEPTH_FILE and BASAL_MELT_INPUT_DEPTH_FILE for first"\
+    "coupling iteration"
+echo "      -> BASAL_MELT_INPUT_DEPTH_FILE is only set, when basal melt is"\
+    "inserted at depth, not at surface"
 
-{% if not settings.use_prescribed_basin_shelf_depth==True %}
-# create basin_shelf_depth_file
-echo " >> create basin_shelf_depth_file from prerun output"
-$ROOT_WORK_DIR/inter-model-processing/PISM-to-MOM_processing.py \
-    --output        $PISM_PRE_OUT                                            \
-    --extra-output  $PISM_WORK_DIR/prerun/prerun.pism_extra.nc               \
-    --mapping       PISMbasin-to-MOMcell_mapping.nc                          \
-    --area          $MOM_PRE_OUT                                             \
-    --flux-out      $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.fluxes.nc            \
-    --depth-out     $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc \
+{% if settings.coupled_restart==True %}
+    {% if not settings.use_prescribed_pico_input_depth==True %}
+# use last coupling iteration file from previous run
+echo PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/{{settings.pico_input_depth_restart_file}}
+PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/{{settings.pico_input_depth_restart_file}}
+    {% else %}
+# use prescribed PICO input depths from file
+echo PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/{{settings.prescribed_pico_input_depth_path}}
+PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/{{settings.prescribed_pico_input_depth_path}}
+    {% endif %}
+
+    {% if settings.insert_basal_melt_at_depth==True %}
+        {% if not settings.use_prescribed_basal_melt_input_depth==True %}
+# use last coupling iteration file from previous run
+echo BASAL_MELT_INPUT_DEPTH_FILE={{settings.basal_melt_input_depth_restart_file}}
+BASAL_MELT_INPUT_DEPTH_FILE={{settings.basal_melt_input_depth_restart_file}}
+        {% else %}
+# use prescribed basal melt input depths from file
+echo BASAL_MELT_INPUT_DEPTH_FILE={{settings.prescribed_basal_melt_input_depth_path}}
+BASAL_MELT_INPUT_DEPTH_FILE={{settings.prescribed_basal_melt_input_depth_path}}
+        {% endif %}
+    {% endif %}
+
+{% else %}
+
+    {% if ((not settings.use_prescribed_pico_input_depth==True) or
+        (settings.insert_basal_melt_at_depth==True and (not settings.use_prescribed_basal_melt_input_depth==True))) %}
+# create pico_input_depth_file and basal_melt_input_depth_file
+echo " >> create pico_input_depth_file from prerun output"
+$ROOT_WORK_DIR/inter-model-processing/PISM-to-MOM_processing.py                     \
+    --output          $PISM_PRE_OUT                                                 \
+    --extra-output    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                    \
+    --mapping         PISMbasin-to-MOMcell_mapping.nc                               \
+    --area            $MOM_PRE_OUT                                                  \
+    --flux-out        $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.fluxes.nc                 \
+    --topg-depth-out  $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.pico_input_depth.nc       \
+    --shelf-depth-out $ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basal_melt_input_depth.nc \
     --verbose
 RESULT=$?
 return_check $RESULT "PISM-to-MOM_processing.py"
+    {% endif %}
+
+    {% if not settings.use_prescribed_pico_input_depth==True %}
 # save file path for usage in next process_mom_to_pism call
-BASIN_SHELF_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.basin_shelf_depth.nc
-{% else %}
-# use prescribed basin shelf depths from file
-BASIN_SHELF_DEPTH_FILE={{settings.prescribed_basin_shelf_depth_path}}
+echo PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.pico_input_depth.nc
+PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/prerun.pico_input_depth.nc
+    {% else %}
+# use prescribed PICO input depths from file
+echo PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/{{settings.prescribed_pico_input_depth_file}}
+PICO_INPUT_DEPTH_FILE=$ROOT_WORK_DIR/x_PISM-to-MOM/{{settings.prescribed_pico_input_depth_file}}
+    {% endif %}
+
+    {% if settings.insert_basal_melt_at_depth==True %}
+        {% if not settings.use_prescribed_basal_melt_input_depth==True %}
+# save file path for usage in MOM data_table
+echo BASAL_MELT_INPUT_DEPTH_FILE=prerun.basal_melt_input_depth.nc
+BASAL_MELT_INPUT_DEPTH_FILE=prerun.basal_melt_input_depth.nc
+        {% else %}
+# use prescribed basal melt input depths from file
+echo BASAL_MELT_INPUT_DEPTH_FILE={{settings.prescribed_basal_melt_input_depth_file}}
+BASAL_MELT_INPUT_DEPTH_FILE={{settings.prescribed_basal_melt_input_depth_file}}
+        {% endif %}
+    {% endif %}
+
 {% endif %}
 
-### ice sheet runoff contributing to sea level rise (do_runoff_slc)
-#   set RUNOFF_REFERENCE_FILE for different cases
-{% if settings.do_runoff_slc==True -%}
+### select RUNOFF_FILE for first coupling iteration
+#   -> defines ice to ocean runoff fluxes (mass and heat) for first run of
+#      model. As the ice model runs after the ocean model, the fluxes are not
+#      available yet and need to be given by the settings. Possibilities are:
+#       - settings.pism_to_mom_flux_init_file       (coupled_restart=False)
+#       - settings.pism_to_mom_flux_restart_file    (coupled_restart=True)
+
+echo " >> set RUNOFF_FILE for first coupling iteration (ice to ocean runoff fluxes)"
+{% if settings.coupled_restart==True %}
+echo "    (COUPLED_RESTART=TRUE)"
+echo "    -> set ice to ocean runoff fluxes similar to last iteration of previous run"
+echo "       (given by settings.pism_to_mom_flux_restart_file)"
+echo RUNOFF_FILE={{settings.pism_to_mom_flux_restart_file}}
+RUNOFF_FILE={{settings.pism_to_mom_flux_restart_file}}
+{% else %}
+echo "    (COUPLED_RESTART=FALSE)"
+echo "    -> set ice to ocean runoff fluxes to provided inital fluxes"
+echo "       (given by settings.pism_to_mom_flux_init_file)"
+echo RUNOFF_FILE={{settings.pism_to_mom_flux_init_file}}
+RUNOFF_FILE={{settings.pism_to_mom_flux_init_file}}
+{% endif %}
+
+
+### select RUNOFF_REFERENCE_FILE for first coupling iteration
+#   -> prescribed as `li_mflx_balance` in MOM5 data_table
+#      background: MOM5 excludes term li_input_diff from 
+#                  (precip - evap + river = 0) normalisation, where
+#           li_input_diff = runoff_li + calving_li + basal_li - li_mflx_balance
+#                  and river includes all incoming fluxes to ocean from land 
+#                  and land ice
+#   -> according to model options, RUNOFF_REFERENCE_FILE is set here to one of
+#      the following strings (for first coupling iteration):
+#       - settings.runoff_reference_file            (do_runoff_slc && !runoff_reference_surf_accum)
+#       - settings.runoff_reference_restart_file    (do_runoff_slc && runoff_reference_surf_accum && coupled_restart)
+#       - settings.pism_to_mom_flux_init_file       (!do_runoff_slc && !coupled_restart,
+#                                                    do_runoff_slc && runoff_reference_surf_accum && !coupled_restart)
+#       - settings.pism_to_mom_flux_restart_file    (!do_runoff_slc && coupled_restart)
+
+{% if settings.do_runoff_slc==True %}
 echo
 echo "[runoff_slc] sea level changing due to ice sheet runoff: enabled"
 
-
-{% if settings.runoff_reference_surf_accum==True -%}
+    {% if settings.runoff_reference_surf_accum==True %}
 echo
 echo "[runoff_slc] -> using PISM's surface accumulation as runoff reference"
-if [ $COUPLED_RESTART = true ]; then 
-    echo " -> set ice to ocean runoff reference file similar to last iteration"\
-        "of previous run"
-    RUNOFF_REFERENCE_FILE={{settings.runoff_reference_restart_file}}
-    echo RUNOFF_REFERENCE_FILE={{settings.runoff_reference_restart_file}}
-fi
 
-{% else %} # runoff_reference_surf_accum==False
+        {% if settings.coupled_restart==True %}
+echo "                (COUPLED_RESTART=TRUE)"
+echo " -> for first coupling iteration, set ice to ocean runoff reference file"
+echo "    similar to last iteration of previous run"
+echo "    (given by settings.runoff_reference_restart_file)"
+echo RUNOFF_REFERENCE_FILE={{settings.runoff_reference_restart_file}}
+RUNOFF_REFERENCE_FILE={{settings.runoff_reference_restart_file}}
+        {% else %}
+echo "                (COUPLED_RESTART=FALSE)"
+echo " -> for first coupling iteration, set ice to ocean runoff reference file"
+echo "    to provided PISM-to-MOM flux for initialisation"
+echo "    (given by settings.pism_to_mom_flux_init_file)"
+echo "RUNOFF_REFERENCE_FILE={{settings.pism_to_mom_flux_init_file}}"
+RUNOFF_REFERENCE_FILE={{settings.pism_to_mom_flux_init_file}}
+        {% endif %}
+
+    {% else %}
 echo
-echo "[runoff_slc] -> using provided runoff reference file"
+echo "[runoff_slc] -> using prescribed, static field for runoff reference"
+echo " -> for all coupling iterations, set ice to ocean runoff reference file"
+echo "    to settings.runoff_reference_file"
+echo " -> variable RUNOFF_REFERENCE_FILE should not be overwritten below"
 RUNOFF_REFERENCE_FILE={{settings.runoff_reference_file}}
 echo RUNOFF_REFERENCE_FILE={{settings.runoff_reference_file}}
+    {% endif %}
 
-{% endif %} # runoff_reference_surf_accum
+{% else %}
+echo
+echo "[runoff_slc] sea level changing due to ice sheet runoff: disabled"
+echo "             -> set reference runoff equal to ice-to-ocean fluxes"
+echo "             -> li_mflx_balance = sum(ice to ocean fluxes) => no sea level change"
+echo RUNOFF_REFERENCE_FILE=$RUNOFF_FILE
+RUNOFF_REFERENCE_FILE=$RUNOFF_FILE
+{% endif %}
+
 
 ## if RUNOFF_REFERENCE_FILE is set, check that it has maximum only one 
 #   timestamp (no time series)
 if [ -n "$RUNOFF_REFERENCE_FILE" ]; then
+    echo
     echo "[runoff_slc] -> checking if RUNOFF_REFERENCE_FILE has maximum "\
         "only one time stamp (no time series)"
 
@@ -1057,101 +1171,81 @@ if [ -n "$RUNOFF_REFERENCE_FILE" ]; then
         exit_script 3
     fi
 fi
-{% else %}  # do_runoff_slc==False
+
+echo ">> modify MOM5 data_table for first coupling iteration"
+
+{% if not settings.insert_basal_melt_at_depth==True %}
+echo "   -> insert basal melt at surface (via river runoff):"
 echo
-echo "[runoff_slc] sea level changing due to ice sheet runoff: disabled"
-{% endif %} # do_runoff_slc
+echo "      DATA_OVERRIDE_VAR   FILE_NAME_VAR                       FILE_NAME"
+echo "      ------------------------------------------------------------------------------------"
+echo "      runoff_li           mass_flux_surf_runoff_plus_basal    RUNOFF_FILE" 
+echo "      runoff_li_hflx      heat_flux_basal                     RUNOFF_FILE"
+echo "      calving_li          mass_flux_calving                   RUNOFF_FILE" 
+echo "      basal_li            -                                   <comment>"
+echo "      basal_li_hflx       -                                   <comment>"
+echo "      basal_depth_top     -                                   <comment>"
+echo "      basal_depth_bot     -                                   <comment>"
+echo "      li_mflx_balance     mass_flux                           RUNOFF_REFERENCE_FILE"
+
+{% else %}
+echo "   -> insert basal melt at depth:"
+echo
+echo "      DATA_OVERRIDE_VAR   FILE_NAME_VAR                       FILE_NAME"
+echo "      ------------------------------------------------------------------------------------"
+echo "      runoff_li           mass_flux_surf_runoff               RUNOFF_FILE" 
+echo "      runoff_li_hflx      -                                   <comment>"
+echo "      calving_li          mass_flux_calving                   RUNOFF_FILE" 
+echo "      basal_li            mass_flux_basal                     RUNOFF_FILE"
+echo "      basal_li_hflx       heat_flux_basal                     RUNOFF_FILE"
+echo "      basal_depth_top     shelf_front_depth                   BASAL_MELT_INPUT_DEPTH_FILE"
+echo "      basal_depth_bot     shelf_front_depth                   BASAL_MELT_INPUT_DEPTH_FILE"
+echo "      li_mflx_balance     mass_flux                           RUNOFF_REFERENCE_FILE"
+{% endif %}
 
 
-### set MOM data_table for first coupling iteration and different options
-#   calculate RUNOFF_ANOMALY_FILE if necessary
-if [ $COUPLED_RESTART = true ]; then 
-    echo " -> restart from coupled run"
-    echo " -> modifying data_table for first coupling iteration"
-    echo "    "
+cd $ROOT_WORK_DIR/POEM
+cp data_table-dummy data_table-pism_in
+sed "s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_FILE/" -i data_table-pism_in
+sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
 
-    {% if settings.do_runoff_slc==True -%}
-    ### ice sheet runoff contributing to sea level rise (do_runoff_slc)
-    echo "[runoff_slc] -> using the provided ice to ocean fluxes restart file"
-    PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
-    echo PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
 
-    echo "[runoff_slc] -> calculating the ice to ocean runoff anomaly fluxes "\
-        "with respect to the given RUNOFF_REFERENCE_FILE $RUNOFF_REFERENCE_FILE"
-    # difference between current PISM runoff fluxes and reference
-    FILE_EXTENSION="${PISM_TO_MOM_FLUX_RESTART_FILE##*.}"
-    FILE_PATH_NO_EXTENSION="${PISM_TO_MOM_FLUX_RESTART_FILE%.*}"
-    PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE=$FILE_PATH_NO_EXTENSION.anomaly.$FILE_EXTENSION
-    echo PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE=$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE
-    ncbo -O --op_typ=subtract $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TO_MOM_FLUX_RESTART_FILE \
-        $RUNOFF_REFERENCE_PATH \
-        $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE
-    RESULT=$?
-    return_check $RESULT "ncbo"
+{% if not settings.insert_basal_melt_at_depth==True %}
+### basal melt at surface (via river runoff)
+# add basal melt mass flux to surface runoff mass flux 
+# (to be inserted together in MOM5's data_table via runoff_li)
+cd $ROOT_WORK_DIR/x_PISM-to-MOM
+ncap2 -O -s "mass_flux_surf_runoff_plus_basal=mass_flux_surf_runoff+mass_flux_basal_melt" \
+    $RUNOFF_FILE $RUNOFF_FILE.tmp
+RESULT=$?
+return_check $RESULT "ncap2"
+ncatted -a long_name,mass_flux_surf_runoff_plus_basal,o,c,'mass_flux_surf_runoff + mass_flux_basal_melt' \
+    $RUNOFF_FILE.tmp
+RESULT=$?
+return_check $RESULT "ncatted"
+mv $RUNOFF_FILE.tmp $RUNOFF_FILE
+cd $ROOT_WORK_DIR/POEM
 
-    ### modify data table to include PISM output fluxes for first restart iteration
-    ##  write PISM runoff fluxes files to table:
-    ##  - reference runoff
-    ##  - sea level changing runoff
-    #echo "[runoff_slc] -> adapting data_table using RUNOFF_REFERENCE_FILE and "\
-    #    "PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE" 
-    #cd $ROOT_WORK_DIR/POEM
-    #cp data_table-dummy data_table-pism_in 
-    #sed "s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
-    #sed "s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE/" -i data_table-pism_in
+sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff_plus_basal/" -i data_table-pism_in
+# comment basal mass, heatflux and depth input entries
+sed -e '/.*basal_li/ s/^./#&/' -i data_table-pism_in
+sed -e '/.*basal_depth/ s/^./#&/' -i data_table-pism_in
+{% else %}
+### basal melt at depth
+sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff/" -i data_table-pism_in
+# comment land ice surface runoff heat flux entry
+sed -e '/.*runoff_li_hflx/ s/^./#&/' -i data_table-pism_in
+sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_table-pism_in
+{% endif %}
 
-    # modify data_table
-    echo "[runoff_slc] -> modify data table to include PISM output fluxes for first restart iteration"
-    echo "      runoff_add (mass)              RUNOFF_REFERENCE_FILE"
-    echo "      runoff_hflx_add (energy)       PISM_TO_MOM_FLUX_RESTART_FILE"
-    echo "      runoff_slc (mass)              PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE"
-    echo "      runoff_hflx_slc (energy)       <comment>"
-    cd $ROOT_WORK_DIR/POEM
-    cp data_table-dummy data_table-pism_in
-    sed -e "/.*runoff_add/ s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
-    sed -e "/.*runoff_hflx_add/ s/RUNOFF_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_FILE/" -i data_table-pism_in
-    sed -e "/.*runoff_slc/ s/RUNOFF_SLC_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_ANOMALY_FILE/" -i data_table-pism_in
-    sed -e '/.*runoff_hflx_slc/ s/^./#&/' -i data_table-pism_in
+ln -sf data_table-pism_in data_table    # for CPL_ITERATION==1
+cd $ROOT_WORK_DIR
 
-    {% else %} #do_runoff_slc==False
-    ## modify data table to include PISM output fluxes for first restart iteration
-    #  - write PISM runoff fluxes file to table 
-    #  - comment lines for sea level changing input
-    PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
-    echo PISM_TO_MOM_FLUX_RESTART_FILE={{settings.pism_to_mom_flux_restart_file}}
-    echo " -> adapting data_table using PISM_TO_MOM_FLUX_RESTART_FILE"
-    cd $ROOT_WORK_DIR/POEM
-    cp data_table-dummy data_table-pism_in 
-    sed "s/RUNOFF_FILE_NAME_DUMMY/$PISM_TO_MOM_FLUX_RESTART_FILE/" -i data_table-pism_in
-    sed -e '/.*RUNOFF_SLC_FILE_NAME_DUMMY/ s/^./#&/' -i data_table-pism_in
 
-    {% endif %} # do_runoff_slc
-
-    ln -sf data_table-pism_in data_table    # for CPL_ITERATION==1
-    cd $ROOT_WORK_DIR
-
-else # COUPLED_RESTART = false
-    echo " -> no restart from coupled run"
-    echo " -> modifying data_table for first coupling iteration:"
-    echo "    - use prescribed PISM to MOM initial fluxes: "\
-        "x_PISM-to-MOM/{{settings.pism_to_mom_flux_init_file}}"
-    echo "    - don't use fluxes for sea level change"
-
-    ## modify data table to include prescribed PISM to MOM initial fluxes
-    #  - write PISM runoff fluxes files to table
-    #  - comment lines for sea level changing input
-    cd $ROOT_WORK_DIR/POEM
-    cp data_table-dummy data_table-pism_in
-    sed "s/RUNOFF_FILE_NAME_DUMMY/{{settings.pism_to_mom_flux_init_file}}/" -i data_table-pism_in
-    sed -e '/.*RUNOFF_SLC_FILE_NAME_DUMMY/ s/^./#&/' -i data_table-pism_in
-    ln -sf data_table-pism_in data_table    # for CPL_ITERATION==1
-    cd $ROOT_WORK_DIR
-
-fi # COUPLED_RESTART
 
 ### ocean tracer anomaly reference file
 # ____________________________________________________________________________ #
-{% if settings.do_ocean_tracer_anomaly==True -%}
+{% if settings.do_ocean_tracer_anomaly==True %}
 echo
 echo "ocean tracer anomaly approach enabled"
     # ........................................................................ #
@@ -1161,7 +1255,7 @@ OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/{{settings.ocea
 echo OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$OCEAN_TRACER_ANOMALY_REFERENCE_FILE
 
     # ........................................................................ #
-    {% else %} # compute ocean tracer anomaly reference state
+    {% else %}
 echo "computing ocean tracer anomaly reference state from " \
     {{settings.calc_ocn_tracer_anomaly['path']}}
 
@@ -1198,12 +1292,12 @@ OUTFILE=$(echo `printf "%06g-%06g.tracer_mean.processed_MOM.nc"            \
                        "{{settings.calc_ocn_tracer_anomaly['yr_end']}}" `)
 OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
 ./regriddedMOM-to-PISM_processing.py                                    \
-    --input     $REGRID_OUT                                                      \
-    --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
-    --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
-    --fill      temp salt                                                        \
-    --depth     $BASIN_SHELF_DEPTH_FILE                                          \
-    --output    $OCEAN_TRACER_ANOMALY_REFERENCE_FILE                             \
+    --input     $REGRID_OUT                                             \
+    --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc              \
+    --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc             \
+    --fill      temp salt                                               \
+    --depth     $PICO_INPUT_DEPTH_FILE                                  \
+    --output    $OCEAN_TRACER_ANOMALY_REFERENCE_FILE                    \
     --verbose   
 RESULT=$?
 return_check $RESULT "regriddedMOM-to-PISM_processing.py"
@@ -1234,7 +1328,7 @@ echo "ocean tracer anomaly approach disabled"
 
 ### ocean sealevel anomaly reference file
 # ____________________________________________________________________________ #
-{% if settings.do_ocean_sealevel_anomaly==True -%}
+{% if settings.do_ocean_sealevel_anomaly==True %}
 echo
 echo "ocean sealevel anomaly approach enabled"
     # ........................................................................ #
@@ -1244,7 +1338,7 @@ OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/{{settings.oc
 echo OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE
 
     # ........................................................................ #
-    {% else %} # compute ocean sealevel anomaly reference state
+    {% else %}
 echo "computing ocean sealevel anomaly reference state from " \
     {{settings.calc_ocn_sealevel_anomaly['path']}}
 
@@ -1281,12 +1375,12 @@ OUTFILE=$(echo `printf "%06g-%06g.sealevel_mean.processed_MOM.nc"              \
                        "{{settings.calc_ocn_sealevel_anomaly['yr_end']}}" `)
 OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
 ./regriddedMOM-to-PISM_processing.py                                    \
-    --input     $REGRID_OUT                                                      \
-    --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
-    --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
-    --fill      eta_t                                                            \
-    --depth     $BASIN_SHELF_DEPTH_FILE                                          \
-    --output    $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE                           \
+    --input     $REGRID_OUT                                             \
+    --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc              \
+    --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc             \
+    --fill      eta_t                                                   \
+    --depth     $PICO_INPUT_DEPTH_FILE                                  \
+    --output    $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE                  \
     --verbose   
 RESULT=$?
 return_check $RESULT "regriddedMOM-to-PISM_processing.py"

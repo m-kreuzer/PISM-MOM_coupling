@@ -16,12 +16,14 @@ from pikcluster_settings import *
 
 # ----------------------------- coupling settings ------------------------------
 
-experiment = "MOM5_PISM_16km_runoff_slc_test06"
+experiment = "MOM5_PISM_16km_spinup_run02"
+#experiment = "MOM5_PISM_16km_piControl_CCSM4_run01"
+#experiment = "coupling_framework_basal_melt_dev06"
 experiment_dir      = os.path.join(working_dir, experiment)
 
 
 coupling_timestep = 10      # in years, must be greater or equal 1
-max_cpl_iteration = 50      # number of coupling iterations
+max_cpl_iteration = 400     # number of coupling iterations
 
 
 # - - - - - - - - - ice -> ocean fluxes [1st coupling iteration] - - - - - - - -
@@ -30,7 +32,7 @@ max_cpl_iteration = 50      # number of coupling iterations
 # specify ice-to-ocean runoff for first coupling iteration as ocean runs before
 # ice and default setup for ocean has no Antarctic runoff from land/ice
 pism_to_mom_flux_init_file = 'equi_16km_110000yrs.mean_last_1ka.fluxes.nc'
-pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run03/output_processed/', pism_to_mom_flux_init_file)
+pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run05/output_processed/', pism_to_mom_flux_init_file)
 
 # - - - - - - - - - - - - - - - - - - restart - - - - - - - - - - - - - - - - -
 # option to restart a coupled setup from a previous run
@@ -41,16 +43,31 @@ pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/exper
 #  -> MOM restart files are automatically copied from $restart_dir/POEM/INPUT/
 #     if path exists
 coupled_restart = False
-restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_runoff_slc_surf_accum_dev03"
+restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/coupling_framework_basal_melt_dev04"
 
-pism_to_mom_flux_restart_file = '013094.fluxes.nc'
+### specify files computed by PISM-to-MOM_processing.py from PISM output in
+#   last coupling iteration of the previous run
+
+# PISM to MOM fluxes, inserted in MOM's data_table
+pism_to_mom_flux_restart_file = '002994.fluxes.nc'
 pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
 
-# in case do_runoff_slc = True and runoff_reference_surf_accum = True
-#   specify the runoff reference file computed from PISM's surface accumulation
-#   in the last coupling time step of the previous run
-runoff_reference_restart_file = '013094.runoff_reference.nc'
+# runoff reference, inserted in MOM's data_table
+# -> only used when (do_runoff_slc==True AND runoff_reference_surf_accum==True)
+runoff_reference_restart_file = '002994.runoff_reference.nc'
 runoff_reference_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', runoff_reference_restart_file)
+
+# basal melt input depth, inserted in MOM's data_table
+# -> only used when (insert_basal_melt_at_depth==True AND use_prescribed_basal_melt_input_depth==False)
+basal_melt_input_depth_restart_file = '002994.basal_melt_input_depth.nc'
+basal_melt_input_depth_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', basal_melt_input_depth_restart_file)
+
+# PICO input depth, used in regriddedMOM-to-PISM.py
+# -> only used when (use_prescribed_pico_input_depth==False)
+pico_input_depth_restart_file = '002994.pico_input_depth.nc'
+pico_input_depth_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pico_input_depth_restart_file)
+
+
 
 # - - - - - - - - - - - - - - MOM -> PISM timeseries - - - - - - - - - - - - - - 
 # option to pass a time series of ocean forcing to PISM when coupling time step
@@ -67,8 +84,8 @@ ocean_to_ice_timeseries = False
 # To avoid that changes in the ice sheet mass (and subsequently ice-to-ocean
 # runoff) are being balanced out when provided to the ocean via the river routing
 # scheme, the ice sheet runoff can be split:
-#  (1) reference mass flux to ocean in steady state/ ice sheet equilibrium (average at end of ice sheet
-#       standalone spinup
+#  (1) reference mass flux to ocean in steady state/ ice sheet equilibrium
+#       (e.g. average at end of ice sheet standalone spinup)
 #  (2) anomaly/difference to (1), the reference runoff
 # While (1) is provided to MOM via the regular river runoff mechanism, (2) is
 # given to MOM5 via the new implemented `runoff_slc` data table entry (which
@@ -100,23 +117,33 @@ runoff_reference_surf_accum = True
 runoff_reference_file = "equi_16km_110000yrs.mean_last_1ka.fluxes.nc"
 runoff_reference_path = os.path.join("/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run03/output_processed", runoff_reference_file)
 
+
+# - - - - - - - - - - - - - basal melt insertion depth - - - - - - - - - - - - -
+# MOM5/6 by default offers no possibility to insert freshwater other than via
+# river runoff at surface. With a modified version, it is now also possible to
+# insert freswater at depth.
+insert_basal_melt_at_depth = False
+use_prescribed_basal_melt_input_depth = False
+prescribed_basal_melt_input_depth_file = 'basin_melt_input_depth.nc'
+prescribed_basal_melt_input_depth_path = os.path.join('template_path', prescribed_basal_melt_input_depth_file)
+
 # - - - - - - - - - - - - - - - ocean tracer anomaly - - - - - - - - - - - - - -
 do_ocean_tracer_anomaly    = True
 
 # in case of coupled restart with do_ocean_tracer_anomaly:
 #     specify ocean tracer anomaly reference file from previous run
 use_ocean_tracer_anomaly_from_prev_run = False
-ocean_tracer_anomaly_reference_file = "013090-013090.tracer_mean.processed_MOM.nc" 
+ocean_tracer_anomaly_reference_file = "017090-017090.tracer_mean.processed_MOM.nc"
 ocean_tracer_anomaly_reference_path = os.path.join(restart_dir, 'x_MOM-to-PISM', ocean_tracer_anomaly_reference_file)
 #     or specify MOM output files used for computing ocean tracer anomaly reference state
 #       -> used if do_ocean_tracer_anomaly==True and use_ocean_tracer_anomaly_from_prev_run==False
 calc_ocn_tracer_anomaly = {}
-calc_ocn_tracer_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run06_snap/history"
-calc_ocn_tracer_anomaly['yr_start'] = "13090"
-calc_ocn_tracer_anomaly['yr_end'] = "13090"
+calc_ocn_tracer_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/history"
+calc_ocn_tracer_anomaly['yr_start'] = "17090"
+calc_ocn_tracer_anomaly['yr_end'] = "17090"
 calc_ocn_tracer_anomaly['yr_step'] = "10"
-#calc_ocn_tracer_anomaly['name_format_in']  = "%06g0101.ocean-decadal.nc"
-calc_ocn_tracer_anomaly['name_format_in']  = "%06g.ocean-decadal.tracer_mean.nc.bak"
+calc_ocn_tracer_anomaly['name_format_in']  = "%06g0101.ocean-decadal.nc"
+#calc_ocn_tracer_anomaly['name_format_in']  = "%06g.ocean-decadal.tracer_mean.nc.bak"
 calc_ocn_tracer_anomaly['name_format_out'] = "%06g-%06g.ocean-decadal.tracer_mean.nc"
 
 # - - - - - - - - - - - - - - ocean sealevel anomaly - - - - - - - - - - - - - -
@@ -125,29 +152,31 @@ do_ocean_sealevel_anomaly    = True
 # in case of coupled restart with do_ocean_sealevel_anomaly:
 #     specify ocean sealevel anomaly reference file from previous run
 use_ocean_sealevel_anomaly_from_prev_run = False
-ocean_sealevel_anomaly_reference_file = "013090-013090.sealevel_mean.processed_MOM.nc" 
+ocean_sealevel_anomaly_reference_file = "017090-017090.sealevel_mean.processed_MOM.nc"
 ocean_sealevel_anomaly_reference_path = os.path.join(restart_dir, 'x_MOM-to-PISM', ocean_sealevel_anomaly_reference_file)
 #     or specify MOM output files used for computing ocean sealevel anomaly reference state
 #       -> used if do_ocean_sealevel_anomaly==True and use_ocean_sealevel_anomaly_from_prev_run==False
 calc_ocn_sealevel_anomaly = {}
-calc_ocn_sealevel_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run06_snap/history"
-calc_ocn_sealevel_anomaly['yr_start'] = "13090"
-calc_ocn_sealevel_anomaly['yr_end'] = "13090"
+calc_ocn_sealevel_anomaly['path'] = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/history"
+calc_ocn_sealevel_anomaly['yr_start'] = "17090"
+calc_ocn_sealevel_anomaly['yr_end'] = "17090"
 calc_ocn_sealevel_anomaly['yr_step'] = "10"
-#calc_ocn_sealevel_anomaly['name_format_in']  = "%06g0101.ocean-decadal.nc"
-calc_ocn_sealevel_anomaly['name_format_in']  = "%06g.ocean-decadal.sealevel_mean.nc.bak"
+calc_ocn_sealevel_anomaly['name_format_in']  = "%06g0101.ocean-decadal.nc"
+#calc_ocn_sealevel_anomaly['name_format_in']  = "%06g.ocean-decadal.sealevel_mean.nc.bak"
 calc_ocn_sealevel_anomaly['name_format_out'] = "%06g-%06g.ocean-decadal.sealevel_mean.nc"
 
-# - - - - - - - - - - - - - - - basin shelf depth - - - - - - - - - - - - - - -
-# option to use static basin shelf depth values read from file
-#  -> gives possibility to use prescribed shelf depth values
-#  -> depths are used by regriddedMOM-to-PISM_processing.py to select basin
-#     temperatures and salinity from vertical profile
-#  -> if option is not used then basin shelf depth is calculated each coupling
-#     time step in PISM-to-MOM_processing.py
+# - - - - - - - - - - - - - prescribed PICO input depth - - - - - - - - - - - -
+# option to use static PICO input depth values read from file
+#  -> gives possibility to use prescribed and fixed values for PICO input
+#  -> depths are used by regriddedMOM-to-PISM_processing.py to select PICO
+#     temperatures and salinities from vertical profile on a basin averaged
+#     basins
+#  -> if option is not used then basin shelf depth is calculated each
+#     coupling time step in PISM-to-MOM_processing.py
 
-use_prescribed_basin_shelf_depth = False
-prescribed_basin_shelf_depth_path = '/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/basin_shelf_depth/basin_shelf_depth_oceanic_gateways.nc'
+use_prescribed_pico_input_depth = False
+prescribed_pico_input_depth_file = 'basin_shelf_depth_oceanic_gateways.nc'
+prescribed_pico_input_depth_path = os.path.join('/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/pico_input_depth', prescribed_pico_input_depth_file)
 
 
 
@@ -174,7 +203,7 @@ pism_sys_bin        = os.path.join(pism_code_dir, 'bin', pism_exec)
 #pism_infile = "result_equi_16km_100000yrs.nc"
 #pism_infile_dir = "/p/tmp/reese/pism_out/pism_025_initmip8km_ismip_merged_schmidtko_woa18_cold1.25_thkgradient_subgl_subglmelt_hmin700_decay7_7a241540/"
 #pism_infile = "snapshots_112000.000.nc"
-pism_infile_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run03/output_pism/"
+pism_infile_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run05/output_pism/"
 pism_infile = "result_equi_16km_110000yrs.nc"
 pism_infile_path = os.path.join(pism_infile_dir, pism_infile)
 
@@ -311,8 +340,8 @@ override_params = collections.OrderedDict([
 ])
 
 # - - - - - - - - - - - - - - - command line options - - - - - - - - - - - - - -
-pism_general_opt = "-verbose 2 -options_left -o_format netcdf4_parallel -log_view"
-pism_atm_opt = "-atmosphere pik -atmosphere_pik era_interim_lon -atmosphere_pik_file initdata/"+pism_atm_file+" -surface pdd"
+pism_general_opt = "-verbose 2 -options_left -o_format netcdf4_parallel"
+pism_atm_opt = "-atmosphere pik -atmosphere_pik_file initdata/"+pism_atm_file+" -surface pdd"
 pism_add_opt = "-ocean_kill_file initdata/"+pism_ocnkill_file
 
 

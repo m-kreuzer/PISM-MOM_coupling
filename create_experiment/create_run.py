@@ -58,8 +58,10 @@ def create_script_from_template(settings, template_file,
 
     # make jinja aware of templates
     template_path = os.path.join(settings.project_root,"templates")
-    jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(
-        searchpath=template_path))
+    jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath=template_path),
+                                   trim_blocks=True, 
+                                   lstrip_blocks=True
+                                   )
 
     template = jinja_env.get_template(template_file)
     out = template.render(settings=settings)
@@ -199,32 +201,34 @@ def create_run(settings=settings, experiment=settings.experiment):
                 f"{settings.pism_to_mom_flux_init_path} for ice to ocean "\
                 f"fluxes in first coupling iteration")
 
+        # TODO: copy MOM RESTART files
 
-    # further stuff to do when doing a restart from a previous coupled run
+    # restarting from a previous coupled run
     if settings.coupled_restart==True :
-        # copy PISM-to-MOM fluxes file if doing a restart from previous run
+        # copy PISM-to-MOM fluxes file from previous run (last iteration)
         shutil.copy2(settings.pism_to_mom_flux_restart_path, 
                 os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
         print(f"   - copied PISM-to-MOM flux file "\
                 f"{settings.pism_to_mom_flux_restart_file} from "\
                 f"{settings.restart_dir} to restart from previous run")
 
-        # copy MOM restart files from previous run
-        poem_input_dir = os.path.join(settings.poem_exp_dir,'INPUT')
-        poem_restart_files_dir = os.path.join(settings.restart_dir,'POEM/INPUT')
-        if os.path.exists(poem_restart_files_dir):
-            with helpers.cd( str(poem_restart_files_dir) ):
-                cmd = f"for i in *.res*; do rm {poem_input_dir}/$i; "\
-                        f"cp -a $i {poem_input_dir} ; done"
-                #subprocess.run("ls", capture_output=True)
-                #subprocess.run("ls", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                subprocess.call(cmd, shell=True)
-            print(f"   - copied MOM restart files from {poem_restart_files_dir} "\
-                    "to POEM/INPUT")
-        else:
-            warmings.warm(f"WARNING: path {poem_restart_files_dir} does not "\
-                    f"exist! Need to copy MOM restart files to INPUT dir by "\
-                    f"hand...")
+        if settings.use_prescribed_pico_input_depth==False:
+            # copy PICO input depth restart file from previous run (last iteration)
+            shutil.copy2(settings.pico_input_depth_restart_path, 
+                    os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+            print(f"   - copied PICO input depth restart file "\
+                    f"{settings.pico_input_depth_restart_file} from "\
+                    f"{settings.restart_dir} to restart from previous run")
+
+        if (settings.use_prescribed_basal_melt_input_depth==False and \
+                settings.insert_basal_melt_at_depth==True):
+            # copy basal melt input depth restart file from previous run (last iteration)
+            shutil.copy2(settings.basal_melt_input_depth_restart_path, 
+                    os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+            print(f"   - copied basal melt input depth restart file "\
+                    f"{settings.basal_melt_input_depth_restart_file} from "\
+                    f"{settings.restart_dir} to restart from previous run")
+
 
         if (settings.do_ocean_tracer_anomaly==True and 
             settings.use_ocean_tracer_anomaly_from_prev_run==True):
@@ -253,6 +257,23 @@ def create_run(settings=settings, experiment=settings.experiment):
             else:
                 warnings.warn(f"path {settings.ocean_sealevel_anomaly_reference_path} "\
                     f"does not exist!")
+
+        # copy MOM restart files from previous run
+        poem_input_dir = os.path.join(settings.poem_exp_dir,'INPUT')
+        poem_restart_files_dir = os.path.join(settings.restart_dir,'POEM/INPUT')
+        if os.path.exists(poem_restart_files_dir):
+            with helpers.cd( str(poem_restart_files_dir) ):
+                cmd = f"for i in *.res*; do rm {poem_input_dir}/$i; "\
+                        f"cp -a $i {poem_input_dir} ; done"
+                #subprocess.run("ls", capture_output=True)
+                #subprocess.run("ls", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                subprocess.call(cmd, shell=True)
+            print(f"   - copied MOM restart files from {poem_restart_files_dir} "\
+                    "to POEM/INPUT")
+        else:
+            warnings.warn(f"WARNING: path {poem_restart_files_dir} does not "\
+                    f"exist! Need to copy MOM restart files to INPUT dir by "\
+                    f"hand...")
     # [end] if settings.coupled_restart==True
 
     # copying PISM runoff reference file for calculation of ice to ocean runoff
@@ -290,6 +311,23 @@ def create_run(settings=settings, experiment=settings.experiment):
                         f"but path {settings.runoff_reference_path} does "\
                         f"not exist!")
 
+
+    # copying prescribed PICO input depth (if used)
+    if settings.use_prescribed_pico_input_depth==True:
+        # copy prescribed PICO input depth file 
+        shutil.copy2(settings.prescribed_pico_input_depth_path, 
+                os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+        print(f"   - copied prescribed PICO input depth restart file "\
+                f"{settings.pico_input_depth_restart_path}")
+
+    # copying prescribed  basal melt depth (if used)
+    if (settings.use_prescribed_basal_melt_input_depth==True and \
+            settings.insert_basal_melt_at_depth==True):
+        # copy prescribed basal melt input depth file 
+        shutil.copy2(settings.prescribed_basal_melt_input_depth_path, 
+                os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+        print(f"   - copied prescribed basal melt input depth restart file "\
+                f"{settings.basal_melt_input_depth_restart_path}")
 
 
 if __name__ == "__main__":

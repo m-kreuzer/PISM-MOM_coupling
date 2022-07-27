@@ -21,7 +21,7 @@ pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
 #poem_proj_dir = "/p/projects/climber3/kreuzer/POEM/trunk"
 poem_proj_dir = "/p/projects/climber3/kreuzer/POEM/branches/kreuzer_mom5.1"
 # POEM template directory with all namelist & input files
-poem_template_dir = "/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/MOM5_SIS-EM3-no_antarctic_river_runoff"
+poem_template_dir = "/p/projects/climber3/kreuzer/POEM/POEM_PISM_coupling_templates/MOM5_SIS-EM3-no_antarctic_river_runoff-basal"
 
 
 
