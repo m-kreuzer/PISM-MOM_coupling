@@ -724,10 +724,13 @@ START_CONCAT_FILES=$(date +%s.%N)
     cd $ROOT_WORK_DIR/x_MOM-to-PISM
     ncrcat --overwrite $(echo `seq -f "%06g0101.processed_MOM.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.nc
-    ncrcat --overwrite $(echo `seq -f "%06g0101.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
-        $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.anomaly.nc
-    ncrcat --overwrite $(echo `seq -f "%06g0101.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
-        $SIM_START_YEAR-$SIM_END_YEAR.PISM_input.nc
+    ncrcat --overwrite $(echo `seq -f "%06g0101.tracer.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.tracer.processed_MOM.anomaly.nc
+    ncrcat --overwrite $(echo `seq -f "%06g0101.sealevel.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.sealevel.processed_MOM.anomaly.nc
+    ln -sf $SIM_START_YEAR-$SIM_END_YEAR.sealevel.processed_MOM.anomaly.nc $SIM_START_YEAR-$SIM_END_YEAR.sealevel.PISM_input.nc
+    ncrcat --overwrite $(echo `seq -f "%06g0101.tracer.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.tracer.PISM_input.nc
     cd $ROOT_WORK_DIR/x_PISM-to-MOM
     ncrcat --overwrite $(echo `seq -f "%06g.basin_shelf_depth.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.basin_shelf_depth.nc
