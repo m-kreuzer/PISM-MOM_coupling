@@ -1,0 +1,95 @@
+#! /bin/sh
+
+#  Copyright (C) 2019-2021 PISM-MOM_coupling authors, see AUTHORS file
+#
+#  This file is part of PISM-MOM_coupling
+#
+#  PISM-MOM_coupling is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  PISM-MOM_coupling is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with PISM-MOM_coupling.  If not, see <https://www.gnu.org/licenses/>.
+
+
+# -----------------------------------------------------------------------------
+# settings for standalone version of process_mom_to_pism() routine of PISM-MOM
+# coupling framework
+# -----------------------------------------------------------------------------
+
+ROOT_WORK_DIR=$(readlink -f ../)
+#ROOT_WORK_DIR=/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run14
+OCN_OUTPUT_DIR=$ROOT_WORK_DIR/history/
+SCRIPT_DIR=$PWD
+
+# coupling source directory, required for:
+#   regriddedMOM-to-PISM_processing.py
+CPL_SRC_DIR=/p/projects/pism/kreuzer/software/PISM-MOM_coupling
+
+# ocean output file name basis to use
+#   typically: (`ocean-yearly` or `ocean-decadal`)
+OCN_OUTPUT_FILE_BASE=ocean-decadal
+
+# coupled experiment directory, required for: 
+#   PISM prerun output, bilinear regridding weights, PICO basin mask, regridded
+#   PISM edges, PICO basin topography depths, PICO baseline forcing
+CPL_EXP_DIR=/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01
+
+# weights used for regridding MOM output to PISM grid
+WEIGHTS_PATH=$CPL_EXP_DIR/pre-processing/weights.MOM-to-PISM.bil.cdo.nc
+
+# PISM prerun files
+PISM_PRE_OUT_FILE=$CPL_EXP_DIR/PISM/prerun/prerun.pism_out-no_timestamp.nc
+PISM_BASIN_FILE=$CPL_EXP_DIR/PISM/prerun/prerun.pism_extra.nc
+PISM_EDGES_FILE=$CPL_EXP_DIR/pre-processing/pism_edges.nc
+
+# PISM ocean baseline forcing
+PISM_OCN_FORCING=$CPL_EXP_DIR/PISM/initdata/schmidtko_initmip16km_means.nc
+
+# defining extraction depths of ocean tracers
+PICO_INPUT_DEPTH_FILE=$CPL_EXP_DIR/x_PISM-to-MOM/017100.pico_input_depth.nc
+
+
+### ocean anomaly reference files: tracer and sea level
+
+# source of ocean tracer anomaly file
+COMPUTE_OCEAN_TRACER_ANOMALY_FILE=false
+#   [true]  tracer anomaly file is computed as mean from ocean model output
+#           -> CALC_OCN_TRACER_ANOMALY_* variables are used
+#   [false] use precomputed anomaly file
+#           -> OCEAN_TRACER_ANOMALY_REFERENCE_FILE is used
+
+CALC_OCN_TRACER_ANOMALY_PATH=$ROOT_WORK_DIR/history
+CALC_OCN_TRACER_ANOMALY_YR_START=17090
+CALC_OCN_TRACER_ANOMALY_YR_END=17090
+CALC_OCN_TRACER_ANOMALY_YR_STEP=10
+CALC_OCN_TRACER_ANOMALY_NAME_FORMAT_IN="%06g0101.ocean-decadal.nc"
+CALC_OCN_TRACER_ANOMALY_NAME_FORMAT_OUT="%06g-%06g.ocean-decadal.tracer_mean.nc"
+
+#OCEAN_TRACER_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01/x_MOM-to-PISM/017090-017090.tracer_mean.processed_MOM.nc"
+OCEAN_TRACER_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/evaluation/x_MOM-to-PISM/tmp/017090-017090.tracer_mean.processed_MOM.nc"
+
+
+
+# source of ocean sealevel anomaly file
+COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE=false
+#   [true]  sealevel anomaly file is computed as mean from ocean model output
+#           -> CALC_OCN_SEALEVEL_ANOMALY_* variables are used
+#   [false] use precomputed anomaly file
+#           -> OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE is used
+
+CALC_OCN_SEALEVEL_ANOMALY_PATH=$ROOT_WORK_DIR/history
+CALC_OCN_SEALEVEL_ANOMALY_YR_START=17090
+CALC_OCN_SEALEVEL_ANOMALY_YR_END=17090
+CALC_OCN_SEALEVEL_ANOMALY_YR_STEP=10
+CALC_OCN_SEALEVEL_ANOMALY_NAME_FORMAT_IN="%06g0101.ocean-decadal.nc"
+CALC_OCN_SEALEVEL_ANOMALY_NAME_FORMAT_OUT="%06g-%06g.ocean-decadal.sealevel_mean.nc"
+
+#OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01/x_MOM-to-PISM/017090-017090.sealevel_mean.processed_MOM.nc"
+OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/evaluation/x_MOM-to-PISM/tmp/017090-017090.sealevel_mean.processed_MOM.nc"
