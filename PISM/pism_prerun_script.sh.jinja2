@@ -26,7 +26,7 @@ echo PISM_TIME_END:     $PISM_TIME_END
 -ocean_pico_file initdata/{{settings.pism_ocn_file}} \
 -extra_file prerun/prerun.pism_extra.nc  \
 -extra_times $PISM_TIME_BEGIN:$__TIMESTEP:$PISM_TIME_END \
--extra_vars basal_mass_flux_floating,basins,amount_fluxes,pico_contshelf_mask \
+-extra_vars basal_mass_flux_floating,basins,amount_fluxes,pico_contshelf_mask,pico_shelf_mask,pico_box_mask,thk \
 -o prerun/prerun.pism_out.nc \
     > prerun/prerun.pism.out 2>&1
 

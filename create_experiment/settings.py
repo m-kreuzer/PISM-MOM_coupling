@@ -320,8 +320,7 @@ pism_add_opt = "-ocean_kill_file initdata/"+pism_ocnkill_file
 # - - - - - - - - - - - - - - - - - - output - - - - - - - - - - - - - - - - -
 
 # set extra variables
-pism_extra_vars = "mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount,amount_fluxes,ice_mass,pico_contshelf_mask,pdd_fluxes,pdd_rates,climatic_mass_balance "
-
+pism_extra_vars = "mask,thk,velsurf_mag,velbase_mag,flux_mag,tillwat,tauc,pico_overturning,pico_temperature_box0,pico_salinity_box0,tillphi,shelfbmassflux,shelfbtemp,basins,bmelt,bfrict,bfrict,tendency_of_ice_amount,amount_fluxes,ice_mass,pico_contshelf_mask,pdd_fluxes,pdd_rates,climatic_mass_balance,pico_shelf_mask,pico_box_mask"
 
 # set pism diagnostic timesteps
 pism_diag_extra_timestep = coupling_timestep
