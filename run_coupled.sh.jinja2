@@ -73,9 +73,9 @@ COUPLED_RESTART=false
 
 # ------------------------------ define functions-------------------------------
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 {% raw %}
-arbitrary() { 
+arbitrary() {
     # creates list of SLURM nodes for specified number of tasks
     #   -> parameters: list of numbers of tasks to assigned to each node
     [[ SHELLOPTS =~ $xtrace ]] && minusx=-x # save the flag setting
@@ -113,7 +113,7 @@ arbitrary() {
 
 
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 poem_run() {
     echo '  > run POEM'
     echo " ... running POEM from $SIM_START_TIME to $SIM_END_TIME of $SIMULATION_TIME model years"
@@ -125,11 +125,11 @@ poem_run() {
     if [ 0"$SLURM_NTASKS" -gt 1 -o 0"$SLURM_NNODES" -gt 1 ]
     then
         export MPD_CON_EXT=Slurm_Job_$SLURM_JOBID
-    
+
         # 16 tasks atm + 32 tasks ocn = 48 tasks total
         #local arb="`arbitrary 16 16 16`"
         local arb="`arbitrary 16 16`"
-        
+
         time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
                 -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
                 ./fms_MOM_SIS.x
@@ -140,9 +140,9 @@ poem_run() {
         ulimit -c 0 # we dont want coredumps from mppnccombine
         local bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | \
                         sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
-        time for b in $bases ; do 
-            echo mppnccombine $b 
-            $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -r $b $b.[0-9][0-9][0-9][0-9]* 
+        time for b in $bases ; do
+            echo mppnccombine $b
+            $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -r $b $b.[0-9][0-9][0-9][0-9]*
         done
     else
        unset SLURM_PMI_KVS_DUP_KEYS
@@ -161,13 +161,13 @@ poem_run() {
 
 
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 poem_prerun() {
     echo 'poem_prerun func'
     cd $POEM_WORK_DIR
 
     # create pre-run directory
-    if [ ! -d $POEM_WORK_DIR/prerun/out ] ; then 
+    if [ ! -d $POEM_WORK_DIR/prerun/out ] ; then
         mkdir -p $POEM_WORK_DIR/prerun/out
     fi
 
@@ -186,7 +186,7 @@ poem_prerun() {
     sed -e '/^\s*hours/  s/^./!&/' -i input.nml-prerun
     # add new line: days = 1
     sed -e '/&coupler_nml/a\' -e '\tdays = 1,' -i input.nml-prerun
-    
+
     # -------- modify data_table -----------------
     cp data_table-dummy data_table-prerun
     # comment out all lines with FILE_NAME_DUMMY
@@ -197,18 +197,18 @@ poem_prerun() {
     ln -sf diag_table-prerun diag_table
     ln -sf input.nml-prerun input.nml
     ln -sf data_table-prerun data_table     # for pre-run and CPL_ITERATION==1
-    
+
     # ------------- run POEM/FMS --------------------------
     # decision between parallel and serial case
     #   -> concatenate the values of both variables, one might be the empty string
     if [ 0"$SLURM_NTASKS" -gt 1 -o 0"$SLURM_NNODES" -gt 1 ]
     then
         export MPD_CON_EXT=Slurm_Job_$SLURM_JOBID
-    
+
         # 16 tasks atm + 32 tasks ocn = 48 tasks total
         #local arb="`arbitrary 16 16 16`"
         local arb="`arbitrary 16 16`"
-        
+
         time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
                 -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
                 ./fms_MOM_SIS.x
@@ -219,9 +219,9 @@ poem_prerun() {
         ulimit -c 0 # we dont want coredumps from mppnccombine
         local bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | \
                         sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
-        time for b in $bases ; do 
-            echo mppnccombine $b 
-            $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -r $b $b.[0-9][0-9][0-9][0-9]* 
+        time for b in $bases ; do
+            echo mppnccombine $b
+            $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -r $b $b.[0-9][0-9][0-9][0-9]*
         done
     else
        unset SLURM_PMI_KVS_DUP_KEYS
@@ -230,7 +230,7 @@ poem_prerun() {
         RESULT=$?
     fi
 
-    # revert links to previous location 
+    # revert links to previous location
     ln -sf $DIAG_TABLE_STORE diag_table
     #ln -sf $DATA_TABLE_STORE data_table
     ln -sf data_table-prerun data_table
@@ -239,7 +239,7 @@ poem_prerun() {
     return_check $RESULT "POEM_pre-run"
 }
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 {% raw %}
 poem_run_postprocess() {
     echo '  > run POEM postprocessing'
@@ -247,11 +247,11 @@ poem_run_postprocess() {
 
     # extract begin/end dates
     local begindate=`$POEM_TOOLS_DIR/time_stamp.csh -bf digital`
-    if [ "$begindate" == "" ] ; then 
+    if [ "$begindate" == "" ] ; then
         begindate=tmp`date +%Y%j%H%M%S`
     fi
     local enddate=`$POEM_TOOLS_DIR/time_stamp.csh -ef digital`
-    if [ "$enddate" == "" ] ; then 
+    if [ "$enddate" == "" ] ; then
         enddate=tmp`date +%Y%j%H%M%S`
     fi
     rm -f time_stamp.out
@@ -267,11 +267,11 @@ poem_run_postprocess() {
     done
 
     # put files to history dir
-    for i in *.nc 
+    for i in *.nc
       do mv $i history/$enddate.$i
     done
-    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out 
-    
+    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out
+
     mkdir -p fms.out/$SLURM_JOBID
     mv $enddate.fms.out* fms.out/$SLURM_JOBID
 
@@ -285,14 +285,14 @@ poem_run_postprocess() {
          ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
          rm -f ocean_blobs.res.nc.????
       fi
-    
+
       # Concatenate iceberg restarts
       if [ -f ocean_blobs.res.nc.0000 ]
       then
          ncrcat icebergs.res.nc.???? icebergs.res.nc
          rm icebergs.res.nc.????
       fi
-    
+
       ## Land restarts need to be combined with  combine-ncc
       ## More simply just tar them up in this version
       #land_files="cana glac lake land snow soil vegn1 vegn2"
@@ -310,7 +310,7 @@ poem_run_postprocess() {
       #       rm $input_files
       #   fi
       #done
-    
+
       # now combine all the remaining restart files
       bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
       [ -n "$bases" ] && time for b in $bases ; do echo mppnccombine $b ; rm -f $b; $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -64 -r $b $b.[0-9][0-9][0-9][0-9]* ; done
@@ -320,12 +320,12 @@ poem_run_postprocess() {
     mv RESTART $enddate.RESTART
     time tar cvjf history/$enddate.RESTART.tar.bz2 $enddate.RESTART/.
     mv $enddate.RESTART RESTART
-    
+
     # copy RESTART files to INPUT
     cd RESTART
     for i in *.res*; do
         rm ../INPUT/$i
-        cp $i ../INPUT/. 
+        cp $i ../INPUT/.
     done
     cd $OLDPWD
 
@@ -335,7 +335,7 @@ poem_run_postprocess() {
 }
 {% endraw %}
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 poem_prerun_postprocess() {
 
     # rename fms.out file
@@ -344,17 +344,17 @@ poem_prerun_postprocess() {
     done
 
     # put files to pre-run dir
-    for i in *.nc 
+    for i in *.nc
       do mv $i prerun/prerun.$i
     done
     mv prerun.fms.out-* logfile*out diag_field_log*out diag_integral.out \
         stocks.out time_stamp.out $POEM_WORK_DIR/prerun/out/
     cp -p input.nml data_table diag_table field_table $POEM_WORK_DIR/prerun
-    
+
     cd $OLDPWD
 }
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 pism_run() {
     # $1 : pism runtime (years)
     echo '  > run PISM'
@@ -376,7 +376,7 @@ pism_run() {
     echo PISM_TIME_END $PISM_TIME_END
 
     # save first and last year of coupled simulation output
-    if [ $CPL_ITERATION -eq 2 ]; then 
+    if [ $CPL_ITERATION -eq 2 ]; then
         SIM_START_YEAR=$(printf "%06d\n" $PISM_TIME_BEGIN)
     fi
     SIM_END_YEAR=$(printf "%06d\n" $PISM_TIME_END)
@@ -399,13 +399,13 @@ pism_run() {
     TIME_PISM=$(echo "$TIME_PISM + $TIME_PISM_RUN" | bc)
 }
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 pism_prerun() {
-    # $1 : timestep for pism run 
+    # $1 : timestep for pism run
     echo 'pism_pre_run func'
     cd $PISM_WORK_DIR
     local __TIMESTEP=$1
-    
+
     # extract model time from input file
     PISM_TIME_SEC=$(ncdump -v time $PISM_RESTART_FILE | grep "time = [0-9]\+ ;" | \
                         awk '{print $3}')
@@ -419,9 +419,9 @@ pism_prerun() {
     if [ ! -d $PISM_WORK_DIR/prerun ] ; then mkdir $PISM_WORK_DIR/prerun ; fi
 
     # export all bash variables required by pism_run.sh
-    export PISM_RESTART_FILE __TIMESTEP PISM_TIME_BEGIN PISM_TIME_END 
-    #export SLURM_NTASKS ROOT_WORK_DIR PISM_PROJ_DIR PISM_WORK_DIR PISM_RESTART_FILE PISM_OCEAN_START_FILE __TIMESTEP  PISM_TIME_BEGIN PISM_TIME_END 
-    #export P_Mx P_My P_Lz P_Lbz P_Mz P_Mbz 
+    export PISM_RESTART_FILE __TIMESTEP PISM_TIME_BEGIN PISM_TIME_END
+    #export SLURM_NTASKS ROOT_WORK_DIR PISM_PROJ_DIR PISM_WORK_DIR PISM_RESTART_FILE PISM_OCEAN_START_FILE __TIMESTEP  PISM_TIME_BEGIN PISM_TIME_END
+    #export P_Mx P_My P_Lz P_Lbz P_Mz P_Mbz
 
     # run pism executable
     time ./pism_prerun_script.sh
@@ -429,13 +429,13 @@ pism_prerun() {
     return_check $RESULT "PISM_pre-run"
 }
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 process_mom_to_pism() {
     echo " >> process_mom-to-pism function"
     echo
     #echo POEM TIME BEGIN $POEM_TIME_BEGIN
     #echo POEM TIME END $POEM_TIME_END
-    
+
     START_MOM_to_PISM_PROCESS=$(date +%s.%N)
     cd $ROOT_WORK_DIR/inter-model-processing
 
@@ -450,7 +450,7 @@ process_mom_to_pism() {
     # average ocean output over coupling time step before regridding
     REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.mean.nc
     ncra -O -v temp,salt,eta_t -F -d time,1,,1 $OCEAN_OUT $REGRID_IN
-    #ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN     # only last timestep 
+    #ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN     # only last timestep
     {% endif %}
     REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
     WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
@@ -471,10 +471,10 @@ process_mom_to_pism() {
         --verbose
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
-        
+
     {% if settings.do_ocean_tracer_anomaly==True %}
-    ### ocean tracer anomaly approach: use regular PISM ocean forcing (e.g. 
-    #       Schmidtko data) but add difference of 
+    ### ocean tracer anomaly approach: use regular PISM ocean forcing (e.g.
+    #       Schmidtko data) but add difference of
     #       regriddedMOM-to-PISM_processing.py output from current coupling
     #       time step to reference file
     echo OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$OCEAN_TRACER_ANOMALY_REFERENCE_FILE
@@ -524,8 +524,8 @@ process_mom_to_pism() {
 
     {% if settings.do_ocean_sealevel_anomaly==True %}
     ### ocean sealevel anomaly approach: force PISM with sea level change
-    #       from ocean model. Calculated through difference of current local 
-    #       sea level (output of regriddedMOM-to-PISM_processing.py) to 
+    #       from ocean model. Calculated through difference of current local
+    #       sea level (output of regriddedMOM-to-PISM_processing.py) to
     #       reference file.
     echo OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE
     echo OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME=$OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME
@@ -545,7 +545,7 @@ process_mom_to_pism() {
     RESULT=$?
     return_check $RESULT "ncks"
 
-    # rename variable eta_t to delta_SL 
+    # rename variable eta_t to delta_SL
     #ncrename -v eta_t,delta_SL \
     #    $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
     #RESULT=$?
@@ -583,7 +583,7 @@ process_mom_to_pism() {
     TIME_MOM_to_PISM_PROCESS=$(echo "$TIME_MOM_to_PISM_PROCESS + $TIME_MOM_to_PISM_PROCESS_T" | bc)
 }
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 process_pism_to_mom(){
     echo " >> process_pism-to-mom function"
     START_PISM_to_MOM_PROCESS=$(date +%s.%N)
@@ -629,7 +629,7 @@ process_pism_to_mom(){
 
     {% if not settings.insert_basal_melt_at_depth==True %}
     ### basal melt at surface (via river runoff)
-    # add basal melt mass flux to surface runoff mass flux 
+    # add basal melt mass flux to surface runoff mass flux
     #(to be inserted together in MOM5's data_table via runoff_li)
     cd $ROOT_WORK_DIR/x_PISM-to-MOM
     ncap2 -O -s "mass_flux_surf_runoff_plus_basal=mass_flux_surf_runoff+mass_flux_basal_melt" \
@@ -663,7 +663,7 @@ process_pism_to_mom(){
     TIME_PISM_to_MOM_PROCESS=$(echo "$TIME_PISM_to_MOM_PROCESS + $TIME_PISM_to_MOM_PROCESS_T" | bc)
 }
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 concat_output_files(){
 START_CONCAT_FILES=$(date +%s.%N)
 
@@ -721,7 +721,7 @@ START_CONCAT_FILES=$(date +%s.%N)
     ncrcat --overwrite $(echo `seq -f "%06g.pism_ts.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.pism_ts.nc
     cd $ROOT_WORK_DIR
-    
+
     # concatenate inter-model-processing files
     cd $ROOT_WORK_DIR/x_MOM-to-PISM
     ncrcat --overwrite $(echo `seq -f "%06g0101.processed_MOM.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
@@ -751,11 +751,11 @@ TIME_CONCAT_FILES=$(echo "$END_CONCAT_FILES - $START_CONCAT_FILES" | bc)
 
 }
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 return_check() {
-    # $1 : RETURN_VAL 
+    # $1 : RETURN_VAL
     # $2 : FUNC_STRING
-    # usage: return_check $RETURN_VAL "func xy" 
+    # usage: return_check $RETURN_VAL "func xy"
 
     if [ 0 = "$1" ] ; then
         echo "'"$2"'" ended successfully
@@ -768,9 +768,9 @@ return_check() {
     fi
 }
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 exit_script() {
-    # $1 : RETURN_VAL 
+    # $1 : RETURN_VAL
     # usage: exit_script $RESULT
     cd $ROOT_WORK_DIR
     rm -f .workdir_locked_by_batchjob
@@ -831,7 +831,7 @@ then
     oldjobid="`ls -l .workdir_locked_by_batchjob | awk '{print $11}'`"
     if [ "$oldjobid" != "$SLURM_JOBID" ]
     then
-        echo Error: Directory `pwd` is locked by another batch job: 
+        echo Error: Directory `pwd` is locked by another batch job:
         ls -l .workdir_locked_by_batchjob
         exit 1
     else
@@ -890,7 +890,7 @@ cd $ROOT_WORK_DIR
 sed -e '/^\s*months/ s/^./!&/' -i POEM/input.nml-regular
 sed -e '/^\s*days/   s/^./!&/' -i POEM/input.nml-regular
 sed -e '/^\s*hours/  s/^./!&/' -i POEM/input.nml-regular
- 
+
 
 ## add new line: months = $CPL_TIMESTEP * 12
 CPL_TIMESTEP_MONTHS=$(echo "$CPL_TIMESTEP * 12" | bc)
@@ -926,7 +926,7 @@ START_PRERUNS=$(date +%s.%N)
 echo
 echo ">>> POEM pre-run"
 echo
-poem_prerun 
+poem_prerun
 poem_prerun_postprocess
 
 echo
@@ -961,7 +961,7 @@ PISM_PRE_OUT=$PISM_WORK_DIR/prerun/prerun.pism_out-no_timestamp.nc
 MOM_PRE_OUT=$POEM_WORK_DIR/prerun/prerun.ocean-prerun.nc
 WEIGHTS=weights.MOM-to-PISM.bil.cdo.nc
 export REMAP_EXTRAPOLATE=off
-cdo -b F64 -f nc4c genbil,$PISM_PRE_OUT $MOM_PRE_OUT $WEIGHTS 
+cdo -b F64 -f nc4c genbil,$PISM_PRE_OUT $MOM_PRE_OUT $WEIGHTS
 RESULT=$?
 return_check $RESULT "cdo-weight-generation"
 
@@ -974,7 +974,7 @@ cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS $REGRID_IN $REGRID_OUT
 RESULT=$?
 return_check $RESULT "cdo_regridding"
 
-# identify edges of missing/non-missing values of regridded ocean output 
+# identify edges of missing/non-missing values of regridded ocean output
 #   on PISM grid
 echo " >> identify edges on PISM grid"
 ./find_edge.py                      \
@@ -1093,10 +1093,10 @@ RUNOFF_FILE={{settings.pism_to_mom_flux_init_file}}
 
 ### select RUNOFF_REFERENCE_FILE for first coupling iteration
 #   -> prescribed as `li_mflx_balance` in MOM5 data_table
-#      background: MOM5 excludes term li_input_diff from 
+#      background: MOM5 excludes term li_input_diff from
 #                  (precip - evap + river = 0) normalisation, where
 #           li_input_diff = runoff_li + calving_li + basal_li - li_mflx_balance
-#                  and river includes all incoming fluxes to ocean from land 
+#                  and river includes all incoming fluxes to ocean from land
 #                  and land ice
 #   -> according to model options, RUNOFF_REFERENCE_FILE is set here to one of
 #      the following strings (for first coupling iteration):
@@ -1150,7 +1150,7 @@ RUNOFF_REFERENCE_FILE=$RUNOFF_FILE
 {% endif %}
 
 
-## if RUNOFF_REFERENCE_FILE is set, check that it has maximum only one 
+## if RUNOFF_REFERENCE_FILE is set, check that it has maximum only one
 #   timestamp (no time series)
 if [ -n "$RUNOFF_REFERENCE_FILE" ]; then
     echo
@@ -1161,7 +1161,7 @@ if [ -n "$RUNOFF_REFERENCE_FILE" ]; then
     RUNOFF_REF_TIME_DIM=$(ncks --trd -M $RUNOFF_REFERENCE_PATH | \
         grep "Root record dimension .: name = time" | \
         cut -f 2 -d ',' | awk '{print $3}')
-    if [ "$RUNOFF_REF_TIME_DIM" == "1" ] || [ "$RUNOFF_REF_TIME_DIM" == "" ] ; then 
+    if [ "$RUNOFF_REF_TIME_DIM" == "1" ] || [ "$RUNOFF_REF_TIME_DIM" == "" ] ; then
         echo "  > [runoff_slc] -> RUNOFF_REFERENCE_FILE $RUNOFF_REFERENCE_FILE "\
             "has no multiple time stamps"
     else
@@ -1179,9 +1179,9 @@ echo "   -> insert basal melt at surface (via river runoff):"
 echo
 echo "      DATA_OVERRIDE_VAR   FILE_NAME_VAR                       FILE_NAME"
 echo "      ------------------------------------------------------------------------------------"
-echo "      runoff_li           mass_flux_surf_runoff_plus_basal    RUNOFF_FILE" 
+echo "      runoff_li           mass_flux_surf_runoff_plus_basal    RUNOFF_FILE"
 echo "      runoff_li_hflx      heat_flux_basal                     RUNOFF_FILE"
-echo "      calving_li          mass_flux_calving                   RUNOFF_FILE" 
+echo "      calving_li          mass_flux_calving                   RUNOFF_FILE"
 echo "      basal_li            -                                   <comment>"
 echo "      basal_li_hflx       -                                   <comment>"
 echo "      basal_depth_top     -                                   <comment>"
@@ -1193,9 +1193,9 @@ echo "   -> insert basal melt at depth:"
 echo
 echo "      DATA_OVERRIDE_VAR   FILE_NAME_VAR                       FILE_NAME"
 echo "      ------------------------------------------------------------------------------------"
-echo "      runoff_li           mass_flux_surf_runoff               RUNOFF_FILE" 
+echo "      runoff_li           mass_flux_surf_runoff               RUNOFF_FILE"
 echo "      runoff_li_hflx      -                                   <comment>"
-echo "      calving_li          mass_flux_calving                   RUNOFF_FILE" 
+echo "      calving_li          mass_flux_calving                   RUNOFF_FILE"
 echo "      basal_li            mass_flux_basal                     RUNOFF_FILE"
 echo "      basal_li_hflx       heat_flux_basal                     RUNOFF_FILE"
 echo "      basal_depth_top     shelf_front_depth                   BASAL_MELT_INPUT_DEPTH_FILE"
@@ -1212,7 +1212,7 @@ sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-p
 
 {% if not settings.insert_basal_melt_at_depth==True %}
 ### basal melt at surface (via river runoff)
-# add basal melt mass flux to surface runoff mass flux 
+# add basal melt mass flux to surface runoff mass flux
 # (to be inserted together in MOM5's data_table via runoff_li)
 cd $ROOT_WORK_DIR/x_PISM-to-MOM
 ncap2 -O -s "mass_flux_surf_runoff_plus_basal=mass_flux_surf_runoff+mass_flux_basal_melt" \
@@ -1298,7 +1298,7 @@ OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
     --fill      temp salt                                               \
     --depth     $PICO_INPUT_DEPTH_FILE                                  \
     --output    $OCEAN_TRACER_ANOMALY_REFERENCE_FILE                    \
-    --verbose   
+    --verbose
 RESULT=$?
 return_check $RESULT "regriddedMOM-to-PISM_processing.py"
 cd $ROOT_WORK_DIR
@@ -1306,7 +1306,7 @@ cd $ROOT_WORK_DIR
     {% endif %}
     # ........................................................................ #
 
-# removing time dimension from ocean tracer anomaly reference file 
+# removing time dimension from ocean tracer anomaly reference file
 #  -> needed for clean broadcasting with ncbo
 FILE_EXTENSION="${OCEAN_TRACER_ANOMALY_REFERENCE_FILE##*.}"
 FILE_PATH_NO_EXTENSION="${OCEAN_TRACER_ANOMALY_REFERENCE_FILE%.*}"
@@ -1381,7 +1381,7 @@ OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
     --fill      eta_t                                                   \
     --depth     $PICO_INPUT_DEPTH_FILE                                  \
     --output    $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE                  \
-    --verbose   
+    --verbose
 RESULT=$?
 return_check $RESULT "regriddedMOM-to-PISM_processing.py"
 cd $ROOT_WORK_DIR
@@ -1389,7 +1389,7 @@ cd $ROOT_WORK_DIR
     {% endif %}
     # ........................................................................ #
 
-# removing time dimension from ocean sealevel anomaly reference file 
+# removing time dimension from ocean sealevel anomaly reference file
 #  -> needed for clean broadcasting with ncbo
 FILE_EXTENSION="${OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE##*.}"
 FILE_PATH_NO_EXTENSION="${OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE%.*}"
@@ -1412,13 +1412,13 @@ END_PREPROC=$(date +%s.%N)
 TIME_PREPROC=$(echo "$END_PREPROC - $START_PREPROC" | bc)
 echo
 echo ">>> finished preprocessing"
-echo 
+echo
 echo
 
 ### -------------------------- coupling iterations ----------------------------
-echo 
+echo
 echo ">>> starting coupling iterations"
-echo 
+echo
 echo
 
 for CPL_ITERATION in `seq 1 $MAX_CPL_ITERATION`
@@ -1436,22 +1436,22 @@ do
     process_mom_to_pism
 
     # run PISM for coupling timestep
-    pism_run $CPL_TIMESTEP 
+    pism_run $CPL_TIMESTEP
 
     # process PISM output for MOM input
     process_pism_to_mom
-        
+
 done
-echo 
+echo
 echo ">>> finished coupling iterations"
-echo 
-echo 
+echo
+echo
 
 ### ---------------------------- postprocessing --------------------------------
 echo
 echo ">>> postprocessing"
-echo 
-echo 
+echo
+echo
 concat_output_files
 
 
@@ -1479,7 +1479,7 @@ header="\n  %-30s %10s %11s \n"
 width=54
 
 echo
-echo 
+echo
 echo
 echo
 echo " ---------------- runtime statistics ----------------- "
