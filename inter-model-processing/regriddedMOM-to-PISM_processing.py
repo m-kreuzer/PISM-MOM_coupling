@@ -74,8 +74,9 @@ import argparse
 import numpy as np
 import xarray as xr
 import cftime
+from tqdm import tqdm
 ## for debugging
-import code 
+#import code 
 #import matplotlib.pyplot as plt
 #import warnings
 ##warnings.filterwarnings('error')
@@ -407,9 +408,7 @@ if __name__ == "__main__":
     #                ds_field[f] = xr.where(mask_assign, mean_field_basin_edge, ds_field[f])
 
     # iterate through fields to be filled
-    for f in args.var_fill:
-        if args.verbose: 
-            print(f'\t field: {f}')
+    for f in tqdm(args.var_fill, desc=f'\tfield: {f}'):
 
         # extract data from xarray Dataset, do the filling and put it back in
         da_data = ds_field[f].data      # dim: (time, z, y, x)
@@ -496,9 +495,7 @@ if __name__ == "__main__":
         ocean_z = -1 * ocean_z                      # positive = upwards
 
         # iterate basins
-        for b_idx, b_val in enumerate(shelf_depth_basin_list):
-            if args.verbose:
-                print('\t > basin ', b_val, ' / ', shelf_depth_basin_list.max())
+        for b_idx, b_val in enumerate(tqdm(shelf_depth_basin_list, desc='\tbasin', position=0, leave=True)):
 
             # depth of current basin: mean_shelf_topg[b_idx]
             # find higher and lower ocean levels
@@ -562,9 +559,7 @@ if __name__ == "__main__":
     else:
 
         # iterate basins
-        for b_idx, b_val in enumerate(shelf_depth_basin_list):
-            if args.verbose:
-                print('\t > basin ', b_val, ' / ', shelf_depth_basin_list.max())
+        for b_idx, b_val in enumerate(tqdm(shelf_depth_basin_list, desc='\tbasin', position=0, leave=True)):
 
             # iterate fields
             for f in args.var_fill:
