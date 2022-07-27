@@ -817,7 +817,6 @@ if __name__ == "__main__":
         x = dst.createVariable('heat_flux', nc_dtype, ('time','yt_ocean','xt_ocean'))
         var_dict = col.OrderedDict([
              ('long_name', ("average heat flux calculated from PISM diagnostic output variables"
-                            "'surface_runoff_flux_accumulator', "
                             "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'"
                             " and 'tendency_of_ice_amount_due_to_discharge_accumulator' "
                             "in reporting interval")),
