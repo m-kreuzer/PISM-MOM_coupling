@@ -76,7 +76,7 @@ import xarray as xr
 import cftime
 from tqdm import tqdm
 ## for debugging
-#import code 
+import code 
 #import matplotlib.pyplot as plt
 #import warnings
 ##warnings.filterwarnings('error')
@@ -623,12 +623,14 @@ if __name__ == "__main__":
     ds_field_out.attrs['title'] = ("MOM output variables interpolated to PISM grid "
                           "with missing values filled and interpolated to "
                           "correct basin input depth for PISM")
-    # remove old attributes from MOM grid
-    try:
-        del ds_field_out.attrs['grid_type']
-        del ds_field_out.attrs['grid_tile']
-    except:
-        pass
+    # remove old attributes 
+    old_attrs = ['grid_type','grid_tile','CDI','Conventions','NCO','CDO',
+                 'nco_openmp_thread_number']
+    for a in old_attrs:
+        try:
+            del ds_field_out.attrs[a] 
+        except:
+            pass
 
     # modify history string
     cmd_line = ' '.join(sys.argv)
@@ -641,7 +643,6 @@ if __name__ == "__main__":
     else:
         ds_field_out.attrs['history'] = histstr
     
-
     
     ### variables    
     # add some metadata 
@@ -677,7 +678,8 @@ if __name__ == "__main__":
 
     # add basins and mean_shelf_depth for output
     ds_field_out = ds_field_out.assign({'basins':basins})
-    ds_field_out = xr.merge([ds_field_out, ds_basin_shelf_depth.drop_dims('time')])
+    ds_field_out = xr.merge([ds_field_out, ds_basin_shelf_depth.drop_dims('time')],
+                        combine_attrs='override')
     
     ### time bounds (required by PISM-PICO for time series input)
     if 'time_bnds' in ds_field_out.variables:
