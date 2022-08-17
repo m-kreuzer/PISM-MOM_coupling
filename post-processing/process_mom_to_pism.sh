@@ -109,9 +109,9 @@ prepare_ocean_tracer_anomaly_reference_file(){
     echo COMPUTE_OCEAN_TRACER_ANOMALY_FILE=$COMPUTE_OCEAN_TRACER_ANOMALY_FILE
     case $COMPUTE_OCEAN_TRACER_ANOMALY_FILE in
         true)
-            echo "  > computing ocean tracer anomaly reference state from $CALC_OCN_TRACER_ANOMALY_PATH"
+            echo "  > computing ocean tracer anomaly reference state from $CALC_OCN_TRACER_ANOMALY_INPUT_PATH"
             PWD_SAVE=$PWD
-            cd $CALC_OCN_TRACER_ANOMALY_PATH
+            cd $CALC_OCN_TRACER_ANOMALY_INPUT_PATH
             echo "   > average model output (possibly spread across multile files)"
             INPUT_FILES=$(echo `seq -f "$CALC_OCN_TRACER_ANOMALY_NAME_FORMAT_IN" \
                                        "$CALC_OCN_TRACER_ANOMALY_YR_START"  \
@@ -120,7 +120,7 @@ prepare_ocean_tracer_anomaly_reference_file(){
             AVG_OUT_FILE=$(echo `printf "$CALC_OCN_TRACER_ANOMALY_NAME_FORMAT_OUT" \
                                         "$CALC_OCN_TRACER_ANOMALY_YR_START"   \
                                         "$CALC_OCN_TRACER_ANOMALY_YR_END" `)  
-            AVG_OUT_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$AVG_OUT_FILE
+            AVG_OUT_PATH=$CALC_OCN_TRACER_ANOMALY_OUTPUT_PATH/$AVG_OUT_FILE
             ncra --overwrite -v temp,salt $INPUT_FILES $AVG_OUT_PATH
             RESULT=$?
             return_check $RESULT "ncra-operation"
@@ -142,7 +142,7 @@ prepare_ocean_tracer_anomaly_reference_file(){
             return_check $RESULT "ncks-operation"
             mv tmp.nc $REGRID_IN
 
-            REGRID_OUT=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/ocean_tracer_mean.regrid.MOM-to-PISM.bil.cdo.nc
+            REGRID_OUT=$CALC_OCN_TRACER_ANOMALY_OUTPUT_PATH/ocean_tracer_mean.regrid.MOM-to-PISM.bil.cdo.nc
             # remove global attribute _NCProperties from POEM output which causes cdo to crash
             ncatted -O -a _NCProperties,global,d,, $REGRID_IN
             cdo -b F64 -f nc4c remap,$PISM_PRE_OUT_FILE,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
@@ -152,7 +152,7 @@ prepare_ocean_tracer_anomaly_reference_file(){
             OUTFILE=$(echo `printf "%06g-%06g.tracer_mean.processed_MOM.nc" \
                                    "$CALC_OCN_TRACER_ANOMALY_YR_START"      \
                                    "$CALC_OCN_TRACER_ANOMALY_YR_END" `)  
-            OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$OUTFILE
+            OCEAN_TRACER_ANOMALY_REFERENCE_FILE=$CALC_OCN_TRACER_ANOMALY_OUTPUT_PATH/$OUTFILE
             echo "  > regriddedMOM-to-PISM_processing script"
             $SCRIPT_DIR/regriddedMOM-to-PISM_processing.py          \
                 --input     $REGRID_OUT                             \
@@ -217,9 +217,9 @@ prepare_ocean_sealevel_anomaly_reference_file(){
     echo COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE=$COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE
     case $COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE in
         true)
-            echo "  > computing ocean sealevel anomaly reference state from $CALC_OCN_SEALEVEL_ANOMALY_PATH"
+            echo "  > computing ocean sealevel anomaly reference state from $CALC_OCN_SEALEVEL_ANOMALY_INPUT_PATH"
             PWD_SAVE=$PWD
-            cd $CALC_OCN_SEALEVEL_ANOMALY_PATH
+            cd $CALC_OCN_SEALEVEL_ANOMALY_INPUT_PATH
             echo "   > average model output (possibly spread across multile files)"
             INPUT_FILES=$(echo `seq -f "$CALC_OCN_SEALEVEL_ANOMALY_NAME_FORMAT_IN"  \
                                        "$CALC_OCN_SEALEVEL_ANOMALY_YR_START"        \
@@ -228,7 +228,7 @@ prepare_ocean_sealevel_anomaly_reference_file(){
             AVG_OUT_FILE=$(echo `printf "$CALC_OCN_SEALEVEL_ANOMALY_NAME_FORMAT_OUT" \
                                         "$CALC_OCN_SEALEVEL_ANOMALY_YR_START"        \
                                         "$CALC_OCN_SEALEVEL_ANOMALY_YR_END" `)  
-            AVG_OUT_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$AVG_OUT_FILE
+            AVG_OUT_PATH=$CALC_OCN_SEALEVEL_ANOMALY_INPUT_PATH/$AVG_OUT_FILE
             ncra --overwrite -v eta_t $INPUT_FILES $AVG_OUT_PATH
             RESULT=$?
             return_check $RESULT "ncra-operation"
@@ -250,7 +250,7 @@ prepare_ocean_sealevel_anomaly_reference_file(){
             return_check $RESULT "ncks-operation"
             mv tmp.nc $REGRID_IN
 
-            REGRID_OUT=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/ocean_sealevel_mean.regrid.MOM-to-PISM.bil.cdo.nc
+            REGRID_OUT=$CALC_OCN_SEALEVEL_ANOMALY_INPUT_PATH/ocean_sealevel_mean.regrid.MOM-to-PISM.bil.cdo.nc
             # remove global attribute _NCProperties from POEM output which causes cdo to crash
             ncatted -O -a _NCProperties,global,d,, $REGRID_IN
             cdo -b F64 -f nc4c remap,$PISM_PRE_OUT_FILE,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
@@ -260,7 +260,7 @@ prepare_ocean_sealevel_anomaly_reference_file(){
             OUTFILE=$(echo `printf "%06g-%06g.sealevel_mean.processed_MOM.nc" \
                                    "$CALC_OCN_SEALEVEL_ANOMALY_YR_START"      \
                                    "$CALC_OCN_SEALEVEL_ANOMALY_YR_END" `)  
-            OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$OUTFILE
+            OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$CALC_OCN_SEALEVEL_ANOMALY_INPUT_PATH/$OUTFILE
             echo "  > regriddedMOM-to-PISM_processing script"
             $SCRIPT_DIR/regriddedMOM-to-PISM_processing.py          \
                 --input     $REGRID_OUT                             \
@@ -324,12 +324,12 @@ process_pism_to_mom(){
 
     # extract temp, salt, eta_t for regridding
     OCEAN_OUT=$OCN_OUTPUT_DIR/$POEM_TIME_END.$OCN_OUTPUT_FILE_BASE.nc
-    REGRID_IN=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.$OCN_OUTPUT_FILE_BASE.sparse.nc
+    REGRID_IN=$X_MOM_TO_PISM_PATH/$POEM_TIME_END.$OCN_OUTPUT_FILE_BASE.sparse.nc
     ncks -O -v temp,salt,eta_t,time_bounds $OCEAN_OUT tmp.nc
     ncks -C -O -x -v geolat_t,geolon_t tmp.nc $REGRID_IN
     rm tmp.nc
 
-    REGRID_OUT=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
+    REGRID_OUT=$X_MOM_TO_PISM_PATH/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
     # remove global attribute _NCProperties from POEM output which causes cdo to crash
     ncatted -O -a _NCProperties,global,d,, $REGRID_IN
     cdo -b F64 -f nc4c remap,$PISM_PRE_OUT_FILE,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
@@ -343,7 +343,7 @@ process_pism_to_mom(){
         --edges     $PISM_EDGES_FILE                                                 \
         --fill      temp salt eta_t                                                  \
         --depth     $PICO_INPUT_DEPTH_FILE                                           \
-        --output    $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc     \
+        --output    $X_MOM_TO_PISM_PATH/$POEM_TIME_END.processed_MOM.nc     \
         --verbose
     RESULT=$?
     return_check $RESULT "regriddedMOM-to-PISM_processing.py"
@@ -357,22 +357,22 @@ process_pism_to_mom(){
     # difference from current ocean output to reference (temp, salt)
     ncbo -O -v theta_ocean,salinity_ocean,theta_ocean_basin_mean,salinity_ocean_basin_mean \
         --op_typ=subtract \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.processed_MOM.nc \
         $OCEAN_TRACER_ANOMALY_REFERENCE_FILE_NOTIME \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc
     RESULT=$?
     return_check $RESULT "ncbo"
     # copy time and basins variables to PISM forcing file (omitted by ncbo add operation above)
     ncks -A -v time,time_bounds,basins \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.processed_MOM.nc \
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc
     RESULT=$?
     return_check $RESULT "ncks"
     
     # add difference to given ocean forcing file (temp, salt)
-    cp -av $PISM_OCN_FORCING $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM
+    cp -av $PISM_OCN_FORCING $X_MOM_TO_PISM_PATH
     PISM_OCN_FORCING_FILE=$(basename "$PISM_OCN_FORCING")
-    PISM_OCN_FORCING_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$PISM_OCN_FORCING_FILE
+    PISM_OCN_FORCING_PATH=$X_MOM_TO_PISM_PATH/$PISM_OCN_FORCING_FILE
     FILE_EXTENSION="${PISM_OCN_FORCING_PATH##*.}"
     FILE_PATH_NO_EXTENSION="${PISM_OCN_FORCING_PATH%.*}"
     PISM_OCN_FORCING_MOD_PATH=$FILE_PATH_NO_EXTENSION.mod.$FILE_EXTENSION
@@ -387,15 +387,15 @@ process_pism_to_mom(){
         $PISM_OCN_FORCING_PATH      \
         $PISM_OCN_FORCING_MOD_PATH
     ncbo -O --op_typ=add \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc \
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc \
         $PISM_OCN_FORCING_MOD_PATH  \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.tracer.PISM_input.nc
     RESULT=$?
     return_check $RESULT "ncbo"
     # copy time and basins variables to PISM forcing file (omitted by ncbo add operation above)
     ncks -A -v time,time_bounds,basins \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.processed_MOM.nc \
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.tracer.PISM_input.nc
     RESULT=$?
     return_check $RESULT "ncks"
     
@@ -411,31 +411,31 @@ process_pism_to_mom(){
     
     # difference from current ocean output to reference (temp, salt)
     ncbo -O -v delta_SL,delta_SL_basin_mean --op_typ=subtract \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.processed_MOM.nc \
         $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE_NOTIME \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
     RESULT=$?
     return_check $RESULT "ncbo"
     # copy time variable to PISM forcing file (omitted by ncbo add operation above)
     ncks -A -v time \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.processed_MOM.nc \
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
     RESULT=$?
     return_check $RESULT "ncks"
     
     # set NaNs to 0
     ncatted -O -a _FillValue,delta_SL,m,f,0 \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
     RESULT=$?
     return_check $RESULT "ncatted"
     ncatted -O -a _FillValue,delta_SL,d,, \
-        $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
+        $X_MOM_TO_PISM_PATH/$POEM_TIME_END.sealevel.processed_MOM.anomaly.nc
     RESULT=$?
     return_check $RESULT "ncatted"
     
     # create symlink from PISM input file to sealevel anomaly file
     PWD_SAVE=$PWD
-    cd $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM
+    cd $X_MOM_TO_PISM_PATH
     ln -sf $POEM_TIME_END.sealevel.processed_MOM.anomaly.nc $POEM_TIME_END.sealevel.PISM_input.nc
     cd $PWD_SAVE
     
@@ -455,7 +455,7 @@ calc_basin_contshelf_mean(){
 
     echo "  > ocean output (processed to PISM grid)"
     echo
-    OCEAN_OUTPUT_FILE=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc
+    OCEAN_OUTPUT_FILE=$X_MOM_TO_PISM_PATH/$POEM_TIME_END.processed_MOM.nc
     FILE_EXTENSION="${OCEAN_OUTPUT_FILE##*.}"
     FILE_PATH_NO_EXTENSION="${OCEAN_OUTPUT_FILE%.*}"
     OCEAN_OUTPUT_FILE_BASIN_MEAN=$FILE_PATH_NO_EXTENSION.basin_mean.$FILE_EXTENSION
@@ -469,6 +469,7 @@ calc_basin_contshelf_mean(){
     RESULT=$?
     return_check $RESULT "calc_basin_contshelf_mean"
 
+    echo
     echo "  > tracer reference (baseline for computing anomalies)"
     echo
     FILE_EXTENSION="${OCEAN_TRACER_ANOMALY_REFERENCE_FILE##*.}"
@@ -484,9 +485,10 @@ calc_basin_contshelf_mean(){
     RESULT=$?
     return_check $RESULT "calc_basin_contshelf_mean"
 
+    echo
     echo "  > tracer anomaly (diff of ocean output to reference)"
     echo
-    OCEAN_OUTPUT_TRACER_ANOMALY_FILE=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc
+    OCEAN_OUTPUT_TRACER_ANOMALY_FILE=$X_MOM_TO_PISM_PATH/$POEM_TIME_END.tracer.processed_MOM.anomaly.nc
     FILE_EXTENSION="${OCEAN_OUTPUT_TRACER_ANOMALY_FILE##*.}"
     FILE_PATH_NO_EXTENSION="${OCEAN_OUTPUT_TRACER_ANOMALY_FILE%.*}"
     OCEAN_TRACER_ANOMALY_FILE_BASIN_MEAN=$FILE_PATH_NO_EXTENSION.basin_mean.$FILE_EXTENSION
@@ -500,6 +502,7 @@ calc_basin_contshelf_mean(){
     RESULT=$?
     return_check $RESULT "calc_basin_contshelf_mean"
 
+    echo
     echo "  > tracer PISM baseline forcing"
     echo
     #PISM_OCN_FORCING_MOD_PATH=$FILE_PATH_NO_EXTENSION.mod.$FILE_EXTENSION
@@ -516,8 +519,10 @@ calc_basin_contshelf_mean(){
     RESULT=$?
     return_check $RESULT "calc_basin_contshelf_mean"
 
-    ### tracer PISM input (anomalies + PISM baseline forcing)
-    PISM_INPUT_TRACER_FILE=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc
+    echo
+    echo "  > tracer PISM input (anomalies + PISM baseline forcing)"
+    echo
+    PISM_INPUT_TRACER_FILE=$X_MOM_TO_PISM_PATH/$POEM_TIME_END.tracer.PISM_input.nc
     FILE_EXTENSION="${PISM_INPUT_TRACER_FILE##*.}"
     FILE_PATH_NO_EXTENSION="${PISM_INPUT_TRACER_FILE%.*}"
     PISM_INPUT_TRACER_FILE_BASIN_MEAN=$FILE_PATH_NO_EXTENSION.basin_mean.$FILE_EXTENSION
@@ -531,6 +536,7 @@ calc_basin_contshelf_mean(){
     RESULT=$?
     return_check $RESULT "calc_basin_contshelf_mean"
 
+    echo
     echo "  > sea level reference (baseline for computing anomalies)"
     echo
     FILE_EXTENSION="${OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE##*.}"
@@ -546,9 +552,10 @@ calc_basin_contshelf_mean(){
     RESULT=$?
     return_check $RESULT "calc_basin_contshelf_mean"
 
+    echo
     echo "  > sea level anomaly (diff of ocean output to reference)"
     echo
-    OCEAN_OUTPUT_SEALEVEL_ANOMALY_FILE=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/$POEM_TIME_END.sealevel.PISM_input.nc
+    OCEAN_OUTPUT_SEALEVEL_ANOMALY_FILE=$X_MOM_TO_PISM_PATH/$POEM_TIME_END.sealevel.PISM_input.nc
     FILE_EXTENSION="${OCEAN_OUTPUT_SEALEVEL_ANOMALY_FILE##*.}"
     FILE_PATH_NO_EXTENSION="${OCEAN_OUTPUT_SEALEVEL_ANOMALY_FILE%.*}"
     OCEAN_SEALEVEL_ANOMALY_FILE_BASIN_MEAN=$FILE_PATH_NO_EXTENSION.basin_mean.$FILE_EXTENSION
@@ -580,9 +587,11 @@ calc_basin_contshelf_mean(){
     #cp -av $OCEAN_SEALEVEL_ANOMALY_FILE_BASIN_MEAN $OCN_TO_ICE_OUTPUT_DIR
 
 
+    echo
     echo "  > cleaning up intermediate files (move to tmp/ dir)"
+    echo
 
-    OCN_TO_ICE_OUTPUT_DIR=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/
+    OCN_TO_ICE_OUTPUT_DIR=$X_MOM_TO_PISM_PATH/
     mkdir -p $OCN_TO_ICE_OUTPUT_DIR/keep
     mkdir -p $OCN_TO_ICE_OUTPUT_DIR/tmp
 
@@ -646,7 +655,7 @@ module load anaconda
 source activate py3_netcdf_xarray
 
 # create folder to store intermediate and final data
-mkdir -p $ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/
+mkdir -p $X_MOM_TO_PISM_PATH/
 
 
 # copy required scripts from coupling source directory

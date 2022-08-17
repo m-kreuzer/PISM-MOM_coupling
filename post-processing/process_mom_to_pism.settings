@@ -28,6 +28,9 @@ ROOT_WORK_DIR=$(readlink -f ../)
 OCN_OUTPUT_DIR=$ROOT_WORK_DIR/history/
 SCRIPT_DIR=$PWD
 
+#X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/
+X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM_reference_piControl_CCSM4_run05
+
 # coupling source directory, required for:
 #   regriddedMOM-to-PISM_processing.py
 CPL_SRC_DIR=/p/projects/pism/kreuzer/software/PISM-MOM_coupling
@@ -59,18 +62,19 @@ PICO_INPUT_DEPTH_FILE=$CPL_EXP_DIR/x_PISM-to-MOM/017100.pico_input_depth.nc
 ### ocean anomaly reference files: tracer and sea level
 
 # source of ocean tracer anomaly file
-COMPUTE_OCEAN_TRACER_ANOMALY_FILE=false
+COMPUTE_OCEAN_TRACER_ANOMALY_FILE=true
 #   [true]  tracer anomaly file is computed as mean from ocean model output
 #           -> CALC_OCN_TRACER_ANOMALY_* variables are used
 #   [false] use precomputed anomaly file
 #           -> OCEAN_TRACER_ANOMALY_REFERENCE_FILE is used
 
-CALC_OCN_TRACER_ANOMALY_PATH=$ROOT_WORK_DIR/history
-CALC_OCN_TRACER_ANOMALY_YR_START=17090
-CALC_OCN_TRACER_ANOMALY_YR_END=17090
+CALC_OCN_TRACER_ANOMALY_INPUT_PATH=$ROOT_WORK_DIR/evaluation/history_time_mean_last1ka
+CALC_OCN_TRACER_ANOMALY_YR_START=21090
+CALC_OCN_TRACER_ANOMALY_YR_END=21090
 CALC_OCN_TRACER_ANOMALY_YR_STEP=10
 CALC_OCN_TRACER_ANOMALY_NAME_FORMAT_IN="%06g0101.ocean-decadal.nc"
-CALC_OCN_TRACER_ANOMALY_NAME_FORMAT_OUT="%06g-%06g.ocean-decadal.tracer_mean.nc"
+CALC_OCN_TRACER_ANOMALY_OUTPUT_PATH=$ROOT_WORK_DIR/evaluation/history_time_mean_last1ka
+CALC_OCN_TRACER_ANOMALY_NAME_FORMAT_OUT="%06g-%06g.ocean-decadal.tracer_time_mean.nc"
 
 #OCEAN_TRACER_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01/x_MOM-to-PISM/017090-017090.tracer_mean.processed_MOM.nc"
 OCEAN_TRACER_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/evaluation/x_MOM-to-PISM/tmp/017090-017090.tracer_mean.processed_MOM.nc"
@@ -78,18 +82,19 @@ OCEAN_TRACER_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments
 
 
 # source of ocean sealevel anomaly file
-COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE=false
+COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE=true
 #   [true]  sealevel anomaly file is computed as mean from ocean model output
 #           -> CALC_OCN_SEALEVEL_ANOMALY_* variables are used
 #   [false] use precomputed anomaly file
 #           -> OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE is used
 
-CALC_OCN_SEALEVEL_ANOMALY_PATH=$ROOT_WORK_DIR/history
-CALC_OCN_SEALEVEL_ANOMALY_YR_START=17090
-CALC_OCN_SEALEVEL_ANOMALY_YR_END=17090
+CALC_OCN_SEALEVEL_ANOMALY_INPUT_PATH=$ROOT_WORK_DIR/evaluation/history_time_mean_last1ka
+CALC_OCN_SEALEVEL_ANOMALY_YR_START=21090
+CALC_OCN_SEALEVEL_ANOMALY_YR_END=21090
 CALC_OCN_SEALEVEL_ANOMALY_YR_STEP=10
 CALC_OCN_SEALEVEL_ANOMALY_NAME_FORMAT_IN="%06g0101.ocean-decadal.nc"
-CALC_OCN_SEALEVEL_ANOMALY_NAME_FORMAT_OUT="%06g-%06g.ocean-decadal.sealevel_mean.nc"
+CALC_OCN_SEALEVEL_ANOMALY_OUTPUT_PATH=$ROOT_WORK_DIR/evaluation/history_time_mean_last1ka
+CALC_OCN_SEALEVEL_ANOMALY_NAME_FORMAT_OUT="%06g-%06g.ocean-decadal.sealevel_time_mean.nc"
 
 #OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01/x_MOM-to-PISM/017090-017090.sealevel_mean.processed_MOM.nc"
 OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/evaluation/x_MOM-to-PISM/tmp/017090-017090.sealevel_mean.processed_MOM.nc"
