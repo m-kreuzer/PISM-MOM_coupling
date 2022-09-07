@@ -131,23 +131,13 @@ poem_run() {
         local arb="`arbitrary 16 16`"
 
         time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
-                -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
-                ./fms_MOM_SIS.x
+                ./MOM6 > MOM_log-$SLURM_JOBID 2>&1
         RESULT=$?
         #mpdallexit
-
-        # merge single task output to one file
-        ulimit -c 0 # we dont want coredumps from mppnccombine
-        local bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | \
-                        sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
-        time for b in $bases ; do
-            echo mppnccombine $b
-            $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -r $b $b.[0-9][0-9][0-9][0-9]*
-        done
     else
        unset SLURM_PMI_KVS_DUP_KEYS
        unset SLURM_JOB_ID SLURM_STEPID SLURM_NPROCS SLURM_PROCID SLURM_GTIDS
-       time      ./fms_MOM_SIS.x > fms.out-1-$SLURM_JOBID 2>&1
+       time      ./MOM6 > MOM_log-$SLURM_JOBID 2>&1
        RESULT=$?
     fi
 
@@ -173,6 +163,7 @@ poem_prerun() {
 
     # ----------- create prerun version of  ----------------
     # ------- diag_table, data_table, input.nml ------------
+    # Needs additions for MOM_input and MOM_override here, I think... or just override??
 
     DIAG_TABLE_STORE=$(find diag_table -maxdepth 0 -printf %l)
     DATA_TABLE_STORE=$(find data_table -maxdepth 0 -printf %l)
@@ -210,24 +201,15 @@ poem_prerun() {
         local arb="`arbitrary 16 16`"
 
         time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
-                -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
-                ./fms_MOM_SIS.x
+                ./MOM6 > MOM_log-$SLURM_JOBID 2>&1
         RESULT=$?
         #mpdallexit
 
-        # merge single task output to one file
-        ulimit -c 0 # we dont want coredumps from mppnccombine
-        local bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | \
-                        sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
-        time for b in $bases ; do
-            echo mppnccombine $b
-            $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -r $b $b.[0-9][0-9][0-9][0-9]*
-        done
     else
        unset SLURM_PMI_KVS_DUP_KEYS
        unset SLURM_JOB_ID SLURM_STEPID SLURM_NPROCS SLURM_PROCID SLURM_GTIDS
-       time      ./fms_MOM_SIS.x > fms.out-1-$SLURM_JOBID 2>&1
-        RESULT=$?
+       time      ./MOM6 > MOM_log-$SLURM_JOBID 2>&1
+       RESULT=$?
     fi
 
     # revert links to previous location
@@ -270,51 +252,51 @@ poem_run_postprocess() {
     for i in *.nc
       do mv $i history/$enddate.$i
     done
-    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out
+    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out #TODO
 
     mkdir -p fms.out/$SLURM_JOBID
     mv $enddate.fms.out* fms.out/$SLURM_JOBID
 
     # copy files to RESTART dir
     cp -p input.nml data_table diag_table field_table RESTART/.
-    ( cd RESTART
-      ulimit -c 0 # we dont want coredumps from mppnccombine
-      # Concatenate blobs restart files. mppnccombine would not work on them.
-      if [ -f ocean_blobs.res.nc.0000 ]
-      then
-         ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
-         rm -f ocean_blobs.res.nc.????
-      fi
+    # ( cd RESTART
+    #   ulimit -c 0 # we dont want coredumps from mppnccombine
+    #   # Concatenate blobs restart files. mppnccombine would not work on them.
+    #   if [ -f ocean_blobs.res.nc.0000 ]
+    #   then
+    #      ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
+    #      rm -f ocean_blobs.res.nc.????
+    #   fi
 
-      # Concatenate iceberg restarts
-      if [ -f ocean_blobs.res.nc.0000 ]
-      then
-         ncrcat icebergs.res.nc.???? icebergs.res.nc
-         rm icebergs.res.nc.????
-      fi
+    #   # Concatenate iceberg restarts
+    #   if [ -f ocean_blobs.res.nc.0000 ]
+    #   then
+    #      ncrcat icebergs.res.nc.???? icebergs.res.nc
+    #      rm icebergs.res.nc.????
+    #   fi
 
-      ## Land restarts need to be combined with  combine-ncc
-      ## More simply just tar them up in this version
-      #land_files="cana glac lake land snow soil vegn1 vegn2"
-      #for file in $land_files
-      #do
-      #   input_files="`/bin/ls ${file}.res.nc.????`"
-      #   if [ ${#input_files} -gt 0 ]
-      #   then
-      #       tar czf ${file}.res.nc.tar $input_files
-      #       if [ $? != 0 ]
-      #      then
-      #           echo "ERROR: in creating land restarts tarfile"
-      #           exit 1
-      #       fi
-      #       rm $input_files
-      #   fi
-      #done
+    #   ## Land restarts need to be combined with  combine-ncc
+    #   ## More simply just tar them up in this version
+    #   #land_files="cana glac lake land snow soil vegn1 vegn2"
+    #   #for file in $land_files
+    #   #do
+    #   #   input_files="`/bin/ls ${file}.res.nc.????`"
+    #   #   if [ ${#input_files} -gt 0 ]
+    #   #   then
+    #   #       tar czf ${file}.res.nc.tar $input_files
+    #   #       if [ $? != 0 ]
+    #   #      then
+    #   #           echo "ERROR: in creating land restarts tarfile"
+    #   #           exit 1
+    #   #       fi
+    #   #       rm $input_files
+    #   #   fi
+    #   #done
 
-      # now combine all the remaining restart files
-      bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
-      [ -n "$bases" ] && time for b in $bases ; do echo mppnccombine $b ; rm -f $b; $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -64 -r $b $b.[0-9][0-9][0-9][0-9]* ; done
-    )
+    #   # now combine all the remaining restart files
+    #   bases=`ls -1 *.nc.[0-9][0-9][0-9][0-9]* | sed -e "s/.nc.[0-9][0-9][0-9][0-9]\+/.nc/" | sort -u`
+    #   [ -n "$bases" ] && time for b in $bases ; do echo mppnccombine $b ; rm -f $b; $POEM_TOOLS_DIR/mppnccombine.pik-hlrs2015-ifort -64 -r $b $b.[0-9][0-9][0-9][0-9]* ; done
+    # )
 
     # tar files for restart and put to history
     mv RESTART $enddate.RESTART
@@ -338,18 +320,21 @@ poem_run_postprocess() {
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 poem_prerun_postprocess() {
 
-    # rename fms.out file
-    for f in fms.out-$SLURM_JOBID* ; do
-        mv $f prerun.$(echo $f | sed -e s/$SLURM_JOBID-// )
-    done
+    # # rename fms.out file #TODO can probs delete this stuff later
+    # for f in fms.out-$SLURM_JOBID* ; do
+    #     mv $f prerun.$(echo $f | sed -e s/$SLURM_JOBID-// )
+    # done
 
-    # put files to pre-run dir
-    for i in *.nc
-      do mv $i prerun/prerun.$i
-    done
-    mv prerun.fms.out-* logfile*out diag_field_log*out diag_integral.out \
-        stocks.out time_stamp.out $POEM_WORK_DIR/prerun/out/
-    cp -p input.nml data_table diag_table field_table $POEM_WORK_DIR/prerun
+    # # put files to pre-run dir
+    # for i in *.nc
+    #   do mv $i prerun/prerun.$i
+    # done
+    mv *.nc sbatch.* MOM_parameter_doc* time_stamp.out CPU_stats ocean.stats logfile* \
+    MOM_log available_diags.* V_velocity_truncations U_velocity_truncations SIS_parameter_doc.layout \
+    SIS.available_diags SIS_fast.available_diags SIS_parameter_doc* \
+    MOM_IC.nc seaice.stats $POEM_WORK_DIR/prerun
+    cp -p input.nml MOM_input MOM_override SIS_input SIS_override data_table diag_table \
+    SIS_memory.h field_table $POEM_WORK_DIR/prerun
 
     cd $OLDPWD
 }
@@ -443,13 +428,13 @@ process_mom_to_pism() {
     OCEAN_OUT=$POEM_WORK_DIR/history/$POEM_TIME_END.ocean-yearly.nc
     {% if settings.ocean_to_ice_timeseries==True %}
     # don't average ocean output over coupling time step before regridding
-    # but extract temp, salt, eta_t for regridding
+    # but extract temp, salt, SSH for regridding
     REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.sparse.nc
-    ncks -O -v temp,salt,eta_t,time_bounds $OCEAN_OUT $REGRID_IN
+    ncks -O -v temp,salt,SSH,time_bounds $OCEAN_OUT $REGRID_IN
     {% else %}
     # average ocean output over coupling time step before regridding
     REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.ocean-yearly.mean.nc
-    ncra -O -v temp,salt,eta_t -F -d time,1,,1 $OCEAN_OUT $REGRID_IN
+    ncra -O -v temp,salt,SSH -F -d time,1,,1 $OCEAN_OUT $REGRID_IN
     #ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN     # only last timestep
     {% endif %}
     REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
@@ -465,7 +450,7 @@ process_mom_to_pism() {
         --input     $REGRID_OUT                                                      \
         --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc                       \
         --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc                      \
-        --fill      temp salt eta_t                                                  \
+        --fill      temp salt SSH                                                  \
         --depth     $PICO_INPUT_DEPTH_FILE                                           \
         --output    $ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.processed_MOM.nc     \
         --verbose
@@ -603,6 +588,16 @@ process_pism_to_mom(){
         --verbose
     RESULT=$?
     return_check $RESULT "PISM-to-MOM_processing.py"
+
+    # Update runoff file
+    cp $POEM_WORK_DIR/INPUT/runoff_default.nc $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff.nc
+    ./update_runoff_MOM6.py                                                 \
+        --PISM   $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc  \
+        --runoff $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff.nc  \
+        --verbose
+        
+    rm $POEM_WORK_DIR/INPUT/runoff.nc
+    ln -s $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff.nc $POEM_WORK_DIR/INPUT/runoff.nc
 
     {% if not settings.use_prescribed_pico_input_depth==True %}
     # save file path for usage in next process_mom_to_pism call
@@ -1352,7 +1347,7 @@ INPUT_FILES=$(echo `seq -f "{{settings.calc_ocn_sealevel_anomaly['name_format_in
 AVG_OUT_FILE=$(echo `printf "{{settings.calc_ocn_sealevel_anomaly['name_format_out']}}" \
                            "{{settings.calc_ocn_sealevel_anomaly['yr_start']}}"         \
                            "{{settings.calc_ocn_sealevel_anomaly['yr_end']}}" `)
-ncra --overwrite -v eta_t $INPUT_FILES $AVG_OUT_FILE
+ncra --overwrite -v SSH $INPUT_FILES $AVG_OUT_FILE
 RESULT=$?
 return_check $RESULT "ncra-operation"
 cd $ROOT_WORK_DIR
@@ -1378,7 +1373,7 @@ OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_MOM-to-PISM/$OUTFILE
     --input     $REGRID_OUT                                             \
     --basins    $PISM_WORK_DIR/prerun/prerun.pism_extra.nc              \
     --edges     $ROOT_WORK_DIR/pre-processing/pism_edges.nc             \
-    --fill      eta_t                                                   \
+    --fill      SSH                                                   \
     --depth     $PICO_INPUT_DEPTH_FILE                                  \
     --output    $OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE                  \
     --verbose

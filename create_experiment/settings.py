@@ -3,6 +3,7 @@
 # select the run type, ensemble parameters...
 # runscripts are created via create_run.py or create_set.py
 # more options are set in templates/pism_run.sh.jinja2
+# This version to be used exclusively with MOM6-SIS2
 
 import os
 import pwd
@@ -54,13 +55,13 @@ pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_
 
 # runoff reference, inserted in MOM's data_table
 # -> only used when (do_runoff_slc==True AND runoff_reference_surf_accum==True)
-runoff_reference_restart_file = '002994.runoff_reference.nc'
-runoff_reference_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', runoff_reference_restart_file)
+#runoff_reference_restart_file = '002994.runoff_reference.nc'
+#runoff_reference_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', runoff_reference_restart_file)
 
 # basal melt input depth, inserted in MOM's data_table
 # -> only used when (insert_basal_melt_at_depth==True AND use_prescribed_basal_melt_input_depth==False)
-basal_melt_input_depth_restart_file = '002994.basal_melt_input_depth.nc'
-basal_melt_input_depth_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', basal_melt_input_depth_restart_file)
+#basal_melt_input_depth_restart_file = '002994.basal_melt_input_depth.nc'
+#basal_melt_input_depth_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', basal_melt_input_depth_restart_file)
 
 # PICO input depth, used in regriddedMOM-to-PISM.py
 # -> only used when (use_prescribed_pico_input_depth==False)
@@ -119,16 +120,15 @@ runoff_reference_path = os.path.join("/p/tmp/kreuzer/coupled_PISM_MOM/experiment
 
 
 # - - - - - - - - - - - - - basal melt insertion depth - - - - - - - - - - - - -
-# MOM5/6 by default offers no possibility to insert freshwater other than via
-# river runoff at surface. With a modified version, it is now also possible to
-# insert freswater at depth.
-insert_basal_melt_at_depth = False
-use_prescribed_basal_melt_input_depth = False
-prescribed_basal_melt_input_depth_file = 'basin_melt_input_depth.nc'
+# In MOM6 this is always true. Perhaps hardcode this later to clean things up. TODO
+insert_basal_melt_at_depth = True
+use_prescribed_basal_melt_input_depth = True
+prescribed_basal_melt_input_depth_file = 'basal.nc'
 prescribed_basal_melt_input_depth_path = os.path.join('template_path', prescribed_basal_melt_input_depth_file)
 
 # - - - - - - - - - - - - - - - ocean tracer anomaly - - - - - - - - - - - - - -
-do_ocean_tracer_anomaly    = True
+# In MOM6, we should ideally not require this. TODO
+do_ocean_tracer_anomaly    = False
 
 # in case of coupled restart with do_ocean_tracer_anomaly:
 #     specify ocean tracer anomaly reference file from previous run
