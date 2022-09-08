@@ -39,8 +39,7 @@ of coupling PISM to the climate model POEM at PIK.
 """
 import sys
 import argparse
-import xarray as xr
-import copy as cp
+from netCDF4 import Dataset as CDF
     
 if __name__ == "__main__":
     
@@ -71,7 +70,7 @@ if __name__ == "__main__":
     if args.verbose:
         print("Opening PISM runoff file: " + args.fluxes_file)
     try:
-        ds_ice = xr.open_dataset(args.fluxes_file)
+        ds_ice = CDF(args.fluxes_file)
     except:
         print("fluxes_file '", args.fluxes_file, "' can't be found! Exiting.")
         sys.exit(1)
@@ -80,38 +79,46 @@ if __name__ == "__main__":
     if args.verbose:
         print("Opening MOM6 runoff file: " + args.out_file)
     try:
-        ds_runoff = xr.open_dataset(args.out_file)
+        ds_runoff = CDF(args.out_file)
     except:
         print("Runoff file can't be found! Exiting.")
         sys.exit(1)
         
-    runoff_ice = ds_ice['mass_flux_surf_runoff'].data
-    runoff_new = ds_runoff['runoff'].data
+    runoff_ice = ds_ice.variables['mass_flux_surf_runoff'][:,:,:].data
+    runoff_new = ds_runoff.variables['runoff'][:,:,:].data
         
     # Apply ice runoff to all months in reference runoff file.
     for i in range(runoff_ice.shape[1]):
         for j in range(runoff_ice.shape[2]):
             if runoff_ice[0,i,j] != 0:
                 runoff_new[:,i,j] = runoff_ice[0,i,j]
+
+    ds_runoff.variables['runoff'][:] = runoff_new[:]
+
+    ds_ice.close()
+    ds_runoff.close()
     
     ##########################################################################
     #Test code#
     
-    # import xarray as xr
-    # import copy as cp
-    
-    # ds_ice = xr.open_dataset('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01/x_PISM-to-MOM/017860.fluxes.nc')
-    # ds_runoff = xr.open_dataset('/p/projects/climber3/huiskamp/MOM6-examples/ice_ocean_SIS2/SIS2_coarse/new_grid/basal_test/INPUT/runoff_newgrid.nc')
+    # from netCDF4 import Dataset as CDF
+       
+    # ds_ice = CDF('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01/x_PISM-to-MOM/017860.fluxes.nc','r')
+    # ds_runoff = CDF('/p/projects/climber3/huiskamp/POEM/work/PISM-MOM_coupling/runoff_newgrid.nc','r+')
         
-    # runoff_ice = ds_ice['mass_flux_surf_runoff'].data
-    # runoff_def = ds_runoff['runoff'].data
+    # runoff_ice = ds_ice.variables['mass_flux_surf_runoff'][:,:,:].data
+    # runoff_new = ds_runoff.variables['runoff'][:,:,:].data
 
-    # runoff_new = cp.deepcopy(runoff_def)
-
+    
     # for i in range(runoff_ice.shape[1]):
     #     for j in range(runoff_ice.shape[2]):
     #         if runoff_ice[0,i,j] != 0:
     #             runoff_new[:,i,j] = runoff_ice[0,i,j]
+                
+    # ds_runoff.variables['runoff'][:] = runoff_new[:]
+    
+    # ds_ice.close()
+    # ds_runoff.close()
                 
     
         
