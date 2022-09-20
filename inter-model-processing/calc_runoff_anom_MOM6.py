@@ -15,20 +15,21 @@
 #  You should have received a copy of the GNU General Public License
 #  along with PISM-MOM_coupling.  If not, see <https://www.gnu.org/licenses/>.
 
-""" Update the river runoff file for MOM6 with newly calculated values from PISM-PICO
+""" Calculate the anomalous runoff required for sea level change and 
+return the value required for prcme_adj in the MOM6 data_table.
 
-usage: ./update_runoff_MOM6.py -i fluxes_file -o out_file [-v]
+usage: ./update_runoff_MOM6.py -i fluxes_file -g grid_data [-v]
 
-Runoff fields regridded from the PISM to the MOM grid are read in and applied 
-to the model's default runoff file. This default runoff file should be specificially
-created for use with PISM-PICO coupling and should have *no* runoff around the 
-Antarctic margin.
+returns: Float of the global mean mass flux value to be applied to the ocean [kg/m2/s]
+
+This script requires an experiment that is outputting grid information for both 
+grid cell area and the ocean mask. This is typically the file ocean_static.nc
 
 Arguments:
     -i fluxes_file
         a netCDF file with variables to be processed
-    -o out_file
-       file to store processed fields which serve as PISM/PICO input 
+    -g grid_data
+    	A diagnostic file containing cell area and ocean mask.
     -v (optional)
         print verbose output        
 
@@ -37,26 +38,29 @@ PISM-PICO as a forcing field for the ocean model MOM6-SIS2. This was done in the
 of coupling PISM to the climate model POEM at PIK.
 
 """
+
 import sys
 import argparse
 from netCDF4 import Dataset as CDF
+import numpy as np
+import numpy.ma as ma
     
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(
                 description=
-                ("Update MOM6 runoff file with values from PISM-PICO.")
+                ("Calculate anomalous mass flux from PISM to MOM6")
             )
     parser.add_argument('-i', '--PISM', 
                         action="store", 
                         dest="fluxes_file",
                         required=True, 
                         help="file with runoff data from PISM")
-    parser.add_argument('-o', '--runoff', 
+    parser.add_argument('-g', '--grid', 
                         action="store", 
-                        dest="out_file",
+                        dest="grid_file",
                         required=True, 
-                        help="file with updated runoff for MOM6")
+                        help="file with static grid data for MOM6")
     parser.add_argument('-v', '--verbose', 
                         action="store_true", 
                         help="increase output verbosity")
@@ -66,44 +70,43 @@ if __name__ == "__main__":
         print("Running", sys.argv[0])
         print()
         
-    # Open runoff from PISM
+    # Open fluxes from PISM
     if args.verbose:
         print("Opening PISM runoff file: " + args.fluxes_file)
     try:
-        ds_ice = CDF(args.fluxes_file)
+        ice_file = CDF(args.fluxes_file)
     except:
         print("fluxes_file '", args.fluxes_file, "' can't be found! Exiting.")
         sys.exit(1)
         
-    # Open runoff file
+    # Open grid file
     if args.verbose:
-        print("Opening MOM6 runoff file: " + args.out_file)
+        print("Opening MOM6 grid file: " + args.out_file)
     try:
-        ds_runoff = CDF(args.out_file)
+        grid_file = CDF(args.grid_file)
     except:
-        print("Runoff file can't be found! Exiting.")
+        print("Grid file can't be found! Exiting.")
         sys.exit(1)
         
-    runoff_ice = ds_ice.variables['mass_flux_surf_runoff'][:,:,:].data
-    runoff_new = ds_runoff.variables['runoff'][:,:,:].data
-        
-    # Apply ice runoff to all months in reference runoff file.
-    for i in range(runoff_ice.shape[1]):
-        for j in range(runoff_ice.shape[2]):
-            if runoff_ice[0,i,j] != 0:
-                runoff_new[:,i,j] = runoff_ice[0,i,j]
+    # Extract vars.    
+    omask = grid_file.variables['wet'][:,:].data
+    area  = grid_file.variables['area_t'][:,:].data
 
-    ds_runoff.variables['runoff'][:] = runoff_new[:]
+    mass_tot = ice_file.variables['mass_flux'][:,:].data
+
+
+    # Calculate anomalous mass flux & total ocean area (I need extra info for surface mass balance I think?)
+    area_m = ma.masked_array(area,mask=omask)
+    area_tot = area_m.sum() 
+
+    # Redistribute
+
+
+
+
+
+
+    return 
 
     ds_ice.close()
-    ds_runoff.close()
-                
-    
-        
-
-
-
-
-
-
-
+    ds_grid.close()

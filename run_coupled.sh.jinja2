@@ -252,7 +252,8 @@ poem_run_postprocess() {
     for i in *.nc
       do mv $i history/$enddate.$i
     done
-    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out #TODO
+    time tar cvjf history/$enddate.out.tar.bz2 MOM_log logfile*out available_diags* diag_table field_table data_table \
+        MOM_* ocean.stats seaice.stats SIS.available_diags SIS_*
 
     mkdir -p fms.out/$SLURM_JOBID
     mv $enddate.fms.out* fms.out/$SLURM_JOBID
@@ -609,9 +610,13 @@ process_pism_to_mom(){
     BASAL_MELT_INPUT_DEPTH_FILE=$PISM_TIME_END_PAD.basal_melt_input_depth.nc
     {% endif %}
 
+    # If we are allowing dynamic SLC, calculate anomalous mass fluxes and apply to data_override
     {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) %}
-    echo RUNOFF_REFERENCE_FILE=$PISM_TIME_END_PAD.runoff_reference.nc
-    RUNOFF_REFERENCE_FILE=$PISM_TIME_END_PAD.runoff_reference.nc
+    ./calc_runoff_anom_MOM6.py                                              \
+        --PISM $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc    \
+        --grid $POEM_WORK_DIR/history/$POEM_TIME_END.ocean_static.nc        \
+        --verbose
+
     {% endif %}
 
 
