@@ -18,7 +18,7 @@
 """ Calculate the anomalous runoff required for sea level change and 
 return the value required for prcme_adj in the MOM6 data_table.
 
-usage: ./update_runoff_MOM6.py -i fluxes_file -g grid_data [-v]
+usage: ./update_runoff_MOM6.py -i fluxes_file -r reference_file -g grid_data [-v]
 
 returns: Float of the global mean mass flux value to be applied to the ocean [kg/m2/s]
 
@@ -28,6 +28,8 @@ grid cell area and the ocean mask. This is typically the file ocean_static.nc
 Arguments:
     -i fluxes_file
         a netCDF file with variables to be processed
+    -r reference_file
+        A file with the reference (total) mass flux from PISM
     -g grid_data
     	A diagnostic file containing cell area and ocean mask.
     -v (optional)
@@ -56,32 +58,46 @@ if __name__ == "__main__":
                         dest="fluxes_file",
                         required=True, 
                         help="file with runoff data from PISM")
+    parser.add_argument('-r', '--reference',
+                        action="store",
+                        dest="reference_file",
+                        required=True,
+                        help="file with reference runoff from PISM")
     parser.add_argument('-g', '--grid', 
                         action="store", 
                         dest="grid_file",
                         required=True, 
                         help="file with static grid data for MOM6")
-    parser.add_argument('-v', '--verbose', 
-                        action="store_true", 
-                        help="increase output verbosity")
+    # parser.add_argument('-v', '--verbose', 
+    #                     action="store_true", 
+    #                     help="increase output verbosity")
     args = parser.parse_args()
     
-    if args.verbose:
-        print("Running", sys.argv[0])
-        print()
+    # if args.verbose:
+    #     print("Running", sys.argv[0])
+    #     print()
         
     # Open fluxes from PISM
-    if args.verbose:
-        print("Opening PISM runoff file: " + args.fluxes_file)
+    # if args.verbose:
+    #     print("Opening PISM runoff file: " + args.fluxes_file)
     try:
         ice_file = CDF(args.fluxes_file)
     except:
         print("fluxes_file '", args.fluxes_file, "' can't be found! Exiting.")
         sys.exit(1)
+
+    # Open reference runoff
+    # if args.verbose:
+    #     print("Opening PISM reference runoff file: " + args.reference_file)
+    try:
+        ref_file = CDF(args.reference_file)
+    except:
+        print("fluxes_file '", args.reference_file, "' can't be found! Exiting.")
+        sys.exit(1)
         
     # Open grid file
-    if args.verbose:
-        print("Opening MOM6 grid file: " + args.out_file)
+    # if args.verbose:
+    #     print("Opening MOM6 grid file: " + args.out_file)
     try:
         grid_file = CDF(args.grid_file)
     except:
@@ -93,20 +109,22 @@ if __name__ == "__main__":
     area  = grid_file.variables['area_t'][:,:].data
 
     mass_tot = ice_file.variables['mass_flux'][:,:].data
+    mass_ref = ref_file.variables['mass_flux'][:,:].data
 
-
-    # Calculate anomalous mass flux & total ocean area (I need extra info for surface mass balance I think?)
+    # Calculate total wet area
     area_m = ma.masked_array(area,mask=omask)
-    area_tot = area_m.sum() 
+    area_tot = area_m.np.sum()
+
+    # Calculate mass anomaly (gives kg/s)
+    sum_new = np.sum(mass_tot*area)
+    sum_ref = np.sum(mass_ref*area)
+
+    mass_anom = sum_new - sum_ref
 
     # Redistribute
+    mass_red = np.divide(mass_anom,area_tot)
 
-
-
-
-
-
-    return 
+    print(mass_anom)
 
     ds_ice.close()
     ds_grid.close()
