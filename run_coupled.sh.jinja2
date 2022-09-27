@@ -593,8 +593,8 @@ process_pism_to_mom(){
     # Update runoff file
     cp $POEM_WORK_DIR/INPUT/runoff_default.nc $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff.nc
     ./update_runoff_MOM6.py                                                 \
-        --PISM   $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc  \
-        --runoff $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff.nc  \
+        --PISM      $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc  \
+        --runoff    $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff.nc  \
         --verbose
         
     rm $POEM_WORK_DIR/INPUT/runoff.nc
@@ -611,21 +611,30 @@ process_pism_to_mom(){
     {% endif %}
 
     # If we are allowing dynamic SLC, calculate anomalous mass fluxes and apply to data_override
+    # Need to read in reference runoff, calculate difference and ... yeah
     {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) %}
-    ./calc_runoff_anom_MOM6.py                                              \
+    runoff_anom=$(./calc_runoff_anom_MOM6.py                                              \
         --PISM $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.fluxes.nc    \
-        --grid $POEM_WORK_DIR/history/$POEM_TIME_END.ocean_static.nc        \
-        --verbose
+        --reference $ROOT_WORK_DIR/x_PISM-to-MOM/$PISM_TIME_END_PAD.runoff_reference.nc \
+        --grid $POEM_WORK_DIR/history/$POEM_TIME_END.ocean_static.nc)       
 
     {% endif %}
 
 
-    echo "> modify MOM5 data_table (see template structure in preprocessing)"
+    echo "> modify MOM6 data_table and MOM_override (see template structure in preprocessing)"
 
     cd $ROOT_WORK_DIR/POEM
     cp data_table-dummy data_table-pism_in
+    cp MOM_verride_dummy MOM_override
     sed "s/RUNOFF_FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
-    sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
+    #sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
+
+    sed "s/BASAL_DEPTH_FILE/$BASAL_MELT_INPUT_DEPTH_FILE" -i MOM_override
+
+    # Apply anomalous mass flux to MOM6 to allow for sea level change.
+    {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) %}
+    sed sed "s/DUMMY_FLUX/$runoff_anom" -i data_table-pism_in
+
 
     {% if not settings.insert_basal_melt_at_depth==True %}
     ### basal melt at surface (via river runoff)
@@ -652,7 +661,7 @@ process_pism_to_mom(){
     sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff/" -i data_table-pism_in
     # comment land ice surface runoff heat flux entry
     sed -e '/.*runoff_li_hflx/ s/^./#&/' -i data_table-pism_in
-    sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_table-pism_in
+    #sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_table-pism_in
     {% endif %}
 
     ln -sf data_table-pism_in data_table
