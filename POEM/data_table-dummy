@@ -1,32 +1,54 @@
-# gridname, fieldname_code, fieldname_file, file_name, ongrid, factor
+
 # NB if no file is specified, the 'factor' is applied as a globally uniform constant.
-# gridname, fieldname_code,                 fieldname_file, file_name,                              ongrid, factor
+# gridname, fieldname_code, fieldname_file, file_name, ongrid, factor
 
-
-"ICE",  "sic_obs",      "SIC",      "./INPUT/sst_ice_clim.nc",  .false.,    0.01
-"ICE",  "sit_obs",      "SIT",      "./INPUT/sst_ice_clim.nc",  .false.,    1.06
-"ICE",  "sst_obs",      "SST",      "./INPUT/sst_ice_clim.nc",  .false.,    1
-
-"ICE",  "runoff_add",       "mass_flux","../x_PISM-to-MOM/FILE_NAME_DUMMY", .true.,    1.0
-"ICE",  "runoff_hflx_add",  "heat_flux","../x_PISM-to-MOM/FILE_NAME_DUMMY", .true.,    1.0
-
-#"ICE",  "runoff",       "",         "",                         .false.,    0
-#"ICE",  "calving",      "",         "",                         .false.,    0
-#"ICE",  "runoff_hflx",  "",         "",                         .false.,    0
-#"ICE",  "calving_hflx", "",         "",                         .false.,    0
-
-
-
-"ATM",  "c14o2_flux_pcair_atm",     "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
-"ATM",  "co2_flux_pcair_atm",       "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
-"ATM",  "co2_sat_flux_pcair_atm",   "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
-"ATM",  "co2_bot",                  "",     "",                                             .false. ,   286.0e-6
-"ATM",  "o2_flux_pcair_atm",        "",     "",                                             .false. ,   1.0
-"ATM",  "i14co2_flux_pcair_atm",    "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
-"ATM",  "ico2_flux_pcair_atm",      "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
-"ATM",  "ico2sat_flux_pcair_atm",   "CO2",  "INPUT/ocmip2_siple_co2_atm_am2_bc-1-9999.nc",  .true.  ,   1.0e-06
-"ATM",  "io2_flux_pcair_atm" ,      "",     "",                                             .false. ,   1.0
-
-"OCN",  "runoff_alk_flux_ice_ocn",  "",     "",                                 .false. ,   0.48e-3
-"OCN",  "dry_dep_fed_flux_ice_ocn", "FLUX", "./INPUT/Soluble_Fe_Flux_PI.nc",    .false. ,   -1.0
-"OCN" , "prcme_adj"     , ""            , ""                             , .false. , DUMMY_FLUX
+"ATM" , "cfc_11_flux_pcair_atm","CFC_11"	   			,"INPUT/cfc.bc.nc"					 ,.false.  , 1.0e-12
+"ATM" , "cfc_12_flux_pcair_atm","CFC_12"	   			,"INPUT/cfc.bc.nc"					 ,.false.  , 1.0e-12
+"ATM" , "p_surf"        	   , "SLP" 		   			, "./INPUT/slp.clim.nc"              , .false. , 1.0
+"ATM" , "p_bot"         	   , "SLP" 		   			, "./INPUT/slp.clim.nc"              , .false. , 1.0
+"ATM" , "t_bot"         	   , "T_10_MOD"    			, "./INPUT/t_10_mod.clim.nc"      	 , .false. , 1.0
+"ATM" , "sphum_bot"     	   , "Q_10_MOD"    			, "./INPUT/q_10_mod.clim.nc"      	 , .false. , 1.0
+"ATM" , "u_bot"         	   , "U_10_MOD"    			, "./INPUT/u_10_mod.clim.nc"      	 , .false. , 1.0
+"ATM" , "v_bot"         	   , "V_10_MOD"    			, "./INPUT/v_10_mod.clim.nc"     	 , .false. , 1.0
+"ATM" , "z_bot"         	   , ""            			, ""                             	 , .false. , 10.0
+"ATM" , "gust"          	   , ""            			, ""                             	 , .false. , 0.0
+"OCN" , "prcme_adj"     	   , ""            			, ""                             	 , .false. , DUMMY_FLUX
+"ICE" , "lw_flux_dn"    	   , "LWDN_MOD"    			, "./INPUT/ncar_rad_clim.nc"     	 , .false. , 1.0
+"ICE" , "sw_flux_vis_dir_dn"   , "SWDN_MOD"	   			, "./INPUT/ncar_rad_clim.nc"	 	 , .false. , 0.285
+"ICE" , "sw_flux_vis_dif_dn"   , "SWDN_MOD"	   			, "./INPUT/ncar_rad_clim.nc"	 	 , .false. , 0.285
+"ICE" , "sw_flux_nir_dir_dn"   , "SWDN_MOD"	   			, "./INPUT/ncar_rad_clim.nc"	 	 , .false. , 0.215
+"ICE" , "sw_flux_nir_dif_dn"   , "SWDN_MOD"	   			, "./INPUT/ncar_rad_clim.nc"	 	 , .false. , 0.215
+"ICE" , "lprec"         	   , "RAIN"        			, "./INPUT/ncar_precip_clim.nc"  	 , .false. , 0.9933
+"ICE" , "fprec"         	   , "SNOW"        			, "./INPUT/ncar_precip_clim.nc"  	 , .false. , 0.9933
+"ICE" , "runoff"        	   , "runoff"      			, "../x_PISM-to-MOM/RUNOFF_DUMMY"	 , .true.  , 1.0
+"OCN" , "basal"         	   , "mass_flux_basal_melt" , "../x_PISM-to-MOM/FILE_NAME_DUMMY" , .true.  , 1.0
+"OCN" , "basal_hflx"    	   , "heat_flux_basal_melt" , "../x_PISM-to-MOM/FILE_NAME_DUMMY" , .true.  , 1.0
+"ICE" , "calving"       	   , ""            			, ""                             	 , .true.  , 0.0
+"ICE" , "dhdt"          	   , ""            			, ""                             	 , .true.  , 80.0
+"ICE" , "dedt"          	   , ""            			, ""                             	 , .true.  , 2.0e-6
+"ICE" , "drdt"          	   , ""            			, ""                             	 , .true.  , 10.0
+"ICE", "sic_obs"        	   , "SIC"         			,"./INPUT/sst_ice_clim.nc"       	 , .false. , 0.00
+"ICE", "sit_obs"        	   , "SIT"         			,"./INPUT/sst_ice_clim.nc"       	 , .false. , 0.00
+!"ICE", "sst_obs"        	    , "SST"         		 ,"./INPUT/sst_ice_clim.nc"       	  , .false. , 0.0  ! Was previously true, incorrectly.
+"LND" , "t_surf"        	   , ""            			, ""                             	 , .true.  , 273.0
+"LND" , "t_ca"          	   , ""            			, ""                             	 , .true.  , 273.0
+"LND" , "q_ca"          	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "rough_mom"     	   , ""            			, ""                             	 , .true.  , 0.01
+"LND" , "rough_heat"    	   , ""            			, ""                             	 , .true.  , 0.1
+"LND" , "albedo"        	   , ""            			, ""                             	 , .true.  , 0.1
+"LND" , "t_ca"          	   , ""            			, ""                             	 , .true.  , 273.0
+"LND" , "t_surf"        	   , ""            			, ""                             	 , .true.  , 273.0
+"LND" , "sphum_surf"    	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "sphum_ca"      	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "t_flux"        	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "sphum_flux"    	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "lw_flux"       	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "sw_flux"       	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "lprec"         	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "fprec"         	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "dhdt"          	   , ""            			, ""                             	 , .true.  , 5.0
+"LND" , "dedt"          	   , ""            			, ""                             	 , .true.  , 2e-6
+"LND" , "dedq"          	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "drdt"          	   , ""            			, ""                             	 , .true.  , 5.0
+"LND" , "drag_q"        	   , ""            			, ""                             	 , .true.  , 0.0
+"LND" , "p_surf"        	   , ""            			, ""                             	 , .true.  , 1.e5
