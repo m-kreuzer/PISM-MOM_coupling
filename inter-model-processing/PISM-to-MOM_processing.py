@@ -396,10 +396,10 @@ if __name__ == "__main__":
     nc_fh.set_auto_mask(False)
     
     # coordinate variable in x,y-direction
-    ocean_x =   nc_fh.variables['xt_ocean'][:]
-    ocean_y =   nc_fh.variables['yt_ocean'][:]
-    ocean_lat = nc_fh.variables['geolat_t'][:]
-    ocean_lon = nc_fh.variables['geolon_t'][:]
+    ocean_x =   nc_fh.variables['xh'][:]
+    ocean_y =   nc_fh.variables['yh'][:]
+    ocean_lat = nc_fh.variables['geolat'][:]
+    ocean_lon = nc_fh.variables['geolon'][:]
     #ocean_area = nc_fh.variables['area_t'][:]
     
     # activate mask for NC file input again
@@ -444,10 +444,10 @@ if __name__ == "__main__":
     nc_fh.set_auto_mask(False)
     
     # coordinate variable in x,y-direction
-    ocean_x2 =   nc_fh.variables['xt_ocean'][:]
-    ocean_y2 =   nc_fh.variables['yt_ocean'][:]
-    ocean_lat2 = nc_fh.variables['geolat_t'][:]
-    ocean_lon2 = nc_fh.variables['geolon_t'][:]
+    ocean_x2 =   nc_fh.variables['xh'][:]
+    ocean_y2 =   nc_fh.variables['yh'][:]
+    ocean_lat2 = nc_fh.variables['geolat'][:]
+    ocean_lon2 = nc_fh.variables['geolon'][:]
     # read area variable
     ocean_area = nc_fh.variables['area_t'][:]   # units: m^2
     
@@ -684,8 +684,8 @@ if __name__ == "__main__":
     if args.verbose:
         print(" - write fluxes on ocean grid to file ", args.PISM_to_MOM_fluxes_file)
 
-    dim_copy = ['xt_ocean','yt_ocean']
-    var_copy = ['geolat_t', 'geolon_t', 'xt_ocean', 'yt_ocean']
+    dim_copy = ['xh','yh']
+    var_copy = ['geolat', 'geolon', 'xh', 'yh']
     
     cmd_line = ' '.join(sys.argv)
     histstr = time.asctime() + ': ' + cmd_line + "\n "
@@ -729,8 +729,8 @@ if __name__ == "__main__":
         for name, variable in src.variables.items():
             if name in var_copy:
                 x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                # fix wrong valid range attribute in geolon_t
-                if name == 'geolon_t':
+                # fix wrong valid range attribute in geolon
+                if 0: #name == 'geolon':
                     d = src[name].__dict__
                     d['valid_range'][0] = -360
                     dst[name].setncatts(d)
@@ -751,7 +751,7 @@ if __name__ == "__main__":
              
         #### ---- mass flux variables ---- 
         x = dst.createVariable('mass_flux', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
+                               nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average mass flux from PISM diagnostic output variables"
                             "'surface_runoff_flux', "
@@ -763,12 +763,12 @@ if __name__ == "__main__":
              ('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
+             ('coordinates', 'geolon geolat')])
         dst['mass_flux'].setncatts(var_dict)
         dst['mass_flux'][0,:] = oc_edge_flux_per_area['mass_net'][:].data
          
         x = dst.createVariable('mass_flux_surf_runoff', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
+                               nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average mass flux from PISM diagnostic output variable "
                             "'surface_runoff_flux_accumulator' "
@@ -778,12 +778,12 @@ if __name__ == "__main__":
              ('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
+             ('coordinates', 'geolon geolat')])
         dst['mass_flux_surf_runoff'].setncatts(var_dict)
         dst['mass_flux_surf_runoff'][0,:] = oc_edge_flux_per_area['mass_surf_runoff'][:].data
 
         x = dst.createVariable('mass_flux_basal_melt', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
+                               nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average mass flux from PISM diagnostic output variable "
                             "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' "
@@ -793,12 +793,12 @@ if __name__ == "__main__":
              ('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
+             ('coordinates', 'geolon geolat')])
         dst['mass_flux_basal_melt'].setncatts(var_dict)
         dst['mass_flux_basal_melt'][0,:] = oc_edge_flux_per_area['mass_basal_melt'][:].data
 
         x = dst.createVariable('mass_flux_calving', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
+                               nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average mass flux from PISM diagnostic output variable "
                             "'tendency_of_ice_amount_due_to_discharge_accumulator' "
@@ -808,13 +808,13 @@ if __name__ == "__main__":
              ('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
+             ('coordinates', 'geolon geolat')])
         dst['mass_flux_calving'].setncatts(var_dict)
         dst['mass_flux_calving'][0,:] = oc_edge_flux_per_area['mass_calving'][:].data
 
 
         #### ---- heat flux variables ---- 
-        x = dst.createVariable('heat_flux', nc_dtype, ('time','yt_ocean','xt_ocean'))
+        x = dst.createVariable('heat_flux', nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average heat flux calculated from PISM diagnostic output variables"
                             "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'"
@@ -825,11 +825,11 @@ if __name__ == "__main__":
              ('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
+             ('coordinates', 'geolon geolat')])
         dst['heat_flux'].setncatts(var_dict)        
         dst['heat_flux'][0,:] = oc_edge_flux_per_area['energy_net'][:].data
 
-        x = dst.createVariable('heat_flux_basal_melt', nc_dtype, ('time','yt_ocean','xt_ocean'))
+        x = dst.createVariable('heat_flux_basal_melt', nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average heat flux calculated from PISM diagnostic output variable "
                             "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' "
@@ -839,11 +839,11 @@ if __name__ == "__main__":
              ('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
+             ('coordinates', 'geolon geolat')])
         dst['heat_flux_basal_melt'].setncatts(var_dict)        
         dst['heat_flux_basal_melt'][0,:] = oc_edge_flux_per_area['energy_basal_melt'][:].data
 
-        x = dst.createVariable('heat_flux_calving', nc_dtype, ('time','yt_ocean','xt_ocean'))
+        x = dst.createVariable('heat_flux_calving', nc_dtype, ('time','yh','xh'))
         var_dict = col.OrderedDict([
              ('long_name', ("average heat flux calculated from PISM diagnostic output variable "
                             " 'tendency_of_ice_amount_due_to_discharge_accumulator' "
@@ -853,7 +853,7 @@ if __name__ == "__main__":
              ('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
+             ('coordinates', 'geolon geolat')])
         dst['heat_flux_calving'].setncatts(var_dict)
         dst['heat_flux_calving'][0,:] = oc_edge_flux_per_area['energy_calving'][:].data
 
@@ -916,8 +916,8 @@ if __name__ == "__main__":
             for name, variable in src.variables.items():
                 if name in var_copy:
                     x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                    # fix wrong valid range attribute in geolon_t
-                    if name == 'geolon_t':
+                    # fix wrong valid range attribute in geolon
+                    if name == 'geolon':
                         d = src[name].__dict__
                         d['valid_range'][0] = -360
                         dst[name].setncatts(d)
@@ -938,7 +938,7 @@ if __name__ == "__main__":
 
             #### ---- runoff reference variable ----
             x = dst.createVariable('mass_flux', nc_dtype, \
-                                   ('time','yt_ocean','xt_ocean'))
+                                   ('time','yh','xh'))
             var_dict = col.OrderedDict([
                  ('long_name', ("ice to ocean reference runoff flux computed "
                                 "as the mean of PISM extra output variable "
@@ -949,7 +949,7 @@ if __name__ == "__main__":
                  ('reporting_interval', reporting_interval ),
                  ('reporting_interval_units', 'years'),
                  ('cell_methods', 'time: point'),
-                 ('coordinates', 'geolon_t geolat_t')])
+                 ('coordinates', 'geolon geolat')])
             dst['mass_flux'].setncatts(var_dict)
             dst['mass_flux'][0,:] = oc_edge_flux_per_area['surf_accumulation'][:].data
 
@@ -1055,8 +1055,8 @@ if __name__ == "__main__":
             for name, variable in src.variables.items():
                 if name in var_copy:
                     x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                    # fix wrong valid range attribute in geolon_t
-                    if name == 'geolon_t':
+                    # fix wrong valid range attribute in geolon
+                    if name == 'geolon':
                         d = src[name].__dict__
                         d['valid_range'][0] = -360
                         dst[name].setncatts(d)
@@ -1076,7 +1076,7 @@ if __name__ == "__main__":
                         'Only "float32" and "float64" are allowed.')
 
             x = dst.createVariable('shelf_front_depth', nc_dtype, 
-                                   ('time','yt_ocean','xt_ocean'))
+                                   ('time','yh','xh'))
             var_dict = col.OrderedDict([
                  ('long_name', ("front depth of ice shelf draft, computed as "
                                 "the average over the last PICO box in every "
@@ -1088,7 +1088,7 @@ if __name__ == "__main__":
                  ('reporting_interval', reporting_interval ),
                  ('reporting_interval_units', 'years'),
                  ('cell_methods', 'time: point'),
-                 ('coordinates', 'geolon_t geolat_t')])
+                 ('coordinates', 'geolon geolat')])
             dst['shelf_front_depth'].setncatts(var_dict)
             dst['shelf_front_depth'][0,:] = shelf_front_box_depth_ocean[:].data
 
