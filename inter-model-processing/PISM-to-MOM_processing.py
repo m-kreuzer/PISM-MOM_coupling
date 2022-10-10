@@ -357,9 +357,9 @@ if __name__ == "__main__":
             # cut of time dimension and take first time slice
             pism_thk = pism_thk[0,:,:]
 
-    # read reporting interval, unit: [years]
-    d = nc_fh['pism_config'].__dict__
-    pism_extra_times__str = d['output.extra.times']           
+    ## read reporting interval, unit: [years]
+    #d = nc_fh['pism_config'].__dict__
+    #pism_extra_times__str = d['output.extra.times']
     
     nc_fh.close()
     ### ---------- read PISM extra - END -----------------------------------
@@ -469,18 +469,18 @@ if __name__ == "__main__":
     ### ---------- start general processing ----------------------------------
     t_process_start = time.time()
     
-    ### extract reporting interval of PISM flux 
-    #   -> time over which flux was aggregated, unit: years
-    pism_extra_times = pism_extra_times__str.split(':')
-    if len(pism_extra_times)==3:
-        reporting_interval = float(pism_extra_times[1])
-    elif len(pism_extra_times)==2:
-        reporting_interval = float(pism_extra_times[1]) - float(pism_extra_times[0])
-    else:
-        s = ("Cannot identify PISM reporting interval! "
-             "PISM extra-output time interval has {} items. "
-             "Required are 2 or 3.")
-        raise( ValueError( s.format(len(pism_extra_times)) ) )
+    #### extract reporting interval of PISM flux 
+    ##   -> time over which flux was aggregated, unit: years
+    #pism_extra_times = pism_extra_times__str.split(':')
+    #if len(pism_extra_times)==3:
+    #    reporting_interval = float(pism_extra_times[1])
+    #elif len(pism_extra_times)==2:
+    #    reporting_interval = float(pism_extra_times[1]) - float(pism_extra_times[0])
+    #else:
+    #    s = ("Cannot identify PISM reporting interval! "
+    #         "PISM extra-output time interval has {} items. "
+    #         "Required are 2 or 3.")
+    #    raise( ValueError( s.format(len(pism_extra_times)) ) )
         
     ### calculate cell area
     pism_dx = np.diff(pism_x)[0]    # unit: m
@@ -760,7 +760,7 @@ if __name__ == "__main__":
                             "in reporting interval")),
              ('units', 'kg/m^2/s'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             ('reporting_interval', reporting_interval ),
+             #('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon geolat')])
@@ -775,7 +775,7 @@ if __name__ == "__main__":
                             "in reporting interval")),
              ('units', 'kg/m^2/s'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             ('reporting_interval', reporting_interval ),
+             #('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon geolat')])
@@ -790,7 +790,7 @@ if __name__ == "__main__":
                             "in reporting interval")),
              ('units', 'kg/m^2/s'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             ('reporting_interval', reporting_interval ),
+             #('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon geolat')])
@@ -805,7 +805,7 @@ if __name__ == "__main__":
                             "in reporting interval")),
              ('units', 'kg/m^2/s'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             ('reporting_interval', reporting_interval ),
+             #('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon geolat')])
@@ -822,7 +822,7 @@ if __name__ == "__main__":
                             "in reporting interval")),
              ('units', 'W/m^2'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             ('reporting_interval', reporting_interval ),
+             #('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon geolat')])
@@ -836,7 +836,7 @@ if __name__ == "__main__":
                             "in reporting interval")),
              ('units', 'W/m^2'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             ('reporting_interval', reporting_interval ),
+             #('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon geolat')])
@@ -850,7 +850,7 @@ if __name__ == "__main__":
                             "in reporting interval")),
              ('units', 'W/m^2'),
              ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             ('reporting_interval', reporting_interval ),
+             #('reporting_interval', reporting_interval ),
              ('reporting_interval_units', 'years'),
              ('cell_methods', 'time: point'),
              ('coordinates', 'geolon geolat')])
@@ -917,7 +917,7 @@ if __name__ == "__main__":
                 if name in var_copy:
                     x = dst.createVariable(name, variable.datatype, variable.dimensions)
                     # fix wrong valid range attribute in geolon
-                    if name == 'geolon':
+                    if 0: #name == 'geolon':
                         d = src[name].__dict__
                         d['valid_range'][0] = -360
                         dst[name].setncatts(d)
@@ -946,7 +946,7 @@ if __name__ == "__main__":
                                 "interval and redistributed to MOM grid")),
                  ('units', 'kg/m^2/s'),
                  ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-                 ('reporting_interval', reporting_interval ),
+                 #('reporting_interval', reporting_interval ),
                  ('reporting_interval_units', 'years'),
                  ('cell_methods', 'time: point'),
                  ('coordinates', 'geolon geolat')])
@@ -1056,7 +1056,7 @@ if __name__ == "__main__":
                 if name in var_copy:
                     x = dst.createVariable(name, variable.datatype, variable.dimensions)
                     # fix wrong valid range attribute in geolon
-                    if name == 'geolon':
+                    if 0: #name == 'geolon':
                         d = src[name].__dict__
                         d['valid_range'][0] = -360
                         dst[name].setncatts(d)
@@ -1085,7 +1085,7 @@ if __name__ == "__main__":
                  ('axis', 'Z'),
                  ('positive', 'down'),
                  ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-                 ('reporting_interval', reporting_interval ),
+                 #('reporting_interval', reporting_interval ),
                  ('reporting_interval_units', 'years'),
                  ('cell_methods', 'time: point'),
                  ('coordinates', 'geolon geolat')])
