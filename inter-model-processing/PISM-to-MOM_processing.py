@@ -34,7 +34,7 @@ again converted into unit fluxes per area via division with corresponding MOM
 grid cell area.  The output file can be used by the FMS data overwrite
 mechanism to put PISM fluxes to ocean/sea-ice surface.  Additionally the basin
 mean topography depth is computed and stored, which is used to select the depth
-of temperature and salinity extraction from 3d ocean output it the
+of temperature and salinity extraction from 3d ocean output by the
 regriddedMOM-to-PISM processing routine. Also optionally the basin mean depth
 of ice shelf fronts are computed to determine the input depth of basal melt
 fluxes into the ocean model.
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 "grid cell area.  The output file can be used by the FMS data overwrite "
 "mechanism to put PISM fluxes to ocean/sea-ice surface.  Additionally the basin "
 "mean topography depth is computed and stored, which is used to select the depth "
-"of temperature and salinity extraction from 3d ocean output it the "
+"of temperature and salinity extraction from 3d ocean output by the "
 "regriddedMOM-to-PISM processing routine. Also optionally the basin mean depth "
 "of ice shelf fronts are computed to determine the input depth of basal melt "
 "fluxes into the ocean model. "),
