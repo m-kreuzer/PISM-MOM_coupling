@@ -12,9 +12,12 @@ coupl_template_dir = "/p/projects/pism/kreuzer/software/PISM-MOM_coupling"
 ### PISM paths
 #pism_code_dir = "/p/projects/pism/kreuzer/software/pism1.2.1"
 #pism_code_dir = "/p/projects/climber3/kreuzer/PISM/pism1.1"
-pism_code_dir = "/p/projects/pism/kreuzer/software/pism1.1.4_extra-double"
+#pism_code_dir = "/p/projects/pism/kreuzer/software/pism1.1.4_extra-double"
+pism_code_dir = "/home/kreuzer/projects/phd/pism_1.0_precip_scale_hash/"
 #pism_code_dir = "/home/reese/pism_code/pism2019/pism"
-pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
+#pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
+pism_input_root_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_equi_16km_run10/initdata"
+
 
 ### POEM paths
 # POEM project directory with tools like mppnccombine, time_stamp.csh, ...

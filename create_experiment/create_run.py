@@ -154,6 +154,10 @@ def create_run(settings=settings, experiment=settings.experiment):
             settings.pism_atm_data_path, 
             settings.pism_ocn_data_path,
             settings.pism_ocnkill_data_path]
+    if settings.pism_use_atm_anomaly_file:
+        pism_input_files_to_copy.append(settings.pism_atm_anomaly_data_path)
+    if settings.pism_use_atm_lapse_rate_file:
+        pism_input_files_to_copy.append(settings.pism_atm_lapse_rate_data_path)
     for f in pism_input_files_to_copy:
         shutil.copy2(f, os.path.join(settings.pism_exp_dir, 'initdata'))
         print(f"   - copied PISM input file {f} to PISM/initdata")
