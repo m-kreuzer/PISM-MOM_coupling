@@ -40,11 +40,8 @@ of ice shelf fronts are computed to determine the input depth of basal melt
 fluxes into the ocean model.
 
 Arguments:
-    -o, --output PISM_output_file
-        PISM output file with flux variables 'mask', 'ice_area_specific_volume' 
-        and 'topg'
     -e, --extra-output PISM_extra_file
-        input file from PISM extra-output with flux variables
+        input file from PISM extra-output with flux variables 'mask', 'topg',
         'surface_runoff_flux', 'tendency_of_ice_amount_due_to_basal_mass_flux' 
         and 'tendency_of_ice_amount_due_to_discharge'.
         Caution: variables contain accumulated fluxes over reporting interval,
@@ -88,15 +85,78 @@ import sys
 import os
 import numpy as np
 import copy as cp
-import collections as col
 import time
 import argparse
-try:
-    import netCDF4
-    from netCDF4 import Dataset as CDF
-except:
-    raise ImportError("netCDF4 is not installed!")
+from tqdm import tqdm
+import xarray as xr
+import warnings
+# debug
+import code
+
+def check_ndims(da, valid_ndims=[2,3], ds_source=None):
+    '''checks whether xr.DataArray has the expected dimensions 
+    and raises error instead'''
     
+    n_dims = len(da.dims)
+    ndims_match = False
+    for d in valid_ndims:
+        if d==n_dims:
+            ndims_match = True
+            break
+    
+    if ndims_match==False:
+        if type(ds_source)==str:
+            err_path = f"(path: '{ds_source}') "
+        else:
+            err_path = ''
+        err = f"variable '{da.name}' {err_path}has {n_dims} dimension(s)."
+        if len(valid_ndims) == 1:
+            err += f" Expected: {valid_ndims[0]}"
+        else:
+            err += f" Expected one of: {valid_ndims}"
+        raise ValueError(err)
+
+def check_ndims_ds(ds, check_dims_dict):
+    '''checks whether a number of variables in xr.Dataset have expected dimensions 
+    
+    ds: xr.Dataset,
+        dataset to check for given variables
+    check_dims_dict: dict,
+        dictionary holding variable names with list of valid number of dimensions to check
+    '''
+    for v, valid_ndims in check_dims.items():
+        try:
+            check_ndims(ds[v], 
+                        valid_ndims=valid_ndims, 
+                        ds_source=ds.encoding['source'])
+        except ValueError:
+            raise
+        except KeyError:
+            warnings.warn(f"variable '{v}' not found in '{ds.encoding['source']}'.")
+    
+
+def check_var_match(ds1, ds2, var):
+    '''checks whether given variable is identical between datasets'''
+    assert_str = f"non matching variable '{var}' between " \
+                 f"file '{ds1.encoding['source']}' and file '{ds2.encoding['source']}'."
+    assert (ds1[var] == ds2[var]).all(), assert_str
+
+### https://gist.github.com/bsolomon1124/44f77ed2f15062c614ef6e102bc683a5
+class DeprecateAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        warnings.warn("Argument %s is deprecated and is *ignored*." % self.option_strings)
+        delattr(namespace, self.dest)
+
+def mark_deprecated_help_strings(parser, prefix="DEPRECATED"):
+    for action in parser._actions:
+        if isinstance(action, DeprecateAction):
+            h = action.help
+            if h is None:
+                action.help = prefix
+            else:
+                action.help = prefix + ": " + h
+    
+
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(
@@ -124,17 +184,18 @@ if __name__ == "__main__":
 "of the landice model PISM/PICO to the grid of ocean model MOM5. This was done "
 "in the scope of coupling PISM to the climate model POEM at PIK. "))
     parser.add_argument('-o', '--output', 
-                        action="store", 
+                        #action="store", 
+                        action=DeprecateAction,
                         dest="PISM_output_file", 
                         required=True, 
-                        help=("PISM output file with flux variables "
-                              "'mask', 'ice_area_specific_volume' and "
-                              "'topg'"))
+                        help=("Using PISM output variables 'mask' "
+                              "and 'topg' now from PISM extra output file"))
     parser.add_argument('-e', '--extra-output', 
                         action="store", 
                         dest="PISM_extra_file", 
                         required=True, 
                         help=("PISM output file with flux variables "
+                              "'mask', 'topg', "
                               "'surface_runoff_flux', "
                               "'tendency_of_ice_amount_due_to_basal_mass_flux'" 
                               " and 'tendency_of_ice_amount_due_to_discharge'"))
@@ -199,13 +260,14 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', 
                         action="store_true", 
                         help="increase output verbosity")
-    args = parser.parse_args()    
     
+    mark_deprecated_help_strings(parser)
+    args = parser.parse_args()    
     
     # -------------------- general setup --------------------------
     
     t_main_start = time.time()
-     
+    
     if args.verbose:
         print("Running", sys.argv[0])
         print(" -> verbose output = True")
@@ -219,272 +281,89 @@ if __name__ == "__main__":
         # consistent with HLF in mom5.0.2/src/shared/constants/constants.F90
     dens_ice = 910                              # kg/m^3
     dens_ocn = 1028                             # kg/m^3
-
+    
     if args.density_ice:
         dens_ice = float(args.density_ice)
     if args.density_ocean:
         dens_ocn = float(args.density_ocean)
     
     # a list of possible x,y-dimensions names to read nc-files
-    xdims = ['x', 'x1']
-    ydims = ['y', 'y1']        
+    #xdims = ['x', 'x1']
+    #ydims = ['y', 'y1']        
     
     ### ---------- read PISM extra - BEGIN ----------------------------------
     t_read_files_start = time.time()
     
     if args.verbose:
         print(" - reading PISM extra variables from " + args.PISM_extra_file )
-    try:
-        nc_fh = CDF(args.PISM_extra_file, 'r')
-    except:
-        s = ("PISM extra file '{}' can't be found! ")
-        raise FileNotFoundError( s.format(args.PISM_extra_file) )
-        
-    # assign x,y dimension
-    for dim in xdims:
-        if dim in list(nc_fh.dimensions.keys()):
-            xdim = dim
-    for dim in ydims:
-        if dim in list(nc_fh.dimensions.keys()):
-            ydim = dim
     
-    # coordinate variable in x,y-direction
-    pism_x = nc_fh.variables[xdim][:]
-    pism_y = nc_fh.variables[ydim][:]
-    #pism_lat = nc_fh.variables['lat'][:]
-    #pism_lon = nc_fh.variables['lon'][:]
-    ## transform ocean longitudes to range [-180, 180] degE
-    #basin_lon2 = copy.deepcopy(basin_lon)
-    #basin_lon2[basin_lon2 < -180] +=360
-    #basin_lon2[basin_lon2 >  180] -=360
-
-    # read time axis incl dimensions and variables
-    pism_extra_time = nc_fh.variables['time'][:]
-    pism_extra_time_n = len(pism_extra_time)
-    pism_extra_time_dict = nc_fh['time'].__dict__
-    if pism_extra_time_n != 1:
-        s = ("PISM extra variables have {} timestamps. "
-             "Expected: 1")
-        raise ValueError( s.format(pism_extra_time_n)) 
- 
-    #pism_extra_time_bounds = nc_fh.variables['time_bounds'][:]
-    #pism_extra_time_bounds_n = len(pism_extra_time_bounds)
-    #pism_extra_time_bounds_dict = nc_fh['time_bounds'].__dict__
+    pism_extra = xr.open_dataset(args.PISM_extra_file, use_cftime=True)
     
-    #pism_extra_nv = nc_fh.dimensions['nv'].size
-
-    #### read PISM variables concerning mass flux from ice to ocean
-    ##   all in units: [kg/m^2]
-    #pism_bmf = np.squeeze(nc_fh.variables['basal_mass_flux_floating'][:])
-    #pism_bmf_dtype = nc_fh.variables['basal_mass_flux_floating'].dtype
-    #pism_bmf_ndim = len(pism_bmf.shape)
-    #if pism_bmf_ndim != 2:
-    #    raise ValueError( str("flux field is of dimension " + \
-    #                        str( pism_bmf_ndim ) + ". Expected: 2.") )
-
-    varname = 'tendency_of_ice_amount_due_to_basal_mass_flux'
-    pism_tend_bmf = np.squeeze(nc_fh.variables[varname][:])
-    pism_tend_bmf_dtype = nc_fh.variables[varname].dtype
-    pism_tend_bmf_ndim = len(pism_tend_bmf.shape)
-    if pism_tend_bmf_ndim != 2:
-        raise ValueError( str("flux field is of dimension " + \
-                            str( pism_tend_bmf_ndim ) + ". Expected: 2.") )
-
-    varname = 'tendency_of_ice_amount_due_to_discharge'
-    pism_tend_discharge = np.squeeze(nc_fh.variables[varname][:])
-    pism_tend_discharge_dtype = nc_fh.variables[varname].dtype
-    pism_tend_discharge_ndim = len(pism_tend_discharge.shape)
-    if pism_tend_discharge_ndim != 2:
-        raise ValueError( str("flux field is of dimension " + \
-                            str( pism_tend_discharge_ndim ) + ". Expected: 2.") )
-
-     # if no surface runoff variable, initialize field with zeros  
-    if 'surface_runoff_flux' in nc_fh.variables:
-        pism_surf_runoff = np.squeeze(nc_fh.variables['surface_runoff_flux'][:])
-        pism_surf_runoff_dtype = nc_fh.variables['surface_runoff_flux'].dtype
-        pism_surf_runoff_ndim = len(pism_surf_runoff.shape)
-        if pism_surf_runoff_ndim != 2:
-            raise ValueError( str("flux field is of dimension " + \
-                                str( pism_surf_runoff_ndim ) + ". Expected: 2.") )
-    else:
-        pism_surf_runoff = np.zeros_like(pism_tend_discharge)
-
+    check_dims = {'tendency_of_ice_amount_due_to_basal_mass_flux':[3],
+                  'tendency_of_ice_amount_due_to_discharge':[3],
+                  'surface_runoff_flux':[3],
+                  'surface_accumulation_flux':[3],
+                  'basins':[3],
+                  'pico_contshelf_mask':[3],
+                  'pico_shelf_mask':[3],
+                  'pico_box_mask':[3],
+                  'thk':[3],
+                 }
+    
+    check_ndims_ds(pism_extra, check_dims_dict=check_dims)
+              
     if args.runoff_reference_file:
-        try:
-            pism_surf_accum = np.squeeze(nc_fh.variables['surface_accumulation_flux'][:])
-            pism_surf_accum_dtype = nc_fh.variables['surface_accumulation_flux'].dtype
-            pism_surf_accum_ndim = len(pism_surf_accum.shape)
-            if pism_surf_accum_ndim != 2:
-                raise ValueError( str("flux field is of dimension " + \
-                                str( pism_surf_accum_ndim ) + ". Expected: 2.") )
-        except KeyError:
-            raise KeyError("PISM's extra output does not have variable "
-                "'surface_accumulation_flux', which is needed for calculation "
-                "of ice to ocean runoff reference (-r/--runoff-reference-out flag)")
-
-
-    # read PISM basins
-    pism_basins = np.squeeze(nc_fh.variables['basins'][:])
-    pism_basins_ndim = len(pism_basins.shape)
-    if pism_basins_ndim == 3:
-        # cut of time dimension and take first time slice
-        pism_basins = pism_basins[0,:,:]
-    
-    # read PICO contshelf mask
-    pism_contshelf_mask = np.squeeze(nc_fh.variables['pico_contshelf_mask'][:])
-    pism_contshelf_mask_ndim = len(pism_contshelf_mask.shape)
-    if pism_contshelf_mask_ndim == 3:
-        # cut of time dimension and take first time slice
-        pism_contshelf_mask = pism_contshelf_mask[0,:,:]
-
-    if args.basin_shelf_front_depth_file:
-        pico_shelf_mask = np.squeeze(nc_fh.variables['pico_shelf_mask'][:])
-        pico_shelf_mask_ndim = len(pico_shelf_mask.shape)
-        if pico_shelf_mask_ndim == 3:
-            # cut of time dimension and take first time slice
-            pico_shelf_mask = pico_shelf_mask[0,:,:]
-
-        pico_box_mask = np.squeeze(nc_fh.variables['pico_box_mask'][:])
-        pico_box_mask_ndim = len(pico_box_mask.shape)
-        if pico_box_mask_ndim == 3:
-            # cut of time dimension and take first time slice
-            pico_box_mask = pico_box_mask[0,:,:]
-
-        pism_thk = np.squeeze(nc_fh.variables['thk'][:])
-        pism_thk_dtype = nc_fh.variables['thk'].dtype
-        pism_thk_ndim = len(pism_thk.shape)
-        if pism_thk_ndim == 3:
-            # cut of time dimension and take first time slice
-            pism_thk = pism_thk[0,:,:]
-
-    ## read reporting interval, unit: [years]
-    #d = nc_fh['pism_config'].__dict__
-    #pism_extra_times__str = d['output.extra.times']
-    
-    nc_fh.close()
+        if 'surface_accumulation_flux' not in pism_extra.variables:
+            raise KeyError("variable 'surface_accumulation_flux' not found in PISM's "
+                           f"extra file (path '{pism_extra.encoding['source']}'). "
+                           "Required for calculation of ice to ocean runoff reference "
+                           "(-r/--runoff-reference-out flag).")
+            
     ### ---------- read PISM extra - END -----------------------------------
 
+    # ### ---------- read PISM output - BEGIN -----------------------------------   
+    # DEPRECATED, using 'mask' and 'topg' variables now from PISM extra output
+    # if args.verbose:
+    #     print(" - reading PISM output from " + args.PISM_output_file )
+    # pism_out = xr.open_dataset(args.PISM_output_file, use_cftime=True)
+    # ### ---------- read PISM output - END ------------------------------------
 
-    ### ---------- read PISM output - BEGIN -----------------------------------   
-    if args.verbose:
-        print(" - reading PISM output from " + args.PISM_output_file )
-    try:
-        nc_fh = CDF(args.PISM_output_file, 'r')
-    except:
-        s = ("PISM output file '{}' can't be found! ")
-        raise FileNotFoundError( s.format(args.PISM_output_file) )
-        
-    pism_mask = np.squeeze(nc_fh.variables['mask'][:])
-    #pism_iasv = np.squeeze(nc_fh.variables['ice_area_specific_volume'][:])
-    pism_topg = np.squeeze(nc_fh.variables['topg'][:])
-    
-    nc_fh.close()
-    ### ---------- read PISM output - END ------------------------------------
-           
     ### ---------- read PISM-MOM mapping - BEGIN -----------------------------
     if args.verbose:
         print(" - reading PISM to MOM mapping file " + args.PISM_MOM_mapping_file )
-    try:
-        nc_fh = CDF(args.PISM_MOM_mapping_file, 'r')
-    except:
-        s = ("PISM to MOM mapping file '{}' can't be found! ")
-        raise FileNotFoundError( s.format(args.PISM_MOM_mapping_file) )
-        
-
-    # deactivate mask for NC file input
-    # (wrong valid range for longitude leads to missing values)    
-    nc_fh.set_auto_mask(False)
     
-    # coordinate variable in x,y-direction
-    ocean_x =   nc_fh.variables['xt_ocean'][:]
-    ocean_y =   nc_fh.variables['yt_ocean'][:]
-    ocean_lat = nc_fh.variables['geolat_t'][:]
-    ocean_lon = nc_fh.variables['geolon_t'][:]
-    #ocean_area = nc_fh.variables['area_t'][:]
+    pism_mom_mapping = xr.open_dataset(args.PISM_MOM_mapping_file, use_cftime=True)
     
-    # activate mask for NC file input again
-    nc_fh.set_auto_mask(True)
+    check_dims = {'basin':[2],
+                  'basin_ratio':[2],
+                 }
     
-#    # shift ocean longitudes to range [-180, 180] degE
-#    ocean_lon_s = copy.deepcopy(ocean_lon)
-#    ocean_lon_s[ocean_lon_s < -180] +=360
-#    ocean_lon_s[ocean_lon_s >  180] -=360
-
-    # read basin info arrays    
-    oc_edge_basin = np.squeeze(nc_fh.variables['basin'][:])
-    ocean_ndim = len(oc_edge_basin.shape)
-    if ocean_ndim != 2:
-        s = ("Variable 'south_edge_basin' from file '{}' is of dimension {}."
-             "Expected: 2")
-        raise ValueError( s.format(ocean_ndim)) 
-    
-    oc_edge_basin_ratio = np.squeeze(nc_fh.variables['basin_ratio'][:])
-    ocean_ndim = len(oc_edge_basin_ratio.shape)
-    if ocean_ndim != 2:
-        s = ("Variable 'oc_edge_basin_ratio' is of dimension {}. Expected: 2")
-        raise ValueError( s.format(ocean_ndim)) 
-        
-    oc_nlat = oc_edge_basin.shape[0]
-    oc_nlon = oc_edge_basin.shape[1]
-    
-    nc_fh.close()
+    check_ndims_ds(pism_mom_mapping, check_dims_dict=check_dims)
     ### ---------- read PISM-MOM mapping - END -------------------------------
-   
+    
+    
     ### ------------- read MOM area - BEGIN ---------------------------------
     if args.verbose:
         print(" - reading MOM file " + args.MOM_file )
-    try:
-        nc_fh = CDF(args.MOM_file, 'r')
-    except:
-        s = ("MOM file '{}' can't be found! ")
-        raise FileNotFoundError( s.format(args.MOM_file) )
-        
-    # deactivate mask for NC file input
-    # (wrong valid range for longitude leads to missing values)    
-    nc_fh.set_auto_mask(False)
     
-    # coordinate variable in x,y-direction
-    ocean_x2 =   nc_fh.variables['xt_ocean'][:]
-    ocean_y2 =   nc_fh.variables['yt_ocean'][:]
-    ocean_lat2 = nc_fh.variables['geolat_t'][:]
-    ocean_lon2 = nc_fh.variables['geolon_t'][:]
-    # read area variable
-    ocean_area = nc_fh.variables['area_t'][:]   # units: m^2
+    mom_out = xr.open_dataset(args.MOM_file, use_cftime=True)
     
-    # activate mask for NC file input again
-    nc_fh.set_auto_mask(True)
+    check_var_match(mom_out, pism_mom_mapping, 'xt_ocean')
+    check_var_match(mom_out, pism_mom_mapping, 'yt_ocean')
+    check_var_match(mom_out, pism_mom_mapping, 'geolat_t')
+    check_var_match(mom_out, pism_mom_mapping, 'geolon_t')
     
-    assert_str = ("non matching {{}}-coordinates between PISM-to-MOM-mapping "
-                  "file '{}' and MOM file '{}'."
-                  ).format(args.PISM_MOM_mapping_file, args.MOM_file)
-    assert (ocean_x == ocean_x2).all(), assert_str.format('x')
-    assert (ocean_y == ocean_y2).all(), assert_str.format('y')
-    assert (ocean_lat == ocean_lat2).all(), assert_str.format('latitude')
-    assert (ocean_lon == ocean_lon2).all(), assert_str.format('longitude')  
-    
-    nc_fh.close()
     t_read_files_end = time.time()
     ### --------------- read MOM area - END ----------------------------------
+    
     
     ### ---------- start general processing ----------------------------------
     t_process_start = time.time()
     
-    #### extract reporting interval of PISM flux 
-    ##   -> time over which flux was aggregated, unit: years
-    #pism_extra_times = pism_extra_times__str.split(':')
-    #if len(pism_extra_times)==3:
-    #    reporting_interval = float(pism_extra_times[1])
-    #elif len(pism_extra_times)==2:
-    #    reporting_interval = float(pism_extra_times[1]) - float(pism_extra_times[0])
-    #else:
-    #    s = ("Cannot identify PISM reporting interval! "
-    #         "PISM extra-output time interval has {} items. "
-    #         "Required are 2 or 3.")
-    #    raise( ValueError( s.format(len(pism_extra_times)) ) )
-        
+    
     ### calculate cell area
-    pism_dx = np.diff(pism_x)[0]    # unit: m
-    pism_dy = np.diff(pism_y)[0]    # unit: m
+    pism_dx = pism_extra['x'].diff(dim='x').data[0]    # unit: m
+    pism_dy = pism_extra['y'].diff(dim='y').data[0]    # unit: m
     # uniform area corresponds to PISM internal area representation
     pism_cell_area_uniform = pism_dx*pism_dy    # unit: m^2 
     
@@ -492,383 +371,314 @@ if __name__ == "__main__":
     # proj4_str = ("+lon_0=0.0 +ellps=WGS84 +datum=WGS84 +lat_ts=-71.0 "
     #              "+proj=stere +x_0=0.0 +units=m +y_0=0.0 +lat_0=-90.0 ")
     
-    #### create subset of topography for grid cells either floating or at edge
-    ##   of ice shield
-    #pism_floating_mask = (pism_mask==3) | (pism_iasv!=0)
-    #pism_shelf_topg = np.ma.array(pism_topg, mask=~pism_floating_mask)
     ### create subset of topography for continental shelf grid cells
     #   pism/pico continental shelf mask 
     #       <=> continental shelf (topg above threshold) AND no land ice
     #    0 = False
     #    1 = True, but not relevant
     #    2 = True and relevant
-    pism_contshelf_topg = np.ma.array(pism_topg, mask=~(pism_contshelf_mask==2))
-    
+    pism_contshelf_topg = pism_extra['topg'].where(pism_extra['pico_contshelf_mask']==2, np.nan)
     
     # aggregate mass from ice to ocean for mass & energy flux calculations
     #  positive corresponds to ice gain
     #  unit[pism_massflux*] = kg/m^2/year
-    pism_massflux = {}
-    pism_massflux["mass_net"] = -pism_surf_runoff + pism_tend_bmf + \
-                                    pism_tend_discharge
-    pism_massflux["mass_surf_runoff"] = -pism_surf_runoff
-    pism_massflux["mass_basal_melt"] = pism_tend_bmf
-    pism_massflux["mass_calving"] = pism_tend_discharge
-
-    pism_massflux_energy = {}
-    pism_massflux_energy["energy_net"] = pism_tend_bmf + pism_tend_discharge
-    pism_massflux_energy["energy_basal_melt"] = pism_tend_bmf 
-    pism_massflux_energy["energy_calving"] = pism_tend_discharge
-
-
-    ### ------------- conversion of variables ----------------
     
-    ### mass flux ice to ocean 
-    #  -> unit[pism_massflux] :         kg/m^2/year
-    #  -> unit[pism_massflux_total] :   kg/s
-    # positive mass flux corresponds to transfer from ice to ocean
-    pism_massflux_total = {}.fromkeys(pism_massflux.keys(), None)
-    for k in pism_massflux_total.keys():
-        pism_massflux_total[k] = -1 * pism_massflux[k] * pism_cell_area_uniform \
-                                    / seconds_p_year 
-    
-    ### heatflux
-    #  -> unit[latent_heat_of_fusion] : J/kg
-    #  -> unit[pism_heatflux_total] :   J/s = W
-    # heat flux PISM to Ocean: should be negative
-    pism_heatflux_total = {}.fromkeys(pism_massflux_energy.keys(), None)
-    for k in pism_heatflux_total.keys():
-        pism_heatflux_total[k] = cp.deepcopy(pism_massflux_energy[k] * pism_cell_area_uniform \
-                                    / seconds_p_year * latent_heat_of_fusion)
-
-    if args.runoff_reference_file:
-        pism_surf_accum_total = pism_surf_accum * pism_cell_area_uniform \
-                                    / seconds_p_year
-
-    # combine dictioniaries
-    if args.runoff_reference_file:
-        pism_fluxes_total = {**pism_massflux_total,**pism_heatflux_total,
-                'surf_accumulation': pism_surf_accum_total}
+    pism_tend_bmf        = pism_extra['tendency_of_ice_amount_due_to_basal_mass_flux']
+    pism_tend_discharge  = pism_extra['tendency_of_ice_amount_due_to_discharge']
+    if 'surface_runoff_flux' in pism_extra.variables:
+        pism_surf_runoff = pism_extra['surface_runoff_flux']
     else:
-        pism_fluxes_total = {**pism_massflux_total,**pism_heatflux_total}
+        # initialise field with 0
+        pism_surf_runoff = pism_extra['tendency_of_ice_amount_due_to_discharge'] * 0
+        pism_surf_runoff.attrs = {'long_name': 'surface runoff, averaged over the reporting interval',
+                                  'standard_name': 'surface_runoff_flux',
+                                  'units': pism_extra['tendency_of_ice_amount_due_to_discharge'].attrs['units']}
+        pism_surf_runoff = pism_surf_runoff.rename('surface_runoff_flux')
+        
+    if args.runoff_reference_file:
+        pism_reference_runoff = -pism_extra['surface_accumulation_flux']
+    
+    pism_flux = xr.Dataset()
+    pism_flux["mass_flux"] = -pism_surf_runoff + pism_tend_bmf + \
+                             pism_tend_discharge
+    pism_flux["mass_flux"].attrs['units'] = pism_tend_bmf.attrs['units']
+    pism_flux["mass_flux"].attrs['long_name'] = \
+        ("average mass flux from PISM diagnostic output variables"
+         "'surface_runoff_flux', 'tendency_of_ice_amount_due_to_basal_mass_flux' "
+         "and 'tendency_of_ice_amount_due_to_discharge' in reporting interval")
+        
+    pism_flux["mass_flux_surf_runoff"] = -pism_surf_runoff
+    pism_flux["mass_flux_surf_runoff"].attrs['long_name'] = \
+        ("average mass flux from PISM diagnostic output variable "
+         "'surface_runoff_flux_accumulator' in reporting interval")
+    
+    pism_flux["mass_flux_basal_melt"] = pism_tend_bmf
+    pism_flux["mass_flux_basal_melt"].attrs['long_name'] = \
+        ("average mass flux from PISM diagnostic output variable "
+         "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' "
+         "in reporting interval")
+    
+    pism_flux["mass_flux_calving"] = pism_tend_discharge
+    pism_flux["mass_flux_calving"].attrs['long_name'] = \
+        ("average mass flux from PISM diagnostic output variable "
+         "'tendency_of_ice_amount_due_to_discharge_accumulator' "
+         "in reporting interval")
+    
+    if args.runoff_reference_file:
+        pism_flux["mass_ref_runoff"] = pism_reference_runoff
+        pism_flux["mass_ref_runoff"].attrs['long_name'] = \
+            ("ice to ocean reference runoff flux computed as the mean of "
+             "PISM extra output variable 'surface_accumulation_flux' over "
+             "reporting interval and redistributed to MOM grid")
+    
+    pism_flux["heat_flux"] = pism_tend_bmf + pism_tend_discharge
+    pism_flux["heat_flux"].attrs['units'] = pism_tend_bmf.attrs['units']
+    pism_flux["heat_flux"].attrs['long_name'] = \
+        ("average heat flux calculated from PISM diagnostic output variables"
+         "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'"
+         " and 'tendency_of_ice_amount_due_to_discharge_accumulator' "
+         "in reporting interval")
+    
+    pism_flux["heat_flux_basal_melt"] = pism_tend_bmf 
+    pism_flux["heat_flux_basal_melt"].attrs['long_name'] = \
+        ("average heat flux calculated from PISM diagnostic output variable "
+         "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' "
+         "in reporting interval")
+    
+    pism_flux["heat_flux_calving"] = pism_tend_discharge
+    pism_flux["heat_flux_calving"].attrs['long_name'] = \
+        ("average heat flux calculated from PISM diagnostic output variable "
+         " 'tendency_of_ice_amount_due_to_discharge_accumulator' "
+         "in reporting interval")
+    
+    ### ------------- conversion of variables ----------------
+    for v in pism_flux.variables:
+        if 'mass' in v:
+            assert pism_flux[v].attrs['units'] == "kg m-2 year-1", \
+                    f"variable {v} is not in units 'kg m-2 year-1'"
+            attrs_sav = cp.deepcopy(pism_flux[v].attrs)
+            pism_flux[v] = -1 * pism_flux[v] * pism_cell_area_uniform / seconds_p_year
+            pism_flux[v].attrs = attrs_sav
+            pism_flux[v].attrs['units'] = "kg/s"
+            pism_flux[v].attrs['sign'] = \
+                "positive mass flux corresponds to transfer from ice to ocean"
+            
+        if 'heat' in v:
+            assert pism_flux[v].attrs['units'] == "kg m-2 year-1", \
+                    f"variable {v} is not in units 'kg m-2 year-1'"
+            attrs_sav = cp.deepcopy(pism_flux[v].attrs)
+            pism_flux[v] = pism_flux[v] * pism_cell_area_uniform / seconds_p_year \
+                            * latent_heat_of_fusion
+            pism_flux[v].attrs = attrs_sav
+            pism_flux[v].attrs['units'] = "W"
+            pism_flux[v].attrs['sign'] = \
+                "positive heat flux corresponds to adding heat to ocean"
+            
+        if 'coordinates' in pism_flux[v].attrs:
+            pism_flux[v].attrs.pop('coordinates')
     
     ### ------------- aggregation of fluxes per basin ----------------
     if args.verbose:
         print(" - aggregating PISM output to basins ")
     
-    # create list of PISM basins
-    pism_basin_list_tmp = np.unique(pism_basins)
-    pism_basin_list = pism_basin_list_tmp[~pism_basin_list_tmp.mask].data
-    # remove basin 0
-    pism_basin_list = np.delete(pism_basin_list, np.where(pism_basin_list==0) ) 
-    # make sure datatype is integer
-    pism_basin_list = pism_basin_list.astype(int)
-
-    # create datastructre for basin cumulated fluxes
-    pism_basin_dummy = np.zeros_like(pism_basin_list, dtype=pism_tend_bmf_dtype)
-    pism_basin_flux = {}.fromkeys(pism_fluxes_total.keys())
-    for k in pism_basin_flux.keys():
-        pism_basin_flux[k] = cp.deepcopy(pism_basin_dummy)
-
-    # create datastructre for basin topography depth
-    pism_basin_shelf_topg_depth = np.zeros_like(pism_basin_list, dtype=np.float64)
-    pism_basin_shelf_topg_depth[:] = np.nan
+    # cumulate PISM output flux for each basin
+    pism_basin_flux_time_list = []
+    for t in tqdm(pism_extra.time, desc='cumulating PISM output basin wise (iterating time)', disable=not(args.verbose)):
+        ds_tmp = pism_flux.sel(time=t).groupby(pism_extra['basins'].sel(time=t)).sum(..., keep_attrs=True)
+        pism_basin_flux_time_list.append(ds_tmp.expand_dims(dim='time'))
+    pism_basin_flux = xr.merge(pism_basin_flux_time_list)
     
+    # calculate basin mean topography for shelf ice
+    #  and fill NaNs with default depth (in meters)
+    basin_mean_depth_time_list = []
+    for t in tqdm(pism_extra.time, desc='calculate basin mean topography for shelf ice (iterating time)', disable=not(args.verbose)):
+        pism_basins = pism_extra['basins'].sel(time=t)
+        pism_basins_nan = pism_basins.where(pism_basins!=0,np.nan)
+        da_tmp = pism_contshelf_topg.sel(time=t).groupby(pism_basins_nan).mean(keep_attrs=True)
+        da_tmp = da_tmp.fillna(-500)
+        basin_mean_depth_time_list.append(da_tmp.expand_dims(dim='time'))
+    pism_basin_shelf_topg_depth = xr.merge(basin_mean_depth_time_list)
     
-    for idx, val in enumerate(pism_basin_list):
-        # cumulate PISM output flux for each basin
-        for k in pism_basin_flux.keys():
-            pism_basin_flux[k][idx] = np.sum(pism_fluxes_total[k][pism_basins==val])
-
-        # calculate basin mean topography for shelf ice
-        basin_mean_depth = np.mean(pism_contshelf_topg[pism_basins==val])
-        if (basin_mean_depth is np.ma.masked):
-            # default depth in meters
-            pism_basin_shelf_topg_depth[idx] = -500
-        else:
-            pism_basin_shelf_topg_depth[idx] = basin_mean_depth
-
-    # create output structure on MOM grid
-    oc_dummy = np.zeros_like(oc_edge_basin, dtype=pism_tend_bmf_dtype)
-    oc_edge_flux = {}.fromkeys(pism_fluxes_total.keys())
-    for k in oc_edge_flux.keys():
-        oc_edge_flux[k] = cp.deepcopy(oc_dummy)
+    pism_basin_shelf_topg_depth = pism_basin_shelf_topg_depth.rename_dims({'basins':'n_basin'})
+    pism_basin_shelf_topg_depth = pism_basin_shelf_topg_depth.rename({'basins':'basin'})
+    pism_basin_shelf_topg_depth['basin'].attrs['name']      = 'PISM-PICO basin'
+    pism_basin_shelf_topg_depth['basin'].attrs['long_name'] = 'list of valid PISM-PICO basins'
+    
+    pism_basin_shelf_topg_depth = pism_basin_shelf_topg_depth.rename({'topg':'mean_shelf_topg'})
+    attrs = {}
+    attrs['units'] = pism_basin_shelf_topg_depth['mean_shelf_topg'].attrs['units']
+    attrs['long_name'] = 'mean basin topography of ice shelf areas'
+    attrs['axis'] = 'Z'
+    attrs['positive'] = 'up'
+    pism_basin_shelf_topg_depth['mean_shelf_topg'].attrs = attrs
+    
     
     # distribute basin fluxes to MOM cells
-    if args.verbose:
-        print(" - distributing basin data to ocean grid cells ")
-    for j in range(oc_nlat):
-        for i in range(oc_nlon):
-            if oc_edge_basin.mask[j,i] == False:
-                list_index = np.where( pism_basin_list==oc_edge_basin[j,i] )
-                for k in oc_edge_flux.keys():
-                    oc_edge_flux[k][j,i] = pism_basin_flux[k][list_index] * \
-                                            oc_edge_basin_ratio[j,i] 
-
+    oc_edge_flux = xr.Dataset()
+    
+    
+    pism_mom_mapping_basin_time = pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
+    
+    for v in pism_basin_flux.data_vars:
+        oc_edge_flux[v] = pism_mom_mapping_basin_time * np.nan
+    
+    for v in oc_edge_flux.data_vars:
+        for b in pism_basin_flux.basins:
+            oc_edge_flux[v].data = xr.where(pism_mom_mapping_basin_time==b, 
+                                            pism_basin_flux[v].sel(basins=b), 
+                                            oc_edge_flux[v]).data
+    
+        oc_edge_flux[v] *= pism_mom_mapping['basin_ratio']
+        oc_edge_flux[v].attrs = pism_basin_flux[v].attrs
+    
+        
+    # remove unwanted basin coordinate
+    #oc_edge_flux = oc_edge_flux.drop('basins')
+    
     # convert fluxes in MOM cells from total to area-relative fluxes
-    # units of oc_edge_flux:
-    #   mass*:      kg/s
-    #   energy*:    J/s = W 
-    # units of oc_edge_flux_per_area:
-    #   mass*:      kg/s/m^2
-    #   energy*:    W/m^2
-    oc_edge_flux_per_area = cp.deepcopy(oc_edge_flux)
-    for k in oc_edge_flux_per_area.keys():
-        oc_edge_flux_per_area[k] /= ocean_area
-
+    assert mom_out['area_t'].attrs['units']=='m^2', \
+            f"variable 'area_t' is not in units 'm^2'"
+    oc_edge_flux_per_area = oc_edge_flux / mom_out['area_t']
+    
+    ### ------------- conversion of variables ----------------
+    for v in oc_edge_flux_per_area.variables:
+        #print(v)
+        if 'mass' in v:
+            oc_edge_flux_per_area[v].attrs = oc_edge_flux[v].attrs
+            assert oc_edge_flux_per_area[v].attrs['units'] == "kg/s", \
+                    f"variable {v} is not in units 'kg/s'"
+            oc_edge_flux_per_area[v].attrs['units'] = "kg/s/m^2"
+            
+        if 'heat' in v:
+            oc_edge_flux_per_area[v].attrs = oc_edge_flux[v].attrs
+            assert oc_edge_flux_per_area[v].attrs['units'] == "W", \
+                    f"variable {v} is not in units 'W'"
+            oc_edge_flux_per_area[v].attrs['units'] = "W/m^2"
+    
+    oc_edge_flux_per_area['area_t'] = mom_out['area_t']
+    
     # conservation check
-    pism_mf_cum = np.sum( np.float128(pism_massflux_total['mass_net']) )
-    oc_mf_cum =   np.sum( np.float128(oc_edge_flux['mass_net']) )
+    pism_mf_cum = pism_flux['mass_flux'].astype(np.float128).sum(dim=('x','y'))
+    oc_mf_cum   = oc_edge_flux['mass_flux'].astype(np.float128).sum(dim=('xt_ocean','yt_ocean'))
     
-    pism_ef_cum = np.sum( np.float128(pism_heatflux_total['energy_net']) )
-    oc_ef_cum =   np.sum( np.float128(oc_edge_flux['energy_net']) )
+    pism_ef_cum = pism_flux['heat_flux'].astype(np.float128).sum(dim=('x','y'))
+    oc_ef_cum   = oc_edge_flux['heat_flux'].astype(np.float128).sum(dim=('xt_ocean','yt_ocean'))
     
-    error_rate_mass =  (pism_mf_cum - oc_mf_cum) / pism_mf_cum 
+    error_rate_mass   =  (pism_mf_cum - oc_mf_cum) / pism_mf_cum 
     error_rate_energy =  (pism_ef_cum - oc_ef_cum) / pism_ef_cum 
-
-    if args.verbose:
-        print(' - relative conservation error')
-        print('\tmass: \t\t', error_rate_mass)
-        print('\tenergy: \t', error_rate_energy)
     
-
-
-    ### --------------- calculate frontal ice shelf draft depth ----------------
+    if args.verbose:
+        print(' - max. relative conservation error')
+        print(f'\tmass:   {np.max(np.abs(error_rate_mass)).data:4.2e}')
+        print(f'\tenergy: {np.max(np.abs(error_rate_energy)).data:4.2e}')
+    
+    ## --------------- calculate frontal ice shelf draft depth ----------------
     if args.basin_shelf_front_depth_file:
         if args.verbose:
             print(" - calculating frontal ice shelf draft depth ")
-        shelf_front_box_depth          = np.zeros_like(pism_basins,     dtype=np.float64)
-        shelf_front_box_depth_basin    = np.zeros_like(pism_basin_list, dtype=np.float64)
-        shelf_front_box_depth_ocean    = np.zeros_like(oc_edge_basin,   dtype=np.float64)
-        shelf_front_box_depth[:]       = np.nan
-        shelf_front_box_depth_basin[:] = np.nan
-        #shelf_front_box_depth_ocean[:] = np.nan
-
-        shelf_list = np.unique(pico_shelf_mask)
-        shelf_list = shelf_list[shelf_list>0]
-
-        for s in shelf_list:
-            # create mask for last PICO box in shelf
-            m__shelf = (pico_shelf_mask == s)
-            list_boxes = np.unique(pico_box_mask[m__shelf])
-            if np.all(list_boxes.mask):
-                print(f"    shelf {int(s):4} (cells: {np.sum(m__shelf)}, avg "
-                        f"thk: {np.mean(pism_thk[m__shelf]):>6.1f}m) has no "
-                        f"PICO box value. Skipping.")
-                continue
-            else:
-                box_max = int(list_boxes.max())
-            m__box_max = (pico_box_mask == box_max)           
-            m__shelf_box_max = m__shelf & m__box_max
-            # compute depth below water surface
-            shelf_front_box_depth[m__shelf_box_max] = pism_thk[m__shelf_box_max] * dens_ice/dens_ocn
-
-        # aggregate depths as mean per basin
-        for b in pism_basin_list:
-            m__basin = (pism_basins == b)
-            shelf_front_box_depth_basin[b-1] = np.nanmean(shelf_front_box_depth[m__basin])
-
+    
+            shelf_front_box_depth = pism_extra['pico_box_mask'] * np.nan
+    
+        for t in tqdm(pism_extra.time, desc='on ice grid (iterating time)', disable=not(args.verbose)):
+            pico_shelf_mask = pism_extra['pico_shelf_mask'].sel(time=t)
+            pico_box_mask   = pism_extra['pico_box_mask'].sel(time=t)
+            pism_thk        = pism_extra['thk'].sel(time=t)
+    
+            shelf_list = np.unique(pico_shelf_mask)
+            shelf_list = shelf_list[shelf_list>0]
+    
+            for s in shelf_list:
+                m__shelf = (pico_shelf_mask==s)
+                shelf_boxes = pico_box_mask.where(m__shelf)
+                list_boxes = np.unique(shelf_boxes)
+                if np.all(np.isnan(list_boxes)):
+                    if args.verbose:
+                        n_cells = np.sum(~np.isnan(shelf_boxes)).data
+                        thk_mean = np.mean(pism_extra['thk'].where(~np.isnan(shelf_boxes), np.nan)).data
+                        if n_cells >0:
+                            print(f"    {t.dt.strftime('%Y-%M-%d').data}, shelf {s:6.3f} (cells: {n_cells}, avg " 
+                                    f"thk: {thk_mean:>6.1f}m) has no PICO box value. Skipping.")
+                    continue
+                else:
+                    box_max = int(np.nanmax(list_boxes))
+    
+                m__box_max = (pico_box_mask == box_max)
+    
+                m__shelf_box_max = (m__shelf & m__box_max)
+                m__depth = (pism_thk.where(m__shelf_box_max, np.nan) * dens_ice/dens_ocn).to_masked_array()
+    
+                shelf_front_box_depth.sel(time=t).data[m__shelf_box_max] = m__depth[~m__depth.mask]
+    
+                
+        # aggregate depths as mean per basin        
+        shelf_front_box_depth_basin_time_list = []
+        for t in tqdm(pism_extra.time, desc='calculating mean depths per basin', disable=not(args.verbose)):
+            da_tmp = shelf_front_box_depth.sel(time=t).groupby(pism_extra['basins'].sel(time=t)).mean(...)
+            shelf_front_box_depth_basin_time_list.append(da_tmp.expand_dims(dim='time'))
+        shelf_front_box_depth_basin = xr.merge(shelf_front_box_depth_basin_time_list).rename({'pico_box_mask':'shelf_front_depth'})
+    
+    
+        attrs = {}
+        attrs['units'] = pism_thk.attrs['units']
+        attrs['long_name'] = ("front depth of ice shelf draft, computed as "
+                              "the average over the last PICO box in every "
+                              "shelf, aggregated as mean for each basin")
+        attrs['axis'] = 'Z'
+        attrs['positive'] = 'down'
+        shelf_front_box_depth_basin.attrs = attrs
+    
         # map basin depth from PISM to MOM grid
-        for j in range(oc_nlat):
-            for i in range(oc_nlon):
-                if oc_edge_basin.mask[j,i] == False:
-                    list_index = np.where( pism_basin_list==oc_edge_basin[j,i] )
-                    shelf_front_box_depth_ocean[j,i] = shelf_front_box_depth_basin[list_index] 
-
+        shelf_front_box_depth_ocean = xr.Dataset()
+    
+        pism_mom_mapping_basin_time = pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
+        v = 'shelf_front_depth'
+        shelf_front_box_depth_ocean[v] = pism_mom_mapping_basin_time * np.nan
+    
+        for b in tqdm(shelf_front_box_depth_basin.basins, desc='redistribution on ocean grid (iterating basins)', disable=not(args.verbose)):
+            shelf_front_box_depth_ocean[v] = xr.where(pism_mom_mapping_basin_time==b, 
+                                                           shelf_front_box_depth_basin[v].sel(basins=b), 
+                                                           shelf_front_box_depth_ocean[v])
+    
+        shelf_front_box_depth_ocean['time'].attrs = pism_extra.time.attrs
+    
+        # remove unwanted basin coordinate
+        #shelf_front_box_depth_ocean = shelf_front_box_depth_ocean.drop('basins')
+    
     t_process_end = time.time()
     
     ### ---------------------- save fluxes to file ---------------------------
     #   write redistributed flux variables to file PISM_to_MOM_fluxes_file
     t_write_file_start = time.time()
     
+    if 'mass_ref_runoff' in oc_edge_flux_per_area:
+        # move reference runoff to different Dataset
+        mass_ref_runoff = xr.Dataset()
+        mass_ref_runoff['mass_flux'] = oc_edge_flux_per_area['mass_ref_runoff']
+        mass_ref_runoff['area_t']    = oc_edge_flux_per_area['area_t']
+        oc_edge_flux_per_area = oc_edge_flux_per_area.drop('mass_ref_runoff')
+    
+        
     if args.verbose:
         print(" - write fluxes on ocean grid to file ", args.PISM_to_MOM_fluxes_file)
-
-    dim_copy = ['xt_ocean','yt_ocean']
-    var_copy = ['geolat_t', 'geolon_t', 'xt_ocean', 'yt_ocean']
     
     cmd_line = ' '.join(sys.argv)
     histstr = time.asctime() + ': ' + cmd_line + "\n "
-
     
-    with CDF(args.PISM_MOM_mapping_file, 'r') as src,   \
-         CDF(args.PISM_to_MOM_fluxes_file, "w") as dst:
-        # copy global attributes all at once via dictionary
-        glob_dict = src.__dict__
-        glob_dict['filename'] = os.path.basename(args.PISM_to_MOM_fluxes_file)
-        glob_dict['title'] = 'heat and mass fluxes from PISM on MOM grid'
-        
-        if 'history' in glob_dict.keys():
-            glob_dict['history'] = histstr + glob_dict['history']
-        elif 'History' in glob_dict.keys():
-            glob_dict['History'] = histstr + glob_dict['History']
-        else:
-            glob_dict['history'] = histstr
-        dst.setncatts(glob_dict)
-        
-        # copy dimensions
-        for name, dimension in src.dimensions.items():
-            if name in dim_copy:
-                dst.createDimension(name, len(dimension) )
-                
-        # create time dimension
-        dst.createDimension('time', None)
-        #dst.createDimension('nv', pism_extra_nv)
-        
-        # write time variable
-        dst.createVariable('time', np.double, ("time",) )
-        dst['time'].setncatts(pism_extra_time_dict)
-        dst['time'][:] = pism_extra_time
-        
-        #dst.createVariable('time_bounds', np.double, ("time","nv",) )
-        #dst['time_bounds'].setncatts(pism_extra_time_bounds_dict)
-        #dst['time_bounds'][:] = pism_extra_time_bounds
-        
-        
-        # copy variables
-        for name, variable in src.variables.items():
-            if name in var_copy:
-                x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                # fix wrong valid range attribute in geolon_t
-                if name == 'geolon_t':
-                    d = src[name].__dict__
-                    d['valid_range'][0] = -360
-                    dst[name].setncatts(d)
-                    dst[name][:] = ocean_lon[:]
-                else:
-                    # copy variable attributes all at once via dictionary
-                    dst[name].setncatts(src[name].__dict__)
-                    dst[name][:] = src[name][:]
-               
-        ### write new variables   
-        if pism_tend_bmf_dtype == 'float32':
-            nc_dtype = 'f4'
-        elif pism_tend_bmf_dtype == 'float64':
-            nc_dtype = 'f8'
-        else:
-            s = 'pism_tend_bmf_dtype is "{}". Only "float32" and "float64" are allowed.'
-            raise ValueError(s.format(pism_tend_bmf_dtype))
-             
-        #### ---- mass flux variables ---- 
-        x = dst.createVariable('mass_flux', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
-        var_dict = col.OrderedDict([
-             ('long_name', ("average mass flux from PISM diagnostic output variables"
-                            "'surface_runoff_flux', "
-                            "'tendency_of_ice_amount_due_to_basal_mass_flux' and "
-                            "'tendency_of_ice_amount_due_to_discharge' "
-                            "in reporting interval")),
-             ('units', 'kg/m^2/s'),
-             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             #('reporting_interval', reporting_interval ),
-             ('reporting_interval_units', 'years'),
-             ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
-        dst['mass_flux'].setncatts(var_dict)
-        dst['mass_flux'][0,:] = oc_edge_flux_per_area['mass_net'][:].data
-         
-        x = dst.createVariable('mass_flux_surf_runoff', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
-        var_dict = col.OrderedDict([
-             ('long_name', ("average mass flux from PISM diagnostic output variable "
-                            "'surface_runoff_flux_accumulator' "
-                            "in reporting interval")),
-             ('units', 'kg/m^2/s'),
-             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             #('reporting_interval', reporting_interval ),
-             ('reporting_interval_units', 'years'),
-             ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
-        dst['mass_flux_surf_runoff'].setncatts(var_dict)
-        dst['mass_flux_surf_runoff'][0,:] = oc_edge_flux_per_area['mass_surf_runoff'][:].data
-
-        x = dst.createVariable('mass_flux_basal_melt', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
-        var_dict = col.OrderedDict([
-             ('long_name', ("average mass flux from PISM diagnostic output variable "
-                            "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' "
-                            "in reporting interval")),
-             ('units', 'kg/m^2/s'),
-             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             #('reporting_interval', reporting_interval ),
-             ('reporting_interval_units', 'years'),
-             ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
-        dst['mass_flux_basal_melt'].setncatts(var_dict)
-        dst['mass_flux_basal_melt'][0,:] = oc_edge_flux_per_area['mass_basal_melt'][:].data
-
-        x = dst.createVariable('mass_flux_calving', \
-                               nc_dtype, ('time','yt_ocean','xt_ocean'))
-        var_dict = col.OrderedDict([
-             ('long_name', ("average mass flux from PISM diagnostic output variable "
-                            "'tendency_of_ice_amount_due_to_discharge_accumulator' "
-                            "in reporting interval")),
-             ('units', 'kg/m^2/s'),
-             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             #('reporting_interval', reporting_interval ),
-             ('reporting_interval_units', 'years'),
-             ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
-        dst['mass_flux_calving'].setncatts(var_dict)
-        dst['mass_flux_calving'][0,:] = oc_edge_flux_per_area['mass_calving'][:].data
-
-
-        #### ---- heat flux variables ---- 
-        x = dst.createVariable('heat_flux', nc_dtype, ('time','yt_ocean','xt_ocean'))
-        var_dict = col.OrderedDict([
-             ('long_name', ("average heat flux calculated from PISM diagnostic output variables"
-                            "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator'"
-                            " and 'tendency_of_ice_amount_due_to_discharge_accumulator' "
-                            "in reporting interval")),
-             ('units', 'W/m^2'),
-             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             #('reporting_interval', reporting_interval ),
-             ('reporting_interval_units', 'years'),
-             ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
-        dst['heat_flux'].setncatts(var_dict)        
-        dst['heat_flux'][0,:] = oc_edge_flux_per_area['energy_net'][:].data
-
-        x = dst.createVariable('heat_flux_basal_melt', nc_dtype, ('time','yt_ocean','xt_ocean'))
-        var_dict = col.OrderedDict([
-             ('long_name', ("average heat flux calculated from PISM diagnostic output variable "
-                            "'tendency_of_ice_amount_due_to_basal_mass_flux_accumulator' "
-                            "in reporting interval")),
-             ('units', 'W/m^2'),
-             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             #('reporting_interval', reporting_interval ),
-             ('reporting_interval_units', 'years'),
-             ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
-        dst['heat_flux_basal_melt'].setncatts(var_dict)        
-        dst['heat_flux_basal_melt'][0,:] = oc_edge_flux_per_area['energy_basal_melt'][:].data
-
-        x = dst.createVariable('heat_flux_calving', nc_dtype, ('time','yt_ocean','xt_ocean'))
-        var_dict = col.OrderedDict([
-             ('long_name', ("average heat flux calculated from PISM diagnostic output variable "
-                            " 'tendency_of_ice_amount_due_to_discharge_accumulator' "
-                            "in reporting interval")),
-             ('units', 'W/m^2'),
-             ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-             #('reporting_interval', reporting_interval ),
-             ('reporting_interval_units', 'years'),
-             ('cell_methods', 'time: point'),
-             ('coordinates', 'geolon_t geolat_t')])
-        dst['heat_flux_calving'].setncatts(var_dict)
-        dst['heat_flux_calving'][0,:] = oc_edge_flux_per_area['energy_calving'][:].data
-
-    # copy area variable to file
-    with CDF(args.MOM_file, 'r') as src,   \
-         CDF(args.PISM_to_MOM_fluxes_file, "a") as dst:
-        # copy area_t variable
-        for name, variable in src.variables.items():
-            if name in ['area_t']:
-                #code.interact(local=locals())
-                x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                dst[name].setncatts(src[name].__dict__)
-                dst[name][:] = src[name][:]
-
-
+    glob_attrs = cp.deepcopy(pism_mom_mapping.attrs)
+    glob_attrs['filename'] = os.path.basename(args.PISM_to_MOM_fluxes_file)
+    glob_attrs['title'] = 'heat and mass fluxes from PISM on MOM grid'
+    
+    if 'history' in glob_attrs.keys():
+        glob_attrs['history'] = histstr + glob_attrs['history']
+    elif 'History' in glob_attrs.keys():
+        glob_attrs['History'] = histstr + glob_attrs['History']
+    else:
+        glob_attrs['history'] = histstr
+    
+    oc_edge_flux_per_area.attrs = glob_attrs
+    oc_edge_flux_per_area.to_netcdf(args.PISM_to_MOM_fluxes_file,
+                                   encoding={"time":      {"dtype": "float", "units":f"days since 0001-01-01 00:00:00"}})
+    
     ### ------------------ save runoff reference to file -----------------------
     #   write redistributed ice to ocean reference runoff (surface accumulation)
     #   to file runoff_reference_file
@@ -876,238 +686,79 @@ if __name__ == "__main__":
         if args.verbose:
             print(" - write reference runoff to file ",
                       args.runoff_reference_file)
-        with CDF(args.PISM_MOM_mapping_file, 'r') as src,   \
-             CDF(args.runoff_reference_file, "w") as dst:
-            # copy global attributes all at once via dictionary
-            glob_dict = src.__dict__
-            glob_dict['filename'] = os.path.basename(args.runoff_reference_file)
-            glob_dict['title'] = "ice to ocean reference runoff fluxes computed " \
-                "from PISM extra output variable 'surface_accumulation_flux' " \
-                "and redistributed to MOM grid"
-
-            if 'history' in glob_dict.keys():
-                glob_dict['history'] = histstr + glob_dict['history']
-            elif 'History' in glob_dict.keys():
-                glob_dict['History'] = histstr + glob_dict['History']
-            else:
-                glob_dict['history'] = histstr
-            dst.setncatts(glob_dict)
-
-            # copy dimensions
-            for name, dimension in src.dimensions.items():
-                if name in dim_copy:
-                    dst.createDimension(name, len(dimension) )
-
-            # create time dimension
-            dst.createDimension('time', None)
-            #dst.createDimension('nv', pism_extra_nv)
-
-            # write time variable
-            dst.createVariable('time', np.double, ("time",) )
-            dst['time'].setncatts(pism_extra_time_dict)
-            dst['time'][:] = pism_extra_time
-
-            #dst.createVariable('time_bounds', np.double, ("time","nv",) )
-            #dst['time_bounds'].setncatts(pism_extra_time_bounds_dict)
-            #dst['time_bounds'][:] = pism_extra_time_bounds
-
-
-            # copy variables
-            for name, variable in src.variables.items():
-                if name in var_copy:
-                    x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                    # fix wrong valid range attribute in geolon_t
-                    if 0: #name == 'geolon_t':
-                        d = src[name].__dict__
-                        d['valid_range'][0] = -360
-                        dst[name].setncatts(d)
-                        dst[name][:] = ocean_lon[:]
-                    else:
-                        # copy variable attributes all at once via dictionary
-                        dst[name].setncatts(src[name].__dict__)
-                        dst[name][:] = src[name][:]
-
-            ### write new variables
-            if pism_surf_accum_dtype == 'float32':
-                nc_dtype = 'f4'
-            elif pism_surf_accum_dtype == 'float64':
-                nc_dtype = 'f8'
-            else:
-                s = 'pism_surf_accum_dtype is "{}". Only "float32" and "float64" are allowed.'
-                raise ValueError(s.format(pism_tend_bmf_dtype))
-
-            #### ---- runoff reference variable ----
-            x = dst.createVariable('mass_flux', nc_dtype, \
-                                   ('time','yt_ocean','xt_ocean'))
-            var_dict = col.OrderedDict([
-                 ('long_name', ("ice to ocean reference runoff flux computed "
-                                "as the mean of PISM extra output variable "
-                                "'surface_accumulation_flux' over reporting "
-                                "interval and redistributed to MOM grid")),
-                 ('units', 'kg/m^2/s'),
-                 ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-                 #('reporting_interval', reporting_interval ),
-                 ('reporting_interval_units', 'years'),
-                 ('cell_methods', 'time: point'),
-                 ('coordinates', 'geolon_t geolat_t')])
-            dst['mass_flux'].setncatts(var_dict)
-            dst['mass_flux'][0,:] = oc_edge_flux_per_area['surf_accumulation'][:].data
-
-
-        with CDF(args.MOM_file, 'r') as src,   \
-             CDF(args.runoff_reference_file, "a") as dst:
-            # copy area_t variable
-            for name, variable in src.variables.items():
-                if name in ['area_t']:
-                    #code.interact(local=locals())
-                    x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                    dst[name].setncatts(src[name].__dict__)
-                    dst[name][:] = src[name][:]
-
-
+            
+    
+        glob_attrs = cp.deepcopy(pism_mom_mapping.attrs)
+        glob_attrs['filename'] = os.path.basename(args.runoff_reference_file)
+        glob_attrs['title'] =  "ice to ocean reference runoff fluxes computed " \
+                    "from PISM extra output variable 'surface_accumulation_flux' " \
+                    "and redistributed to MOM grid"
+    
+        if 'history' in glob_attrs.keys():
+            glob_attrs['history'] = histstr + glob_attrs['history']
+        elif 'History' in glob_attrs.keys():
+            glob_attrs['History'] = histstr + glob_attrs['History']
+        else:
+            glob_attrs['history'] = histstr
+    
+        mass_ref_runoff.attrs = glob_attrs
+        mass_ref_runoff.to_netcdf(args.runoff_reference_file,
+                                  encoding={"time":      {"dtype": "float", "units":f"days since 0001-01-01 00:00:00"}})
+    
     ### ---------------------- save basin topography depths file ---------------------------
     #   write basin mean topography of ice shelf areas to basin_shelf_topg_depth_file 
     if args.verbose:
         print(" - write basin mean topography of ice shelf areas to file ",
                   args.basin_shelf_topg_depth_file)
-    
-    cmd_line = ' '.join(sys.argv)
-    histstr = time.asctime() + ': ' + cmd_line + "\n "
-   
-    with CDF(args.basin_shelf_topg_depth_file, "w") as dst:
-        # create dictionary for global attributes
-        glob_dict = dict({  \
-            'filename': os.path.basename( args.basin_shelf_topg_depth_file),
-            'title':    'basin mean topography of ice shelf areas',
-            'history':  histstr
-            })
-        dst.setncatts(glob_dict)
         
-        # create dimensions
-        dst.createDimension('time', None)
-        dst.createDimension('n_basin', len(pism_basin_list) )
-
-        # create variables
-        x = dst.createVariable('basin', int, 'n_basin')
-        var_dict = col.OrderedDict([
-             ('name', "PISM-PICO basin"),
-             ('long_name', "list of valid PISM-PICO basins")])
-        dst['basin'].setncatts(var_dict)      
-        dst['basin'][:] = pism_basin_list[:]
-
-        dst.createVariable('time', np.double, ("time",) )
-        dst['time'].setncatts(pism_extra_time_dict)
-        dst['time'][:] = pism_extra_time
-
-        x = dst.createVariable('mean_shelf_topg', float, ('time','n_basin'))
-        var_dict = col.OrderedDict([
-             ('long_name', "mean basin topography of ice shelf areas"),
-             ('units', 'm'),
-             ('axis', 'Z'),
-             ('positive', 'up'),
-             ('fill_value', netCDF4._netCDF4.default_fillvals['f4'])])
-        dst['mean_shelf_topg'].setncatts(var_dict)
-        dst['mean_shelf_topg'][0,:] = pism_basin_shelf_topg_depth[:]
-
-
+    glob_attrs = {}
+    glob_attrs['filename'] = os.path.basename(args.basin_shelf_topg_depth_file)
+    glob_attrs['title']    =  'basin mean topography of ice shelf areas'
+    glob_attrs['history']  = histstr
+    
+    pism_basin_shelf_topg_depth.attrs = glob_attrs
+    pism_basin_shelf_topg_depth.to_netcdf(args.basin_shelf_topg_depth_file,
+                                          encoding={"time":      {"dtype": "float", "units":f"days since 0001-01-01 00:00:00"}})
+    
+    
     ### ---------------------- save shelf depth file ---------------------------
     #   write mean ice shelf frontal depth to basin_shelf_front_depth_file
     if args.basin_shelf_front_depth_file:
         if args.verbose:
             print(" - write basin mean shelf front depth to file ",
                       args.basin_shelf_front_depth_file)
-        with CDF(args.PISM_MOM_mapping_file, 'r') as src,   \
-             CDF(args.basin_shelf_front_depth_file, "w") as dst:
-            # copy global attributes all at once via dictionary
-            glob_dict = src.__dict__
-            glob_dict['filename'] = os.path.basename(args.basin_shelf_front_depth_file)
-            glob_dict['title'] = "ice shelf front depth computed as last PICO" \
-                "box mean" 
-
-            if 'history' in glob_dict.keys():
-                glob_dict['history'] = histstr + glob_dict['history']
-            elif 'History' in glob_dict.keys():
-                glob_dict['History'] = histstr + glob_dict['History']
-            else:
-                glob_dict['history'] = histstr
-            dst.setncatts(glob_dict)
-
-            # copy dimensions
-            for name, dimension in src.dimensions.items():
-                if name in dim_copy:
-                    dst.createDimension(name, len(dimension) )
-
-            # create time dimension
-            dst.createDimension('time', None)
-            #dst.createDimension('nv', pism_extra_nv)
-
-            # write time variable
-            dst.createVariable('time', np.double, ("time",) )
-            dst['time'].setncatts(pism_extra_time_dict)
-            dst['time'][:] = pism_extra_time
-
-            #dst.createVariable('time_bounds', np.double, ("time","nv",) )
-            #dst['time_bounds'].setncatts(pism_extra_time_bounds_dict)
-            #dst['time_bounds'][:] = pism_extra_time_bounds
-
-
-            # copy variables
-            for name, variable in src.variables.items():
-                if name in var_copy:
-                    x = dst.createVariable(name, variable.datatype, variable.dimensions)
-                    # fix wrong valid range attribute in geolon
-                    if 0: #name == 'geolon_t':
-                        d = src[name].__dict__
-                        d['valid_range'][0] = -360
-                        dst[name].setncatts(d)
-                        dst[name][:] = ocean_lon[:]
-                    else:
-                        # copy variable attributes all at once via dictionary
-                        dst[name].setncatts(src[name].__dict__)
-                        dst[name][:] = src[name][:]
-
-            ### write new variables
-            if pism_thk_dtype == 'float32':
-                nc_dtype = 'f4'
-            elif pism_thk_dtype == 'float64':
-                nc_dtype = 'f8'
-            else:
-                raise ValueError(f'pism_thk_dtype is {pism_thk_dtype}. '
-                        'Only "float32" and "float64" are allowed.')
-
-            x = dst.createVariable('shelf_front_depth', nc_dtype, 
-                                   ('time','yt_ocean','xt_ocean'))
-            var_dict = col.OrderedDict([
-                 ('long_name', ("front depth of ice shelf draft, computed as "
-                                "the average over the last PICO box in every "
-                                "shelf, aggregated as mean for each basin")),
-                 ('units', 'm'),
-                 ('axis', 'Z'),
-                 ('positive', 'down'),
-                 ('fill_value', netCDF4._netCDF4.default_fillvals[nc_dtype]),
-                 #('reporting_interval', reporting_interval ),
-                 ('reporting_interval_units', 'years'),
-                 ('cell_methods', 'time: point'),
-                 ('coordinates', 'geolon_t geolat_t')])
-            dst['shelf_front_depth'].setncatts(var_dict)
-            dst['shelf_front_depth'][0,:] = shelf_front_box_depth_ocean[:].data
-
-
+    
+        glob_attrs = cp.deepcopy(pism_mom_mapping.attrs)
+        glob_attrs['filename'] = os.path.basename(args.basin_shelf_front_depth_file)
+        glob_attrs['title'] =  "ice shelf front depth computed as last PICO" \
+                    "box mean" 
+    
+        if 'history' in glob_attrs.keys():
+            glob_attrs['history'] = histstr + glob_attrs['history']
+        elif 'History' in glob_attrs.keys():
+            glob_attrs['History'] = histstr + glob_attrs['History']
+        else:
+            glob_attrs['history'] = histstr
+    
+        shelf_front_box_depth_ocean.attrs = glob_attrs
+        shelf_front_box_depth_ocean.to_netcdf(args.basin_shelf_front_depth_file,
+                                                   encoding={"time":      {"dtype": "float", "units":f"days since 0001-01-01 00:00:00"}})
+        
     t_write_file_end = time.time()
     t_main_end = time.time()
-
+    
     # -------------------- performance -------------------- 
-        
+    
     if args.verbose | args.time:
         t_main          = t_main_end            - t_main_start
         t_read_files    = t_read_files_end      - t_read_files_start
         t_process       = t_process_end         - t_process_start
         t_write_file    = t_write_file_end      - t_write_file_start
-
-
+    
+    
         format_total = "{:<15} \t\t {:9.2f} s \t {:6.2f} %"
         format_sub   = "\t{:<15} \t {:9.2f} s \t {:6.2f} %"
-
+    
         print()
         print('{:-^58}'.format(' elapsed time '))
         print(format_total.format('total', t_main, t_main/t_main*100))
@@ -1120,4 +771,4 @@ if __name__ == "__main__":
                                     t_write_file/t_main*100))
         print('{:.^58}'.format(''))
         print()
-
+    
