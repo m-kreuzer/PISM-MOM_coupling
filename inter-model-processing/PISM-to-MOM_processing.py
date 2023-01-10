@@ -57,8 +57,8 @@ Arguments:
         file to store basin shelf depths which determine vertical layer of
         ocean boundary condition input to PISM/PICO
     -s, --shelf-depth-out basin_shelf_front_depth_file (optional)
-        file to store basin shelf frontal depths which determine the vertical layer of
-        basal melt input into MOM
+        file to store basin shelf frontal depths which determine the vertical
+        layer of basal melt input into MOM
     --density-ice density_ice (optional)
         set ice density used for frontal shelf depth calculation
     --density-ocean density_ocean (optional)
@@ -117,12 +117,14 @@ def check_ndims(da, valid_ndims=[2,3], ds_source=None):
         raise ValueError(err)
 
 def check_ndims_ds(ds, check_dims_dict):
-    '''checks whether a number of variables in xr.Dataset have expected dimensions
+    '''checks whether a number of variables in xr.Dataset have expected
+    dimensions
 
     ds: xr.Dataset,
         dataset to check for given variables
     check_dims_dict: dict,
-        dictionary holding variable names with list of valid number of dimensions to check
+        dictionary holding variable names with list of valid number of
+        dimensions to check
     '''
     for v, valid_ndims in check_dims.items():
         try:
@@ -138,13 +140,15 @@ def check_ndims_ds(ds, check_dims_dict):
 def check_var_match(ds1, ds2, var):
     '''checks whether given variable is identical between datasets'''
     assert_str = f"non matching variable '{var}' between " \
-                 f"file '{ds1.encoding['source']}' and file '{ds2.encoding['source']}'."
+                 f"file '{ds1.encoding['source']}' and file " \
+                 f"'{ds2.encoding['source']}'."
     assert (ds1[var] == ds2[var]).all(), assert_str
 
 ### https://gist.github.com/bsolomon1124/44f77ed2f15062c614ef6e102bc683a5
 class DeprecateAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        warnings.warn("Argument %s is deprecated and is *ignored*." % self.option_strings)
+        warnings.warn(f"Argument {self.option_strings} is deprecated and is "
+                       "*ignored*.")
         delattr(namespace, self.dest)
 
 def mark_deprecated_help_strings(parser, prefix="DEPRECATED"):
@@ -377,7 +381,8 @@ if __name__ == "__main__":
     #    0 = False
     #    1 = True, but not relevant
     #    2 = True and relevant
-    pism_contshelf_topg = pism_extra['topg'].where(pism_extra['pico_contshelf_mask']==2, np.nan)
+    pism_contshelf_topg = \
+            pism_extra['topg'].where(pism_extra['pico_contshelf_mask']==2, np.nan)
 
     # aggregate mass from ice to ocean for mass & energy flux calculations
     #  positive corresponds to ice gain
@@ -390,9 +395,10 @@ if __name__ == "__main__":
     else:
         # initialise field with 0
         pism_surf_runoff = pism_extra['tendency_of_ice_amount_due_to_discharge'] * 0
-        pism_surf_runoff.attrs = {'long_name': 'surface runoff, averaged over the reporting interval',
-                                  'standard_name': 'surface_runoff_flux',
-                                  'units': pism_extra['tendency_of_ice_amount_due_to_discharge'].attrs['units']}
+        pism_surf_runoff.attrs = \
+            {'long_name': 'surface runoff, averaged over the reporting interval',
+             'standard_name': 'surface_runoff_flux',
+             'units': pism_extra['tendency_of_ice_amount_due_to_discharge'].attrs['units']}
         pism_surf_runoff = pism_surf_runoff.rename('surface_runoff_flux')
 
     if args.runoff_reference_file:
@@ -457,7 +463,8 @@ if __name__ == "__main__":
             assert pism_flux[v].attrs['units'] == "kg m-2 year-1", \
                     f"variable {v} is not in units 'kg m-2 year-1'"
             attrs_sav = cp.deepcopy(pism_flux[v].attrs)
-            pism_flux[v] = -1 * pism_flux[v] * pism_cell_area_uniform / seconds_p_year
+            pism_flux[v] = -1 * pism_flux[v] * pism_cell_area_uniform \
+                            / seconds_p_year
             pism_flux[v].attrs = attrs_sav
             pism_flux[v].attrs['units'] = "kg/s"
             pism_flux[v].attrs['sign'] = \
@@ -483,28 +490,36 @@ if __name__ == "__main__":
 
     # cumulate PISM output flux for each basin
     pism_basin_flux_time_list = []
-    for t in tqdm(pism_extra.time, desc='cumulating PISM output basin wise (iterating time)', disable=not(args.verbose)):
-        ds_tmp = pism_flux.sel(time=t).groupby(pism_extra['basins'].sel(time=t)).sum(..., keep_attrs=True)
+    for t in tqdm(pism_extra.time,
+            desc='cumulating PISM output basin wise (iterating time)',
+            disable=not(args.verbose)):
+        basins = pism_extra['basins'].sel(time=t)
+        ds_tmp = pism_flux.sel(time=t).groupby(basins).sum(..., keep_attrs=True)
         pism_basin_flux_time_list.append(ds_tmp.expand_dims(dim='time'))
     pism_basin_flux = xr.merge(pism_basin_flux_time_list)
 
     # calculate basin mean topography for shelf ice
     #  and fill NaNs with default depth (in meters)
     basin_mean_depth_time_list = []
-    for t in tqdm(pism_extra.time, desc='calculate basin mean topography for shelf ice (iterating time)', disable=not(args.verbose)):
+    for t in tqdm(pism_extra.time,
+            desc='calculate basin mean topography for shelf ice (iterating time)',
+            disable=not(args.verbose)):
         pism_basins = pism_extra['basins'].sel(time=t)
         pism_basins_nan = pism_basins.where(pism_basins!=0,np.nan)
-        da_tmp = pism_contshelf_topg.sel(time=t).groupby(pism_basins_nan).mean(keep_attrs=True)
+        da_tmp = pism_contshelf_topg.sel(time=t).groupby(
+                pism_basins_nan).mean(keep_attrs=True)
         da_tmp = da_tmp.fillna(-500)
         basin_mean_depth_time_list.append(da_tmp.expand_dims(dim='time'))
     pism_basin_shelf_topg_depth = xr.merge(basin_mean_depth_time_list)
 
-    pism_basin_shelf_topg_depth = pism_basin_shelf_topg_depth.rename_dims({'basins':'n_basin'})
-    pism_basin_shelf_topg_depth = pism_basin_shelf_topg_depth.rename({'basins':'basin'})
-    pism_basin_shelf_topg_depth['basin'].attrs['name']      = 'PISM-PICO basin'
-    pism_basin_shelf_topg_depth['basin'].attrs['long_name'] = 'list of valid PISM-PICO basins'
+    with pism_basin_shelf_topg_depth as ds:
+        ds = ds.rename_dims({'basins':'n_basin'})
+        ds = ds.rename({'basins':'basin'})
+        ds['basin'].attrs['name']      = 'PISM-PICO basin'
+        ds['basin'].attrs['long_name'] = 'list of valid PISM-PICO basins'
+        ds = ds.rename({'topg':'mean_shelf_topg'})
+    pism_basin_shelf_topg_depth = ds
 
-    pism_basin_shelf_topg_depth = pism_basin_shelf_topg_depth.rename({'topg':'mean_shelf_topg'})
     attrs = {}
     attrs['units'] = pism_basin_shelf_topg_depth['mean_shelf_topg'].attrs['units']
     attrs['long_name'] = 'mean basin topography of ice shelf areas'
@@ -517,7 +532,8 @@ if __name__ == "__main__":
     oc_edge_flux = xr.Dataset()
 
 
-    pism_mom_mapping_basin_time = pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
+    pism_mom_mapping_basin_time = \
+            pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
 
     for v in pism_basin_flux.data_vars:
         oc_edge_flux[v] = pism_mom_mapping_basin_time * np.nan
@@ -559,10 +575,12 @@ if __name__ == "__main__":
 
     # conservation check
     pism_mf_cum = pism_flux['mass_flux'].astype(np.float128).sum(dim=('x','y'))
-    oc_mf_cum   = oc_edge_flux['mass_flux'].astype(np.float128).sum(dim=('xt_ocean','yt_ocean'))
+    oc_mf_cum   = oc_edge_flux['mass_flux'].astype(np.float128).sum(
+            dim=('xt_ocean','yt_ocean'))
 
     pism_ef_cum = pism_flux['heat_flux'].astype(np.float128).sum(dim=('x','y'))
-    oc_ef_cum   = oc_edge_flux['heat_flux'].astype(np.float128).sum(dim=('xt_ocean','yt_ocean'))
+    oc_ef_cum   = oc_edge_flux['heat_flux'].astype(np.float128).sum(
+            dim=('xt_ocean','yt_ocean'))
 
     error_rate_mass   =  (pism_mf_cum - oc_mf_cum) / pism_mf_cum
     error_rate_energy =  (pism_ef_cum - oc_ef_cum) / pism_ef_cum
@@ -579,7 +597,8 @@ if __name__ == "__main__":
 
             shelf_front_box_depth = pism_extra['pico_box_mask'] * np.nan
 
-        for t in tqdm(pism_extra.time, desc='on ice grid (iterating time)', disable=not(args.verbose)):
+        for t in tqdm(pism_extra.time, desc='on ice grid (iterating time)',
+                disable=not(args.verbose)):
             pico_shelf_mask = pism_extra['pico_shelf_mask'].sel(time=t)
             pico_box_mask   = pism_extra['pico_box_mask'].sel(time=t)
             pism_thk        = pism_extra['thk'].sel(time=t)
@@ -594,10 +613,13 @@ if __name__ == "__main__":
                 if np.all(np.isnan(list_boxes)):
                     if args.verbose:
                         n_cells = np.sum(~np.isnan(shelf_boxes)).data
-                        thk_mean = np.mean(pism_extra['thk'].where(~np.isnan(shelf_boxes), np.nan)).data
+                        thk_mean = np.mean(pism_extra['thk'].where(
+                            ~np.isnan(shelf_boxes), np.nan)).data
                         if n_cells >0:
-                            print(f"    {t.dt.strftime('%Y-%M-%d').data}, shelf {s:6.3f} (cells: {n_cells}, avg "
-                                    f"thk: {thk_mean:>6.1f}m) has no PICO box value. Skipping.")
+                            print(f"    {t.dt.strftime('%Y-%M-%d').data}, "
+                                  f"shelf {s:6.3f} (cells: {n_cells}, avg "
+                                  f"thk: {thk_mean:>6.1f}m) has no PICO box value. "
+                                  f"Skipping.")
                     continue
                 else:
                     box_max = int(np.nanmax(list_boxes))
@@ -605,17 +627,25 @@ if __name__ == "__main__":
                 m__box_max = (pico_box_mask == box_max)
 
                 m__shelf_box_max = (m__shelf & m__box_max)
-                m__depth = (pism_thk.where(m__shelf_box_max, np.nan) * dens_ice/dens_ocn).to_masked_array()
+                m__depth = (pism_thk.where(m__shelf_box_max, np.nan) * \
+                        dens_ice/dens_ocn).to_masked_array()
 
-                shelf_front_box_depth.sel(time=t).data[m__shelf_box_max] = m__depth[~m__depth.mask]
+                shelf_front_box_depth.sel(time=t).data[m__shelf_box_max] = \
+                        m__depth[~m__depth.mask]
 
 
         # aggregate depths as mean per basin
         shelf_front_box_depth_basin_time_list = []
-        for t in tqdm(pism_extra.time, desc='calculating mean depths per basin', disable=not(args.verbose)):
-            da_tmp = shelf_front_box_depth.sel(time=t).groupby(pism_extra['basins'].sel(time=t)).mean(...)
-            shelf_front_box_depth_basin_time_list.append(da_tmp.expand_dims(dim='time'))
-        shelf_front_box_depth_basin = xr.merge(shelf_front_box_depth_basin_time_list).rename({'pico_box_mask':'shelf_front_depth'})
+        for t in tqdm(pism_extra.time,
+                desc='calculating mean depths per basin',
+                disable=not(args.verbose)):
+            da_tmp = shelf_front_box_depth.sel(time=t).groupby(
+                    pism_extra['basins'].sel(time=t)).mean(...)
+            shelf_front_box_depth_basin_time_list.append(
+                    da_tmp.expand_dims(dim='time'))
+        shelf_front_box_depth_basin = \
+                xr.merge(shelf_front_box_depth_basin_time_list).rename(
+                        {'pico_box_mask':'shelf_front_depth'})
 
 
         attrs = {}
@@ -630,14 +660,18 @@ if __name__ == "__main__":
         # map basin depth from PISM to MOM grid
         shelf_front_box_depth_ocean = xr.Dataset()
 
-        pism_mom_mapping_basin_time = pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
+        pism_mom_mapping_basin_time = \
+                pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
         v = 'shelf_front_depth'
         shelf_front_box_depth_ocean[v] = pism_mom_mapping_basin_time * np.nan
 
-        for b in tqdm(shelf_front_box_depth_basin.basins, desc='redistribution on ocean grid (iterating basins)', disable=not(args.verbose)):
-            shelf_front_box_depth_ocean[v] = xr.where(pism_mom_mapping_basin_time==b,
-                                                           shelf_front_box_depth_basin[v].sel(basins=b),
-                                                           shelf_front_box_depth_ocean[v])
+        for b in tqdm(shelf_front_box_depth_basin.basins,
+                desc='redistribution on ocean grid (iterating basins)',
+                disable=not(args.verbose)):
+            shelf_front_box_depth_ocean[v] = \
+                    xr.where(pism_mom_mapping_basin_time==b,
+                             shelf_front_box_depth_basin[v].sel(basins=b),
+                             shelf_front_box_depth_ocean[v])
 
         shelf_front_box_depth_ocean['time'].attrs = pism_extra.time.attrs
 
@@ -677,7 +711,8 @@ if __name__ == "__main__":
 
     oc_edge_flux_per_area.attrs = glob_attrs
     oc_edge_flux_per_area.to_netcdf(args.PISM_to_MOM_fluxes_file,
-                                   encoding={"time":      {"dtype": "float", "units":f"days since 0001-01-01 00:00:00"}})
+            encoding={"time": {"dtype": "float",
+                               "units":f"days since 0001-01-01 00:00:00"}})
 
     ### ------------------ save runoff reference to file -----------------------
     #   write redistributed ice to ocean reference runoff (surface accumulation)
@@ -703,10 +738,12 @@ if __name__ == "__main__":
 
         mass_ref_runoff.attrs = glob_attrs
         mass_ref_runoff.to_netcdf(args.runoff_reference_file,
-                                  encoding={"time":      {"dtype": "float", "units":f"days since 0001-01-01 00:00:00"}})
+            encoding={"time": {"dtype": "float",
+                               "units":f"days since 0001-01-01 00:00:00"}})
 
-    ### ---------------------- save basin topography depths file ---------------------------
-    #   write basin mean topography of ice shelf areas to basin_shelf_topg_depth_file
+    ### ---------------------- save basin topography depths file ---------------
+    #   write basin mean topography of ice shelf areas to
+    #   basin_shelf_topg_depth_file
     if args.verbose:
         print(" - write basin mean topography of ice shelf areas to file ",
                   args.basin_shelf_topg_depth_file)
@@ -718,8 +755,8 @@ if __name__ == "__main__":
 
     pism_basin_shelf_topg_depth.attrs = glob_attrs
     pism_basin_shelf_topg_depth.to_netcdf(args.basin_shelf_topg_depth_file,
-                                          encoding={"time":      {"dtype": "float", "units":f"days since 0001-01-01 00:00:00"}})
-
+            encoding={"time": {"dtype": "float",
+                               "units":f"days since 0001-01-01 00:00:00"}})
 
     ### ---------------------- save shelf depth file ---------------------------
     #   write mean ice shelf frontal depth to basin_shelf_front_depth_file
@@ -742,7 +779,8 @@ if __name__ == "__main__":
 
         shelf_front_box_depth_ocean.attrs = glob_attrs
         shelf_front_box_depth_ocean.to_netcdf(args.basin_shelf_front_depth_file,
-                                                   encoding={"time":      {"dtype": "float", "units":f"days since 0001-01-01 00:00:00"}})
+                encoding={"time": {"dtype": "float",
+                                   "units":f"days since 0001-01-01 00:00:00"}})
 
     t_write_file_end = time.time()
     t_main_end = time.time()
