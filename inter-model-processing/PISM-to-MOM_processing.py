@@ -145,6 +145,23 @@ def check_var_match(ds1, ds2, var):
                  f"'{ds2.encoding['source']}'."
     assert (ds1[var] == ds2[var]).all(), assert_str
 
+def get_coord(ds, name_list):
+    '''finds coordinate name in dataset from given selection
+    
+    ds, xr.Dataset:     dataset used to search variables names 
+    name_list, list:    list of possible coordinate names
+
+    returns first entry of name_list which is a variable in ds
+    '''
+    coord = ''
+    for n in name_list:
+        if n in ds.variables:
+            coord=n
+    if coord=='':
+        raise KeyError(f'none of the coordinates {name_list} found in '
+                       f'{ds.encoding["source"]}')
+    else:
+        return coord
 
 if __name__ == "__main__":
 
@@ -333,10 +350,16 @@ if __name__ == "__main__":
 
     mom_out = xr.open_dataset(args.MOM_file, use_cftime=True)
 
-    check_var_match(mom_out, pism_mom_mapping, 'xt_ocean')
-    check_var_match(mom_out, pism_mom_mapping, 'yt_ocean')
-    check_var_match(mom_out, pism_mom_mapping, 'geolat_t')
-    check_var_match(mom_out, pism_mom_mapping, 'geolon_t')
+    # get coordinate names
+    ocn_x_coord   = get_coord(mom_out, ['xh', 'xt_ocean'])
+    ocn_y_coord   = get_coord(mom_out, ['yh', 'yt_ocean'])
+    ocn_lat_coord = get_coord(mom_out, ['geolat', 'geolat_t'])
+    ocn_lon_coord = get_coord(mom_out, ['geolon', 'geolon_t'])
+
+    check_var_match(mom_out, pism_mom_mapping, ocn_x_coord)
+    check_var_match(mom_out, pism_mom_mapping, ocn_y_coord)
+    check_var_match(mom_out, pism_mom_mapping, ocn_lat_coord)
+    check_var_match(mom_out, pism_mom_mapping, ocn_lon_coord)
 
     t_read_files_end = time.time()
     ### --------------- read MOM area - END ----------------------------------
@@ -550,7 +573,8 @@ if __name__ == "__main__":
     #oc_edge_flux = oc_edge_flux.drop('basins')
 
     # convert fluxes in MOM cells from total to area-relative fluxes
-    assert mom_out['area_t'].attrs['units']=='m^2', \
+    assert ((mom_out['area_t'].attrs['units']=='m^2') or \
+            (mom_out['area_t'].attrs['units']=='m2')), \
             f"variable 'area_t' is not in units 'm^2'"
     oc_edge_flux_per_area = oc_edge_flux / mom_out['area_t']
 
@@ -573,11 +597,11 @@ if __name__ == "__main__":
     # conservation check
     pism_mf_cum = pism_flux['mass_flux'].astype(np.float128).sum(dim=('x','y'))
     oc_mf_cum   = oc_edge_flux['mass_flux'].astype(np.float128).sum(
-            dim=('xt_ocean','yt_ocean'))
+            dim=(ocn_x_coord,ocn_y_coord))
 
     pism_ef_cum = pism_flux['heat_flux'].astype(np.float128).sum(dim=('x','y'))
     oc_ef_cum   = oc_edge_flux['heat_flux'].astype(np.float128).sum(
-            dim=('xt_ocean','yt_ocean'))
+            dim=(ocn_x_coord,ocn_y_coord))
 
     error_rate_mass   =  (pism_mf_cum - oc_mf_cum) / pism_mf_cum
     error_rate_energy =  (pism_ef_cum - oc_ef_cum) / pism_ef_cum
