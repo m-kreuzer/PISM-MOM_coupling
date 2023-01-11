@@ -144,22 +144,6 @@ def check_var_match(ds1, ds2, var):
                  f"'{ds2.encoding['source']}'."
     assert (ds1[var] == ds2[var]).all(), assert_str
 
-### https://gist.github.com/bsolomon1124/44f77ed2f15062c614ef6e102bc683a5
-class DeprecateAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        warnings.warn(f"Argument {self.option_strings} is deprecated and is "
-                       "*ignored*.")
-        delattr(namespace, self.dest)
-
-def mark_deprecated_help_strings(parser, prefix="DEPRECATED"):
-    for action in parser._actions:
-        if isinstance(action, DeprecateAction):
-            h = action.help
-            if h is None:
-                action.help = prefix
-            else:
-                action.help = prefix + ": " + h
-
 
 if __name__ == "__main__":
 
@@ -188,12 +172,10 @@ if __name__ == "__main__":
 "of the landice model PISM/PICO to the grid of ocean model MOM5. This was done "
 "in the scope of coupling PISM to the climate model POEM at PIK. "))
     parser.add_argument('-o', '--output',
-                        #action="store",
-                        action=DeprecateAction,
+                        action="store",
                         dest="PISM_output_file",
                         required=True,
-                        help=("Using PISM output variables 'mask' "
-                              "and 'topg' now from PISM extra output file"))
+                        help=("PISM output file with variable 'topg'"))
     parser.add_argument('-e', '--extra-output',
                         action="store",
                         dest="PISM_extra_file",
@@ -265,7 +247,6 @@ if __name__ == "__main__":
                         action="store_true",
                         help="increase output verbosity")
 
-    mark_deprecated_help_strings(parser)
     args = parser.parse_args()
 
     # -------------------- general setup --------------------------
@@ -325,12 +306,11 @@ if __name__ == "__main__":
 
     ### ---------- read PISM extra - END -----------------------------------
 
-    # ### ---------- read PISM output - BEGIN -----------------------------------
-    # DEPRECATED, using 'mask' and 'topg' variables now from PISM extra output
-    # if args.verbose:
-    #     print(" - reading PISM output from " + args.PISM_output_file )
-    # pism_out = xr.open_dataset(args.PISM_output_file, use_cftime=True)
-    # ### ---------- read PISM output - END ------------------------------------
+    ### ---------- read PISM output - BEGIN -----------------------------------
+    if args.verbose:
+        print(" - reading PISM output from " + args.PISM_output_file )
+    pism_out = xr.open_dataset(args.PISM_output_file, use_cftime=True)
+    ### ---------- read PISM output - END ------------------------------------
 
     ### ---------- read PISM-MOM mapping - BEGIN -----------------------------
     if args.verbose:
@@ -382,7 +362,7 @@ if __name__ == "__main__":
     #    1 = True, but not relevant
     #    2 = True and relevant
     pism_contshelf_topg = \
-            pism_extra['topg'].where(pism_extra['pico_contshelf_mask']==2, np.nan)
+            pism_out['topg'].where(pism_extra['pico_contshelf_mask']==2, np.nan)
 
     # aggregate mass from ice to ocean for mass & energy flux calculations
     #  positive corresponds to ice gain
