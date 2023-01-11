@@ -40,6 +40,9 @@ of ice shelf fronts are computed to determine the input depth of basal melt
 fluxes into the ocean model.
 
 Arguments:
+    -o, --output PISM_output_file
+        PISM output file with flux variables 'mask', 'ice_area_specific_volume'
+        and 'topg'
     -e, --extra-output PISM_extra_file
         input file from PISM extra-output with flux variables 'mask', 'topg',
         'surface_runoff_flux', 'tendency_of_ice_amount_due_to_basal_mass_flux'
@@ -90,8 +93,6 @@ import argparse
 from tqdm import tqdm
 import xarray as xr
 import warnings
-# debug
-import code
 
 def check_ndims(da, valid_ndims=[2,3], ds_source=None):
     '''checks whether xr.DataArray has the expected dimensions
@@ -356,13 +357,30 @@ if __name__ == "__main__":
     #              "+proj=stere +x_0=0.0 +units=m +y_0=0.0 +lat_0=-90.0 ")
 
     ### create subset of topography for continental shelf grid cells
+    if 'topg' in pism_extra.variables:
+        pism_topg = pism_extra['topg']
+    elif 'topg' in pism_out.variables:
+        pism_topg = pism_out['topg']
+        if ~np.all(pism_out.time.data == pism_extra.time.data):
+            # broadcast to time of extra file, when topg has 1 time stamp
+            if pism_out.time.shape == (1,):
+                pism_topg = \
+                    pism_topg.squeeze(dim='time').broadcast_like(pism_extra.time)
+            else:
+                raise ValueError(f"variable 'topg' in PISM output file "
+                    f"({args.PISM_output_file}) has different time stamps than "
+                    f"pism extra output ({args.PISM_extra_file}) and can not "
+                    f"be broadcasted (as time stamps are more than 1).")
+    else:
+        raise KeyError("variable 'topg' not provided!")
+
     #   pism/pico continental shelf mask
     #       <=> continental shelf (topg above threshold) AND no land ice
     #    0 = False
     #    1 = True, but not relevant
     #    2 = True and relevant
     pism_contshelf_topg = \
-            pism_out['topg'].where(pism_extra['pico_contshelf_mask']==2, np.nan)
+            pism_topg.where(pism_extra['pico_contshelf_mask']==2, np.nan)
 
     # aggregate mass from ice to ocean for mass & energy flux calculations
     #  positive corresponds to ice gain
@@ -538,7 +556,6 @@ if __name__ == "__main__":
 
     ### ------------- conversion of variables ----------------
     for v in oc_edge_flux_per_area.variables:
-        #print(v)
         if 'mass' in v:
             oc_edge_flux_per_area[v].attrs = oc_edge_flux[v].attrs
             assert oc_edge_flux_per_area[v].attrs['units'] == "kg/s", \
@@ -643,7 +660,7 @@ if __name__ == "__main__":
         pism_mom_mapping_basin_time = \
                 pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
         v = 'shelf_front_depth'
-        shelf_front_box_depth_ocean[v] = pism_mom_mapping_basin_time * np.nan
+        shelf_front_box_depth_ocean[v] = pism_mom_mapping_basin_time.fillna(0) * 0
 
         for b in tqdm(shelf_front_box_depth_basin.basins,
                 desc='redistribution on ocean grid (iterating basins)',
@@ -691,6 +708,7 @@ if __name__ == "__main__":
 
     oc_edge_flux_per_area.attrs = glob_attrs
     oc_edge_flux_per_area.to_netcdf(args.PISM_to_MOM_fluxes_file,
+            unlimited_dims = ['time'],
             encoding={"time": {"dtype": "float",
                                "units":f"days since 0001-01-01 00:00:00"}})
 
@@ -718,6 +736,7 @@ if __name__ == "__main__":
 
         mass_ref_runoff.attrs = glob_attrs
         mass_ref_runoff.to_netcdf(args.runoff_reference_file,
+            unlimited_dims = ['time'],
             encoding={"time": {"dtype": "float",
                                "units":f"days since 0001-01-01 00:00:00"}})
 
@@ -735,6 +754,7 @@ if __name__ == "__main__":
 
     pism_basin_shelf_topg_depth.attrs = glob_attrs
     pism_basin_shelf_topg_depth.to_netcdf(args.basin_shelf_topg_depth_file,
+            unlimited_dims = ['time'],
             encoding={"time": {"dtype": "float",
                                "units":f"days since 0001-01-01 00:00:00"}})
 
@@ -759,6 +779,7 @@ if __name__ == "__main__":
 
         shelf_front_box_depth_ocean.attrs = glob_attrs
         shelf_front_box_depth_ocean.to_netcdf(args.basin_shelf_front_depth_file,
+                unlimited_dims = ['time'],
                 encoding={"time": {"dtype": "float",
                                    "units":f"days since 0001-01-01 00:00:00"}})
 
