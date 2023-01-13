@@ -71,6 +71,9 @@ Arguments:
         PISM's surface accumulation and used to calculate the sea level
         changing fraction of the ice to ocean runoff fluxes stored by
         --flux-out
+    -p, --padding (optional)
+        use time padding for output files with multiple time slices: prepend
+        with first and append with last time slice
     -t, --time (optional)
         print script time statistics
     -v, --verbose (optional)
@@ -93,6 +96,8 @@ import argparse
 from tqdm import tqdm
 import xarray as xr
 import warnings
+# debug
+import code
 
 def check_ndims(da, valid_ndims=[2,3], ds_source=None):
     '''checks whether xr.DataArray has the expected dimensions
@@ -147,8 +152,8 @@ def check_var_match(ds1, ds2, var):
 
 def get_coord(ds, name_list):
     '''finds coordinate name in dataset from given selection
-    
-    ds, xr.Dataset:     dataset used to search variables names 
+
+    ds, xr.Dataset:     dataset used to search variables names
     name_list, list:    list of possible coordinate names
 
     returns first entry of name_list which is a variable in ds
@@ -162,6 +167,44 @@ def get_coord(ds, name_list):
                        f'{ds.encoding["source"]}')
     else:
         return coord
+
+def time_padding(ds, prepend=True, append=True):
+    '''prepends dataset with first and appends dataset with last timestamp
+
+    ds, xr.Dataset:  dataset used for padding
+    prepend, bool:   do time prepending
+    append,  bool:   do time appending
+
+    Returns the same dataset, but appended with the first time slice shifted by
+    the time axis frequency and does the same for appending.
+    This is useful/necessary to prepare time dependent forcing files for MOM5
+    as it requires forcing before the first model timestamp (and doesn't care
+    about time bounds).
+    '''
+    time_index = ds.get_index('time')
+
+    merge_list = [ds]
+
+    if prepend:
+        ds_prepend = ds.isel(time=0)
+        ds_prepend['time'] = time_index.shift(-1,time_index.freq)[0]
+        time_bnds_shift = ds_prepend['time'].data - ds['time'].isel(time=0).data
+        ds_prepend['time_bounds'] = ds_prepend['time_bounds'] + time_bnds_shift
+        merge_list = [ds_prepend.expand_dims('time')] + merge_list
+
+    if append:
+        ds_append = ds.isel(time=-1)
+        ds_append['time'] = time_index.shift(1,time_index.freq)[-1]
+        time_bnds_shift = ds['time'].isel(time=-1).data - ds_append['time'].data
+        ds_append['time_bounds'] = ds_append['time_bounds'] - time_bnds_shift
+        merge_list += [ds_append.expand_dims('time')]
+
+    ds_merge = xr.merge(merge_list)
+    ds_merge['time'].attrs = ds['time'].attrs
+    return ds_merge
+
+
+
 
 if __name__ == "__main__":
 
@@ -258,6 +301,13 @@ if __name__ == "__main__":
                               "and used to calculate the sea level changing "
                               "fraction of the ice to ocean runoff fluxes "
                               "stored by --flux-out"))
+    parser.add_argument('-p', '--padding',
+                        action="store_true",
+                        dest="time_padding",
+                        required=False,
+                        help=("use time padding for output files with multiple "
+                              "time slices: prepend with first and append with "
+                              " last time slice"))
     parser.add_argument('-t', '--time',
                         action="store_true",
                         help="print script timings")
@@ -300,7 +350,12 @@ if __name__ == "__main__":
     if args.verbose:
         print(" - reading PISM extra variables from " + args.PISM_extra_file )
 
-    pism_extra = xr.open_dataset(args.PISM_extra_file, use_cftime=True)
+    pism_extra = xr.open_dataset(args.PISM_extra_file, decode_times=False)
+    with pism_extra as ds:
+        ds['time_bounds'] = ds['time_bounds'].assign_attrs(
+                units    = ds['time'].attrs['units'],
+                calendar = ds['time'].attrs['calendar'])
+    pism_extra = xr.decode_cf(ds)
 
     check_dims = {'tendency_of_ice_amount_due_to_basal_mass_flux':[3],
                   'tendency_of_ice_amount_due_to_discharge':[3],
@@ -557,7 +612,7 @@ if __name__ == "__main__":
             pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
 
     for v in pism_basin_flux.data_vars:
-        oc_edge_flux[v] = pism_mom_mapping_basin_time * np.nan
+        oc_edge_flux[v] = pism_mom_mapping_basin_time.fillna(0) * 0
 
     for v in oc_edge_flux.data_vars:
         for b in pism_basin_flux.basins:
@@ -565,9 +620,12 @@ if __name__ == "__main__":
                                             pism_basin_flux[v].sel(basins=b),
                                             oc_edge_flux[v]).data
 
-        oc_edge_flux[v] *= pism_mom_mapping['basin_ratio']
+        oc_edge_flux[v] *= pism_mom_mapping['basin_ratio'].fillna(0)
         oc_edge_flux[v].attrs = pism_basin_flux[v].attrs
 
+
+    import code
+    #code.interact(local=locals())
 
     # remove unwanted basin coordinate
     #oc_edge_flux = oc_edge_flux.drop('basins')
@@ -616,7 +674,7 @@ if __name__ == "__main__":
         if args.verbose:
             print(" - calculating frontal ice shelf draft depth ")
 
-            shelf_front_box_depth = pism_extra['pico_box_mask'] * np.nan
+            shelf_front_box_depth = pism_extra['pico_box_mask'] * 0
 
         for t in tqdm(pism_extra.time, desc='on ice grid (iterating time)',
                 disable=not(args.verbose)):
@@ -700,6 +758,7 @@ if __name__ == "__main__":
         #shelf_front_box_depth_ocean = shelf_front_box_depth_ocean.drop('basins')
 
     t_process_end = time.time()
+    #code.interact(local=locals())
 
     ### ---------------------- save fluxes to file ---------------------------
     #   write redistributed flux variables to file PISM_to_MOM_fluxes_file
@@ -731,10 +790,24 @@ if __name__ == "__main__":
         glob_attrs['history'] = histstr
 
     oc_edge_flux_per_area.attrs = glob_attrs
-    oc_edge_flux_per_area.to_netcdf(args.PISM_to_MOM_fluxes_file,
+    oc_edge_flux_per_area['time_bounds'] = pism_extra['time_bounds']
+    if args.time_padding:
+        ds_save = time_padding(oc_edge_flux_per_area)
+    else:
+        ds_save = oc_edge_flux_per_area
+
+    # set valid min/max (required by FMS to not falsely recognize field values
+    # as missing)
+    for v in ds_save.data_vars:
+        ds_save[v].attrs['valid_min'] = -1e20
+        ds_save[v].attrs['valid_max'] =  1e20
+
+    ds_save.to_netcdf(args.PISM_to_MOM_fluxes_file,
             unlimited_dims = ['time'],
-            encoding={"time": {"dtype": "float",
-                               "units":f"days since 0001-01-01 00:00:00"}})
+            encoding={"time":        {"dtype": "float",
+                                      "units":f"days since 0001-01-01 00:00:00"},
+                      "time_bounds": {"dtype": "float",
+                                      "units":f"days since 0001-01-01 00:00:00"}})
 
     ### ------------------ save runoff reference to file -----------------------
     #   write redistributed ice to ocean reference runoff (surface accumulation)
@@ -759,10 +832,25 @@ if __name__ == "__main__":
             glob_attrs['history'] = histstr
 
         mass_ref_runoff.attrs = glob_attrs
-        mass_ref_runoff.to_netcdf(args.runoff_reference_file,
+        mass_ref_runoff['time_bounds'] = pism_extra['time_bounds']
+
+        if args.time_padding:
+            ds_save = time_padding(mass_ref_runoff)
+        else:
+            ds_save = mass_ref_runoff
+
+        # set valid min/max (required by FMS to not falsely recognize field values
+        # as missing)
+        for v in ds_save.data_vars:
+            ds_save[v].attrs['valid_min'] = -1e20
+            ds_save[v].attrs['valid_max'] =  1e20
+
+        ds_save.to_netcdf(args.runoff_reference_file,
             unlimited_dims = ['time'],
-            encoding={"time": {"dtype": "float",
-                               "units":f"days since 0001-01-01 00:00:00"}})
+            encoding={"time":        {"dtype": "float",
+                                      "units":f"days since 0001-01-01 00:00:00"},
+                      "time_bounds": {"dtype": "float",
+                                      "units":f"days since 0001-01-01 00:00:00"}})
 
     ### ---------------------- save basin topography depths file ---------------
     #   write basin mean topography of ice shelf areas to
@@ -777,10 +865,19 @@ if __name__ == "__main__":
     glob_attrs['history']  = histstr
 
     pism_basin_shelf_topg_depth.attrs = glob_attrs
-    pism_basin_shelf_topg_depth.to_netcdf(args.basin_shelf_topg_depth_file,
+    pism_basin_shelf_topg_depth['time_bounds'] = pism_extra['time_bounds']
+
+    if args.time_padding:
+        ds_save = time_padding(pism_basin_shelf_topg_depth)
+    else:
+        ds_save = pism_basin_shelf_topg_depth
+
+    ds_save.to_netcdf(args.basin_shelf_topg_depth_file,
             unlimited_dims = ['time'],
-            encoding={"time": {"dtype": "float",
-                               "units":f"days since 0001-01-01 00:00:00"}})
+            encoding={"time":        {"dtype": "float",
+                                      "units":f"days since 0001-01-01 00:00:00"},
+                      "time_bounds": {"dtype": "float",
+                                      "units":f"days since 0001-01-01 00:00:00"}})
 
     ### ---------------------- save shelf depth file ---------------------------
     #   write mean ice shelf frontal depth to basin_shelf_front_depth_file
@@ -802,10 +899,25 @@ if __name__ == "__main__":
             glob_attrs['history'] = histstr
 
         shelf_front_box_depth_ocean.attrs = glob_attrs
-        shelf_front_box_depth_ocean.to_netcdf(args.basin_shelf_front_depth_file,
-                unlimited_dims = ['time'],
-                encoding={"time": {"dtype": "float",
-                                   "units":f"days since 0001-01-01 00:00:00"}})
+        shelf_front_box_depth_ocean['time_bounds'] = pism_extra['time_bounds']
+
+        if args.time_padding:
+            ds_save = time_padding(shelf_front_box_depth_ocean)
+        else:
+            ds_save = shelf_front_box_depth_ocean
+
+        # set valid min/max (required by FMS to not falsely recognize field values
+        # as missing)
+        for v in ds_save.data_vars:
+            ds_save[v].attrs['valid_min'] = -1e20
+            ds_save[v].attrs['valid_max'] =  1e20
+
+        ds_save.to_netcdf(args.basin_shelf_front_depth_file,
+            unlimited_dims = ['time'],
+            encoding={"time":        {"dtype": "float",
+                                      "units":f"days since 0001-01-01 00:00:00"},
+                      "time_bounds": {"dtype": "float",
+                                      "units":f"days since 0001-01-01 00:00:00"}})
 
     t_write_file_end = time.time()
     t_main_end = time.time()
