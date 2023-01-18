@@ -10,8 +10,8 @@ import subprocess
 import warnings
 import glob
 
-import helpers 
-import settings 
+import helpers
+import settings
 
 
 from contextlib import contextmanager
@@ -60,7 +60,7 @@ def create_script_from_template(settings, template_file,
     # make jinja aware of templates
     template_path = os.path.join(settings.project_root,"templates")
     jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath=template_path),
-                                   trim_blocks=True, 
+                                   trim_blocks=True,
                                    lstrip_blocks=True
                                    )
 
@@ -69,7 +69,7 @@ def create_script_from_template(settings, template_file,
 
     template_write_path = os.path.realpath(os.path.join(settings.experiment_dir,
                             "create_experiment","templates",template_file))
-    fname = os.path.join(os.path.dirname(template_write_path), 
+    fname = os.path.join(os.path.dirname(template_write_path),
                 template_file.replace(".jinja2",""))
 
     with open(fname, 'w') as f: f.write(out)
@@ -117,7 +117,7 @@ def copy_from_template(settings, filename,
 
 
 def create_run(settings=settings, experiment=settings.experiment):
-    
+
     # copy template structure to new experiment location
     try:
         shutil.copytree(settings.coupl_template_dir, settings.experiment_dir, symlinks=True)
@@ -127,7 +127,7 @@ def create_run(settings=settings, experiment=settings.experiment):
         sys.exit(1)
 
     for d in ['x_MOM-to-PISM','x_PISM-to-MOM']:
-        dir_path = os.path.join(settings.experiment_dir,d) 
+        dir_path = os.path.join(settings.experiment_dir,d)
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
     print(f" > created experiment directory {settings.experiment_dir}")
@@ -152,8 +152,8 @@ def create_run(settings=settings, experiment=settings.experiment):
 
     # copy PISM input files to PISM/initdata/
     pism_input_files_to_copy = [
-            settings.pism_infile_path, 
-            settings.pism_atm_data_path, 
+            settings.pism_infile_path,
+            settings.pism_atm_data_path,
             settings.pism_ocn_data_path,
             settings.pism_ocnkill_data_path]
     if settings.pism_use_atm_anomaly_file:
@@ -218,9 +218,9 @@ def create_run(settings=settings, experiment=settings.experiment):
         except Exception as e:
             print(f'Failed to delete {file_path}. Reason: {e}')
     # copy from template
-    #shutil.copytree(settings.poem_template_dir, settings.poem_exp_dir, 
+    #shutil.copytree(settings.poem_template_dir, settings.poem_exp_dir,
     #        dirs_exist_ok=True, symlinks=True)
-    dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir, 
+    dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir,
             preserve_symlinks=1, update=1, verbose=1)
     print(f"   - copied POEM template {settings.poem_template_dir} to POEM")
 
@@ -330,12 +330,10 @@ def create_run(settings=settings, experiment=settings.experiment):
                 f"{settings.pism_to_mom_flux_init_path} for ice to ocean "\
                 f"fluxes in first coupling iteration")
 
-        # TODO: copy MOM RESTART files
-
     # restarting from a previous coupled run
     if settings.coupled_restart==True :
         # copy PISM-to-MOM fluxes file from previous run (last iteration)
-        shutil.copy2(settings.pism_to_mom_flux_restart_path, 
+        shutil.copy2(settings.pism_to_mom_flux_restart_path,
                 os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
         print(f"   - copied PISM-to-MOM flux file "\
                 f"{settings.pism_to_mom_flux_restart_file} from "\
@@ -343,7 +341,7 @@ def create_run(settings=settings, experiment=settings.experiment):
 
         if settings.use_prescribed_pico_input_depth==False:
             # copy PICO input depth restart file from previous run (last iteration)
-            shutil.copy2(settings.pico_input_depth_restart_path, 
+            shutil.copy2(settings.pico_input_depth_restart_path,
                     os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
             print(f"   - copied PICO input depth restart file "\
                     f"{settings.pico_input_depth_restart_file} from "\
@@ -352,7 +350,7 @@ def create_run(settings=settings, experiment=settings.experiment):
         if (settings.use_prescribed_basal_melt_input_depth==False and \
                 settings.insert_basal_melt_at_depth==True):
             # copy basal melt input depth restart file from previous run (last iteration)
-            shutil.copy2(settings.basal_melt_input_depth_restart_path, 
+            shutil.copy2(settings.basal_melt_input_depth_restart_path,
                     os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
             print(f"   - copied basal melt input depth restart file "\
                     f"{settings.basal_melt_input_depth_restart_file} from "\
@@ -413,8 +411,8 @@ def create_run(settings=settings, experiment=settings.experiment):
 
     # copying prescribed PICO input depth (if used)
     if settings.use_prescribed_pico_input_depth==True:
-        # copy prescribed PICO input depth file 
-        shutil.copy2(settings.prescribed_pico_input_depth_path, 
+        # copy prescribed PICO input depth file
+        shutil.copy2(settings.prescribed_pico_input_depth_path,
                 os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
         print(f"   - copied prescribed PICO input depth restart file "\
                 f"{settings.pico_input_depth_restart_path}")
@@ -422,8 +420,8 @@ def create_run(settings=settings, experiment=settings.experiment):
     # copying prescribed  basal melt depth (if used)
     if (settings.use_prescribed_basal_melt_input_depth==True and \
             settings.insert_basal_melt_at_depth==True):
-        # copy prescribed basal melt input depth file 
-        shutil.copy2(settings.prescribed_basal_melt_input_depth_path, 
+        # copy prescribed basal melt input depth file
+        shutil.copy2(settings.prescribed_basal_melt_input_depth_path,
                 os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
         print(f"   - copied prescribed basal melt input depth restart file "\
                 f"{settings.basal_melt_input_depth_restart_path}")
@@ -437,11 +435,6 @@ if __name__ == "__main__":
     print(f"writing script output to '{logfile}'")
     print("  -> check there for possible errors")
     with open(logfile, "w") as f:
-        #sys.stdout = f
-        #try:
-        #    create_run()
-        #finally:
-        #    sys.stdout = orig_stdout
         with stdout_redirected(to=f), merged_stderr_stdout():
         # copied from https://stackoverflow.com/questions/6796492/temporarily-redirect-stdout-stderr
             create_run()
