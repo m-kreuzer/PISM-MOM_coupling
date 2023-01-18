@@ -121,11 +121,7 @@ if __name__ == "__main__":
     try:
         nc_pism.variables['time'].set_auto_mask(False)
         pism_time_raw = np.squeeze(nc_pism.variables['time'][:])
-        #pism_time__sec = pism_time_raw.data
         pism_time__sec = pism_time_raw
-        print("pism_time__sec: ", pism_time__sec)
-        print("pism_time_raw: ", pism_time_raw)
-        print("type(pism_time_raw): ", type(pism_time_raw))
     except:
         print("Variable 'time' can't be read from file '" +
                 args.pism_restart_file + "'!")
@@ -204,15 +200,14 @@ if __name__ == "__main__":
     mom_time_hours__sec = mom_hours * seconds_per_hour
     mom_time_secs__sec = mom_secs
 
-    #print(" years_sec: \t",mom_time_yrs__sec)
-    #print(" months_sec:\t",mom_time_months__sec)
-    #print(" days_sec:  \t",mom_time_days__sec)
-    #print(" hours_sec: \t",mom_time_hours__sec)
-    #print(" secs_sec:  \t",mom_time_secs__sec)
-    #print()
-    mom_time__sec = mom_time_yrs__sec + mom_time_months__sec + \
-            mom_time_days__sec + mom_time_hours__sec + \
-            mom_time_secs__sec
+    #mom_time__sec = mom_time_yrs__sec + mom_time_months__sec + \
+    #        mom_time_days__sec + mom_time_hours__sec + \
+    #        mom_time_secs__sec
+
+    # only consider MOM years (neglect months, days, ...) as PISM should be
+    # shifted by full years only. Restarting PISM from other dates than 1st
+    # January can lead to omitted extra files output.
+    mom_time__sec = mom_time_yrs__sec 
 
     if args.verbose:
         print("time stamps [seconds since 0000/1/1 - 00:00:00]:")
