@@ -8,6 +8,7 @@ import collections
 import distutils.dir_util as dist
 import subprocess
 import warnings
+import glob
 
 import helpers 
 import settings 
@@ -135,6 +136,7 @@ def create_run(settings=settings, experiment=settings.experiment):
     create_script_from_template(settings, "run_coupled.sh.jinja2")
 
     # prepare PISM subdirectory
+    print(f" > set up PISM")
     PISM_folders = ['initdata', 'prerun', 'results']
     for f in PISM_folders:
         fpath = os.path.join(settings.pism_exp_dir, f)
@@ -162,6 +164,32 @@ def create_run(settings=settings, experiment=settings.experiment):
         shutil.copy2(f, os.path.join(settings.pism_exp_dir, 'initdata'))
         print(f"   - copied PISM input file {f} to PISM/initdata")
 
+    # adapt PISM input files
+    if settings.pism_use_atm_anomaly_file:
+        if hasattr(settings, 'pism_atm_anomaly_time_shift_years'):
+            cmd = f"ncdump -h {settings.pism_atm_anomaly_data_path} | grep 'time:units'"
+            time_units_str = str(subprocess.check_output(cmd, shell=True))
+            if 'years' in time_units_str:
+                time_shift = settings.pism_atm_anomaly_time_shift_years
+            elif 'days' in time_units_str:
+                time_shift = settings.pism_atm_anomaly_time_shift_years * 365
+            elif 'seconds' in time_units_str:
+                time_shift = settings.pism_atm_anomaly_time_shift_years * 365*24*3600
+            else:
+                raise ValueError(f"Cannot read time units of "
+                    f"{settings.pism_atm_anomaly_data_path} to do time shift.")
+
+            # shift time, time_bnds
+            path_file = os.path.join(settings.pism_exp_dir, 'initdata',settings.pism_atm_anomaly_file)
+            path_tmp = os.path.join(settings.pism_exp_dir, 'initdata',settings.pism_atm_anomaly_file + '.tmp')
+            shutil.move(path_file, path_tmp)
+            cmd = f"ncap2 -s 'time+={time_shift}ll; time_bnds+={time_shift}ll' {path_tmp} {path_file}"
+            subprocess.call(cmd, shell=True)
+            os.remove(path_tmp)
+            print(f"   - applied time shift to PISM/initdata/{settings.pism_atm_anomaly_file} ({settings.pism_atm_anomaly_time_shift_years} years)")
+
+
+
     # prepare pism config_override file
     pism_config_dict = get_pism_config_as_dict(settings)
     check_if_override_is_in_config(settings, pism_config_dict)
@@ -178,6 +206,7 @@ def create_run(settings=settings, experiment=settings.experiment):
 
 
     ## prepare POEM subdirectory
+    print(f" > set up POEM")
     # delete all content first
     for filename in os.listdir(settings.poem_exp_dir):
         file_path = os.path.join(settings.poem_exp_dir, filename)
@@ -194,6 +223,102 @@ def create_run(settings=settings, experiment=settings.experiment):
     dist.copy_tree(settings.poem_template_dir, settings.poem_exp_dir, 
             preserve_symlinks=1, update=1, verbose=1)
     print(f"   - copied POEM template {settings.poem_template_dir} to POEM")
+
+    # a new coupled run (not restarting from a previous coupled run)
+    if settings.coupled_restart==False:
+        # copy MOM restart files
+        poem_input_dir = os.path.join(settings.poem_exp_dir,'INPUT')
+        poem_restart_files_dir = settings.poem_restart_files_dir
+        if os.path.exists(poem_restart_files_dir):
+            with helpers.cd( str(poem_restart_files_dir) ):
+                cmd = f"for i in *.res*; do rm {poem_input_dir}/$i; "\
+                        f"cp -a $i {poem_input_dir} ; done"
+                subprocess.call(cmd, shell=True)
+            print(f"   - copied MOM restart files from {poem_restart_files_dir} "\
+                    "to POEM/INPUT")
+        else:
+            warnings.warn(f"WARNING: path {poem_restart_files_dir} does not "\
+                    f"exist! Need to copy MOM restart files to INPUT dir by "\
+                    f"hand...")
+
+    # set up data_table
+    with helpers.cd( str(settings.poem_exp_dir) ):
+        cmd = f"ln -sf {settings.poem_data_table_dummy} data_table-dummy"
+        subprocess.call(cmd, shell=True)
+    if settings.poem_data_table_replace is not {}:
+        for pattern, replace_str in settings.poem_data_table_replace.items():
+            #with helpers.cd( str(settings.poem_exp_dir) ):
+            #    shutil.copy2(settings.poem_data_table_dummy, f"{settings.poem_data_table_dummy}.tmp")
+            with helpers.cd( str(settings.poem_exp_dir) ):
+                cmd = f'sed "s/{pattern}/{replace_str}/g" -i {settings.poem_data_table_dummy}'
+                subprocess.call(cmd, shell=True)
+
+    if settings.poem_copy_forcing_data:
+        if not os.path.exists(settings.poem_forcing_data_target_path):
+            os.mkdir(settings.poem_forcing_data_target_path)
+        for f in glob.glob(settings.poem_forcing_data_source_path):
+            shutil.copy2(f, settings.poem_forcing_data_target_path)
+        #shutil.copy2(settings.poem_forcing_data_source_path,
+        #             settings.poem_forcing_data_target_path)
+        print(f"   - copied MOM forcing files "
+              f"{settings.poem_forcing_data_source_path} to "
+              f"{settings.poem_forcing_data_target_path}")
+
+        # shift forcing data time
+        if hasattr(settings, 'poem_forcing_time_shift_years'):
+            file_paths = os.path.join(settings.poem_forcing_data_target_path,
+                    settings.poem_forcing_data_source_pattern)
+            cmd = f"ncdump -h {glob.glob(file_paths)[0]} | grep 'time:units'"
+            time_units_str = str(subprocess.check_output(cmd, shell=True))
+            if 'years' in time_units_str:
+                time_shift = settings.poem_forcing_time_shift_years
+            elif 'days' in time_units_str:
+                time_shift = settings.poem_forcing_time_shift_years * 365
+            elif 'seconds' in time_units_str:
+                time_shift = settings.poem_forcing_time_shift_years * 365*24*3600
+            else:
+                raise ValueError(f"Cannot read time units of "
+                    f"{glob.glob(file_paths)[0]} to do time shift.")
+
+            # shift time, time_bnds
+            for f in glob.glob(file_paths):
+                file_ext = f.split('.')[-1]
+                file_base = ".".join(f.split('.')[0:-1])
+                f_shift = ".".join([file_base,'shift',file_ext])
+                cmd = f"ncap2 -s 'time+={time_shift}ll; time_bnds+={time_shift}ll' {f} {f_shift}"
+                subprocess.call(cmd, shell=True)
+                print(f"   - applied time shift to {f} ({settings.poem_forcing_time_shift_years} years)")
+
+    print(f" > set up additional coupling files")
+
+
+    if (settings.do_ocean_tracer_anomaly==True and
+        settings.use_ocean_tracer_anomaly_from_prev_run==True):
+        # copy ocean tracer anomaly reference file from given path
+        if os.path.exists(settings.ocean_tracer_anomaly_reference_path):
+            shutil.copy2(settings.ocean_tracer_anomaly_reference_path,
+                os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
+            print(f"   - copied ocean tracer anomaly reference file "\
+                    f"{settings.ocean_tracer_anomaly_reference_path} "\
+                    f"to compute ocean tracer anomalies "\
+                    f"to same reference like in other run")
+        else:
+            warnings.warn(f"path {settings.ocean_tracer_anomaly_reference_path} "\
+                f"does not exist!")
+
+    if (settings.do_ocean_sealevel_anomaly==True and
+        settings.use_ocean_sealevel_anomaly_from_prev_run==True):
+        # copy ocean sealevel anomaly reference file from given path
+        if os.path.exists(settings.ocean_sealevel_anomaly_reference_path):
+            shutil.copy2(settings.ocean_sealevel_anomaly_reference_path,
+                os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
+            print(f"   - copied ocean sealevel anomaly reference file "\
+                    f"{settings.ocean_sealevel_anomaly_reference_path} "\
+                    f"to compute ocean sealevel anomalies "\
+                    f"to same reference like in other run")
+        else:
+            warnings.warn(f"path {settings.ocean_sealevel_anomaly_reference_path} "\
+                f"does not exist!")
 
     # a new coupled run (not restarting from a previous coupled run)
     if settings.coupled_restart==False:
@@ -234,34 +359,6 @@ def create_run(settings=settings, experiment=settings.experiment):
                     f"{settings.restart_dir} to restart from previous run")
 
 
-        if (settings.do_ocean_tracer_anomaly==True and 
-            settings.use_ocean_tracer_anomaly_from_prev_run==True):
-            # copy ocean tracer anomaly reference file from previous run
-            if os.path.exists(settings.ocean_tracer_anomaly_reference_path):
-                shutil.copy2(settings.ocean_tracer_anomaly_reference_path, 
-                    os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
-                print(f"   - copied ocean tracer anomaly reference file "\
-                        f"{settings.ocean_tracer_anomaly_reference_file} of "\
-                        f"{settings.restart_dir} to compute ocean tracer anomalies "\
-                        f"to same reference like in previous run")
-            else:
-                warnings.warn(f"path {settings.ocean_tracer_anomaly_reference_path} "\
-                    f"does not exist!")
-
-        if (settings.do_ocean_sealevel_anomaly==True and 
-            settings.use_ocean_sealevel_anomaly_from_prev_run==True):
-            # copy ocean sealevel anomaly reference file from previous run
-            if os.path.exists(settings.ocean_sealevel_anomaly_reference_path):
-                shutil.copy2(settings.ocean_sealevel_anomaly_reference_path, 
-                    os.path.join(settings.experiment_dir, 'x_MOM-to-PISM'))
-                print(f"   - copied ocean sealevel anomaly reference file "\
-                        f"{settings.ocean_sealevel_anomaly_reference_file} of "\
-                        f"{settings.restart_dir} to compute ocean sealevel anomalies "\
-                        f"to same reference like in previous run")
-            else:
-                warnings.warn(f"path {settings.ocean_sealevel_anomaly_reference_path} "\
-                    f"does not exist!")
-
         # copy MOM restart files from previous run
         poem_input_dir = os.path.join(settings.poem_exp_dir,'INPUT')
         poem_restart_files_dir = os.path.join(settings.restart_dir,'POEM/INPUT')
@@ -269,8 +366,6 @@ def create_run(settings=settings, experiment=settings.experiment):
             with helpers.cd( str(poem_restart_files_dir) ):
                 cmd = f"for i in *.res*; do rm {poem_input_dir}/$i; "\
                         f"cp -a $i {poem_input_dir} ; done"
-                #subprocess.run("ls", capture_output=True)
-                #subprocess.run("ls", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 subprocess.call(cmd, shell=True)
             print(f"   - copied MOM restart files from {poem_restart_files_dir} "\
                     "to POEM/INPUT")
