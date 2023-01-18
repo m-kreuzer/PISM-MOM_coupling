@@ -151,7 +151,7 @@ poem_run() {
        RESULT=$?
     fi
 
-    local enddate=`$POEM_TOOLS_DIR/time_stamp.csh -ef digital`
+    enddate=`$POEM_TOOLS_DIR/time_stamp.csh -ef digital`
     return_check $RESULT "POEM_run.$enddate"
 
     END_POEM_RUN=$(date +%s.%N)
@@ -250,7 +250,7 @@ poem_run_postprocess() {
     if [ "$begindate" == "" ] ; then
         begindate=tmp`date +%Y%j%H%M%S`
     fi
-    local enddate=`$POEM_TOOLS_DIR/time_stamp.csh -ef digital`
+    enddate=`$POEM_TOOLS_DIR/time_stamp.csh -ef digital`
     if [ "$enddate" == "" ] ; then
         enddate=tmp`date +%Y%j%H%M%S`
     fi
@@ -376,8 +376,8 @@ pism_run() {
     echo PISM_TIME_END $PISM_TIME_END
 
     # save first and last year of coupled simulation output
-    if [ $CPL_ITERATION -eq 2 ]; then
-        SIM_START_YEAR=$(printf "%06d\n" $PISM_TIME_BEGIN)
+    if [ $CPL_ITERATION -eq 1 ]; then
+        SIM_START_YEAR=$(printf "%06d\n" $PISM_TIME_END)
     fi
     SIM_END_YEAR=$(printf "%06d\n" $PISM_TIME_END)
 
@@ -666,48 +666,74 @@ process_pism_to_mom(){
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 concat_output_files(){
 START_CONCAT_FILES=$(date +%s.%N)
+POEM_TIME_CONCAT_FORMAT="%06g"${enddate:6}
+echo POEM_TIME_CONCAT_FORMAT: $POEM_TIME_CONCAT_FORMAT
 
     # concatenate MOM output
     cd $POEM_WORK_DIR/history
-    INPUT_FILES=$(echo `seq -f "%06g0101.ice-monthly.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-monthly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-monthly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%06g0101.ice-yearly.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-yearly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-yearly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%06g0101.ice-decadal.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-decadal.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-decadal.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%06g0101.ocean-scalar.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-decadal_max.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-decadal_max.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-decadal_min.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-decadal_min.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-scalar.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-scalar.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%06g0101.ocean-monthly.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-monthly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-monthly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%06g0101.ocean-yearly.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-yearly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-yearly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f "%06g0101.ocean-decadal.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal_max.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal_max.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal_min.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal_min.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
     cd $ROOT_WORK_DIR
@@ -724,14 +750,16 @@ START_CONCAT_FILES=$(date +%s.%N)
 
     # concatenate inter-model-processing files
     cd $ROOT_WORK_DIR/x_MOM-to-PISM
-    ncrcat --overwrite $(echo `seq -f "%06g0101.processed_MOM.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f $POEM_TIME_CONCAT_FORMAT".processed_MOM.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.processed_MOM.nc
-    ncrcat --overwrite $(echo `seq -f "%06g0101.tracer.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    ncrcat --overwrite $(echo `seq -f $POEM_TIME_CONCAT_FORMAT".tracer.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.tracer.processed_MOM.anomaly.nc
-    ncrcat --overwrite $(echo `seq -f "%06g0101.sealevel.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    {% if settings.do_ocean_sealevel_anomaly==True %}
+    ncrcat --overwrite $(echo `seq -f $POEM_TIME_CONCAT_FORMAT".sealevel.processed_MOM.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.sealevel.processed_MOM.anomaly.nc
     ln -sf $SIM_START_YEAR-$SIM_END_YEAR.sealevel.processed_MOM.anomaly.nc $SIM_START_YEAR-$SIM_END_YEAR.sealevel.PISM_input.nc
-    ncrcat --overwrite $(echo `seq -f "%06g0101.tracer.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+    {% endif %}
+    ncrcat --overwrite $(echo `seq -f $POEM_TIME_CONCAT_FORMAT".tracer.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
         $SIM_START_YEAR-$SIM_END_YEAR.tracer.PISM_input.nc
     cd $ROOT_WORK_DIR/x_PISM-to-MOM
     ncrcat --overwrite $(echo `seq -f "%06g.fluxes.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
