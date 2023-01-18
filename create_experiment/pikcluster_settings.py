@@ -39,13 +39,13 @@ slurm_tasks = 32
 #slurm_partition="broadwell"
 slurm_exclusive = False
 
-#slurm_qos = 'priority'
-#slurm_time = "23:00:00"
-slurm_qos = 'medium'
-slurm_time = "4-23:00:00"
+slurm_qos = 'short'
+slurm_time = "23:00:00"
+##slurm_qos = 'medium'
+##slurm_time = "4-23:00:00"
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 
 #slurm_add_directives = "#SBATCH --constraint=haswell,tasksmax"
-slurm_add_directives = "#SBATCH --constraint=tasksmax"
-#slurm_add_directives = ""
+#slurm_add_directives = "#SBATCH --constraint=tasksmax"
+slurm_add_directives = ""

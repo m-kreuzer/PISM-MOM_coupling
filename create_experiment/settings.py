@@ -16,12 +16,12 @@ from pikcluster_settings import *
 
 # ----------------------------- coupling settings ------------------------------
 
-experiment = "MOM5_PISM1.0hash_test01"
+experiment = "MOM5_PISM1.0hash_16km_1pctCO2_CCSM4_run01"
 experiment_dir      = os.path.join(working_dir, experiment)
 
 
-coupling_timestep = 2       # in years, must be greater or equal 1
-max_cpl_iteration = 1       # number of coupling iterations
+coupling_timestep = 5       # in years, must be greater or equal 1
+max_cpl_iteration = 27      # number of coupling iterations
 
 
 # - - - - - - - - - ice -> ocean fluxes [1st coupling iteration] - - - - - - - -
@@ -29,8 +29,8 @@ max_cpl_iteration = 1       # number of coupling iterations
 # in case of no coupled restart:
 # specify ice-to-ocean runoff for first coupling iteration as ocean runs before
 # ice and default setup for ocean has no Antarctic runoff from land/ice
-pism_to_mom_flux_init_file = 'equi_16km_110000yrs.mean_last_1ka.fluxes.nc'
-pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run05/output_processed/', pism_to_mom_flux_init_file)
+pism_to_mom_flux_init_file = 'equi_16km_110000yrs.last_1ka.mean.fluxes.nc'
+pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run05/output_processed/mom5.2023-01/', pism_to_mom_flux_init_file)
 
 # - - - - - - - - - - - - - - - - - - restart - - - - - - - - - - - - - - - - -
 # option to restart a coupled setup from a previous run
@@ -131,9 +131,10 @@ do_ocean_tracer_anomaly    = True
 
 # in case of coupled restart with do_ocean_tracer_anomaly:
 #     specify ocean tracer anomaly reference file from previous run
-use_ocean_tracer_anomaly_from_prev_run = False
+use_ocean_tracer_anomaly_from_prev_run = True
 ocean_tracer_anomaly_reference_file = "017090-017090.tracer_mean.processed_MOM.nc"
-ocean_tracer_anomaly_reference_path = os.path.join(restart_dir, 'x_MOM-to-PISM', ocean_tracer_anomaly_reference_file)
+#ocean_tracer_anomaly_reference_path = os.path.join(restart_dir, 'x_MOM-to-PISM', ocean_tracer_anomaly_reference_file)
+ocean_tracer_anomaly_reference_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/evaluation/x_MOM-to-PISM/tmp/', ocean_tracer_anomaly_reference_file)
 #     or specify MOM output files used for computing ocean tracer anomaly reference state
 #       -> used if do_ocean_tracer_anomaly==True and use_ocean_tracer_anomaly_from_prev_run==False
 calc_ocn_tracer_anomaly = {}
@@ -233,15 +234,12 @@ pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
 pism_sys_bin        = os.path.join(pism_code_dir, 'bin', pism_exec)
 
 # input data
-#pism_infile_dir = "/p/tmp/albrecht/pism19/pismOut/equi/equi9000/results"
-#pism_infile = "result_equi_16km_100000yrs.nc"
-#pism_infile_dir = "/p/tmp/reese/pism_out/pism_025_initmip8km_ismip_merged_schmidtko_woa18_cold1.25_thkgradient_subgl_subglmelt_hmin700_decay7_7a241540/"
-#pism_infile = "snapshots_112000.000.nc"
 pism_infile_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_equi_16km_run10/output_pism/"
 pism_infile = "result_equi_16km_50000.nc"
 pism_infile_path = os.path.join(pism_infile_dir, pism_infile)
 
-pism_atm_data_dir = os.path.join(pism_input_root_dir, "racmo_wessem")
+#pism_atm_data_dir = os.path.join(pism_input_root_dir, "racmo_wessem")
+pism_atm_data_dir = pism_input_root_dir
 pism_atm_file = "racmo_wessem_"+grid_id+"_mean1986_2005.nc"
 #pism_atm_data_dir = os.path.join(pism_input_root_dir, "merged")
 #pism_atm_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
@@ -262,20 +260,22 @@ pism_atm_anomaly_time_shift_years = (17090 - 50001)
 ##pism_atm_anomaly_time_shift_years = (17090 - 50001) 
 
 pism_use_atm_lapse_rate_file = True
-pism_atm_lapse_rate_data_dir = os.path.join(pism_input_root_dir, "merged")
+#pism_atm_lapse_rate_data_dir = os.path.join(pism_input_root_dir, "merged")
+pism_atm_lapse_rate_data_dir = pism_input_root_dir
 pism_atm_lapse_rate_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
 pism_atm_lapse_rate_data_path = os.path.join(pism_atm_lapse_rate_data_dir,pism_atm_lapse_rate_file)
 
-pism_ocn_data_dir = os.path.join(pism_input_root_dir, "schmidtko")
+#pism_ocn_data_dir = os.path.join(pism_input_root_dir, "schmidtko")
 #pism_ocn_file = "schmidtko_"+grid_id+"_means.nc"
-pism_ocn_file = "schmidtko_"+grid_id+".nc"
-#pism_ocn_data_dir = "/p/projects/pism/reese/ISMIP6_input_data/ocean_merged_schmidtko_woa18/"
-#pism_ocn_file = "ocean_merged_schmidtko_woa18_initmip8km_means_amundsen-1.25.nc"
+pism_ocn_data_dir = pism_input_root_dir
+#pism_ocn_file = "schmidtko_"+grid_id+".nc"
+pism_ocn_file = "oceanWarming_schmidtko_0.0K.nc"
 pism_ocn_data_path = os.path.join(pism_ocn_data_dir,pism_ocn_file)
 
 #pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "bedmap2")
 #pism_ocnkill_file = "bedmap2_"+grid_id+".nc"
-pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "merged")
+#pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "merged")
+pism_ocnkill_data_dir = pism_input_root_dir
 pism_ocnkill_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
 pism_ocnkill_data_path = os.path.join(pism_ocnkill_data_dir,pism_ocnkill_file)
 
@@ -290,114 +290,60 @@ pism_config_file = os.path.join(pism_code_dir,"src/pism_config.cdl")
 # override parameters that deviate from default.
 override_params = collections.OrderedDict([
 
-
-#("atmosphere.precip_exponential_factor_for_temperature", 0.04879),
-#("atmosphere.precip_exponential_factor_for_temperature_doc", "ln(1.05); a 5% change of precipitation rate for every one degC of temperature change"),
-#("atmosphere.precip_exponential_factor_for_temperature_type", "scalar"),
-#("atmosphere.precip_exponential_factor_for_temperature_units", "Kelvin-1"),
-#("atmosphere.lapse_rate.precipitation_lapse_rate", 0.),
-#("atmosphere.lapse_rate.precipitation_lapse_rate_doc", "Elevation lapse rate for the surface mass balance"), 
-#("atmosphere.lapse_rate.precipitation_lapse_rate_type", "scalar"),
-#("atmosphere.lapse_rate.precipitation_lapse_rate_units", "(m / year) / km"),
-#("atmosphere.lapse_rate.precipitation_lapse_rate_option", "precip_lapse_rate"), 
-#("bed_deformation.lithosphere_flexural_rigidity", 6.e+24),
-#("bed_deformation.mantle_viscosity", 1.e+21),
-#("bed_deformation.update_interval", 10.),
-#("surface.pdd.factor_snow", 0.0032967032967033),
-#("surface.pdd.factor_ice", 0.00879120879120879),
-#("surface.pdd.std_dev", 5.),
-#("hydrology.tillwat_decay_rate", 1.0),
-#("basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden", 0.04),
-#("energy.enthalpy.temperate_ice_thermal_conductivity_ratio", 0.1), 
-#("stress_balance.sia.max_diffusivity", 100.),
-
-
-
-#("atmosphere.pik.parameterization", "era_interim"),
 ("atmosphere.precip_exponential_factor_for_temperature", 0.04879),
-("atmosphere.precip_exponential_factor_for_temperature_doc", "ln(1.05); a 5% change of precipitation rate for every one degC of temperature change"),
+("atmosphere.precip_exponential_factor_for_temperature_doc", "= ln(1.05); a 5% change of precipitation rate for every one degC of temperature change"),
 ("atmosphere.precip_exponential_factor_for_temperature_type", "scalar"),
 ("atmosphere.precip_exponential_factor_for_temperature_units", "Kelvin-1"),
-#("atmosphere.lapse_rate.precipitation_lapse_rate", 0.),
-#("atmosphere.lapse_rate.precipitation_lapse_rate_doc", "Elevation lapse rate for the surface mass balance"), 
-#("atmosphere.lapse_rate.precipitation_lapse_rate_type", "scalar"),
-#("atmosphere.lapse_rate.precipitation_lapse_rate_units", "(m / year) / km"),
-#("atmosphere.lapse_rate.precipitation_lapse_rate_option", "precip_lapse_rate"), 
 
-("basal_resistance.pseudo_plastic.enabled","true"),
-("basal_resistance.pseudo_plastic.q", 0.625),
-("basal_resistance.pseudo_plastic.u_threshold", 100.0),
+("atmosphere.precip_lapse_scaling","yes"),
+("atmosphere.precip_lapse_scale_factor", 0.41),
+("atmosphere.precip_lapse_scale_factor_doc", "=8.2 K km-1 * 5 % K-1; atmospheric lapse rate * precipitation change per degree of warming; Scale precipitation according to change in surface elevation"),
+("atmosphere.precip_lapse_scale_factor_option", "precip_scale_factor"),
+("atmosphere.precip_lapse_scale_factor_type", "scalar"),
+("atmosphere.precip_lapse_scale_factor_units", "km-1"),
+
+
+("basal_yield_stress.model",  "mohr_coulomb"),
 ("basal_yield_stress.mohr_coulomb.till_effective_fraction_overburden", 0.04),
+("basal_resistance.pseudo_plastic.enabled",  "true"),
+("basal_resistance.pseudo_plastic.q",  0.625),
+("basal_resistance.pseudo_plastic.u_threshold", 100.0),
 
 ("bed_deformation.model", "lc"),
-#("bed_deformation.lc.elastic_model", "yes"),
-#("bed_deformation.lithosphere_flexural_rigidity", 6.e+24),
-#("bed_deformation.mantle_viscosity", 1.e+21),
-#("bed_deformation.update_interval", 10.),
 
-("calving.methods", "eigen_calving,thickness_calving,ocean_kill"), 
 ("calving.eigen_calving.K", 1.0e17), 
+("calving.methods", "eigen_calving,thickness_calving,ocean_kill"), 
+("calving.thickness_calving.threshold", 50),
 
-#("energy.enthalpy.temperate_ice_thermal_conductivity_ratio", 0.1), 
-("energy.basal_melt.use_grounded_cell_fraction", "false"),
+("energy.basal_melt.use_grounded_cell_fraction", "false"),  # -no_sugl_basal_melt
 
-("geometry.part_grid.enabled", "true"),
-("geometry.remove_icebergs", "true"),
-("geometry.grounded_cell_fraction", "true"),
+("geometry.part_grid.enabled", "true"), # -pik
+("geometry.remove_icebergs", "true"), # -pik
+("geometry.grounded_cell_fraction", "true"), # -pik
 
 ("hydrology.model", "null"),
-#("hydrology.tillwat_decay_rate", 1.0),
 
-#("ocean.models", "pico"),
 ("ocean.pico.heat_exchange_coefficent", 1.0e-5),
 ("ocean.pico.overturning_coefficent", 0.5e6),
 ("ocean.pico.exclude_ice_rises", "yes"),
 ("ocean.pico.continental_shelf_depth", -2000),
 
-("stress_balance.calving_front_stress_bc", "true"),
+("stress_balance.calving_front_stress_bc", "true"), # -pik
 ("stress_balance.model","ssa+sia"),
 ("stress_balance.sia.enhancement_factor",1.0),
 ("stress_balance.ssa.enhancement_factor",1.0),
 ("stress_balance.ssa.method", "fd"),
-#("stress_balance.sia.max_diffusivity", 100.),
-("stress_balance.sia.flow_law", "gpbld"),
-("stress_balance.ssa.flow_law", "gpbld"),
 
-#("surface.models", "pdd"),
-#("surface.pdd.factor_snow", 0.0032967032967033),
-#("surface.pdd.factor_ice", 0.00879120879120879),
-#("surface.pdd.std_dev", 5.),
-#
-#
-##("basal_yield_stress.mohr_coulomb.topg_to_phi.enabled",  "yes"),
-##("basal_yield_stress.mohr_coulomb.topg_to_phi.phi_min", 2.0), # FIXME 5.0
-##("basal_yield_stress.mohr_coulomb.topg_to_phi.phi_max", 50.0),
-##("basal_yield_stress.mohr_coulomb.topg_to_phi.topg_min", -700.0),
-##("basal_yield_stress.mohr_coulomb.topg_to_phi.topg_max", 500.0),
-### grounding line interpolations of melting
-##("energy.basal_melt.use_grounded_cell_fraction", "true"),
-##("energy.basal_melt.no_melting_first_floating_cell", "false"),
-##("calving.methods", "eigen_calving,thickness_calving,ocean_kill"), # FIXME 
-##("calving.eigen_calving.K", 1e16), # FIXME 1e17
-##("calving.thickness_calving.threshold", 50), # 200
-##("calving.ocean_kill.file", "initdata/"+pism_ocnkill_file), 
-###("calving.float_kill.calve_near_grounding_line", "false"), # FIXME remove? Keep one shelf cell
-### the following four options are equivalent to command line option -pik
-### if all set to true
-##("hydrology.set_tillwat_ocean", "yes"), # use Mattias tillwat fix
-#### Include limit for the nomass runs! FIXME nomass only! And for Bedmachine because of convergence errors
-##("stress_balance.ssa.fd.max_speed", 20e3),
-##("stress_balance.sia.limit_diffusivity", "yes"),
-##("stress_balance.sia.max_diffusivity", 10),
-##("stress_balance.sia.surface_gradient_method", "GL_thk"),
-##("stress_balance.ssa.fd.relative_convergence", "1.e-07"),
-###("hydrology.use_const_bmelt", "yes"),
+("surface.pdd.factor_snow", 0.0032967032967033),
+("surface.pdd.factor_ice", 0.00879120879120879),
+("surface.pdd.std_dev", 5),
+
 ])
 
 # - - - - - - - - - - - - - - - command line options - - - - - - - - - - - - - -
 pism_general_opt = "-verbose 2 -options_left -o_format netcdf4_parallel"
 #pism_atm_opt = "-atmosphere pik -atmosphere_pik_file initdata/"+pism_atm_file+" -surface pdd"
-pism_atm_opt = "-atmosphere pik_temp,anomaly,lapse_rate -atmosphere_pik_temp_file initdata/"+pism_atm_file+" -atmosphere_anomaly_file initdata/"+pism_atm_anomaly_file+" -atmosphere_lapse_rate_file initdata/"+pism_atm_lapse_rate_file+" -temp_era_interim -temp_lapse_rate_0.0 -precip_scale_factor .410 -surface pdd"
+pism_atm_opt = "-atmosphere pik_temp,anomaly,lapse_rate -atmosphere_pik_temp_file initdata/"+pism_atm_file+" -atmosphere_anomaly_file initdata/"+pism_atm_anomaly_file+" -atmosphere_lapse_rate_file initdata/"+pism_atm_lapse_rate_file+" -temp_era_interim -temp_lapse_rate 0.0 -precip_scale_factor .410 -surface pdd"
 pism_add_opt = "-ocean_kill_file initdata/"+pism_ocnkill_file
 
 
