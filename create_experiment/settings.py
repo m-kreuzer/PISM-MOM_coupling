@@ -16,12 +16,12 @@ from pikcluster_settings import *
 
 # ----------------------------- coupling settings ------------------------------
 
-experiment = "MOM5_PISM1.0hash_16km_1pctCO2_CCSM4_run01"
+experiment = "MOM5_PISM1.0hash_16km_1pctCO2ext_CCSM4_run01"
 experiment_dir      = os.path.join(working_dir, experiment)
 
 
-coupling_timestep = 5       # in years, must be greater or equal 1
-max_cpl_iteration = 27      # number of coupling iterations
+coupling_timestep = 10      # in years, must be greater or equal 1
+max_cpl_iteration = 40      # number of coupling iterations
 
 
 # - - - - - - - - - ice -> ocean fluxes [1st coupling iteration] - - - - - - - -
@@ -40,29 +40,29 @@ pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/exper
 #     and pism_infile_dir below)
 #  -> MOM restart files are automatically copied from $restart_dir/POEM/INPUT/
 #     if path exists
-coupled_restart = False
-restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/coupling_framework_basal_melt_dev04"
+coupled_restart = True
+restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM1.0hash_16km_1pctCO2_CCSM4_run01"
 
 ### specify files computed by PISM-to-MOM_processing.py from PISM output in
 #   last coupling iteration of the previous run
 
 # PISM to MOM fluxes, inserted in MOM's data_table
-pism_to_mom_flux_restart_file = '002994.fluxes.nc'
+pism_to_mom_flux_restart_file = '017225.fluxes.nc'
 pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
 
 # runoff reference, inserted in MOM's data_table
 # -> only used when (do_runoff_slc==True AND runoff_reference_surf_accum==True)
-runoff_reference_restart_file = '002994.runoff_reference.nc'
+runoff_reference_restart_file = '017225.runoff_reference.nc'
 runoff_reference_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', runoff_reference_restart_file)
 
 # basal melt input depth, inserted in MOM's data_table
 # -> only used when (insert_basal_melt_at_depth==True AND use_prescribed_basal_melt_input_depth==False)
-basal_melt_input_depth_restart_file = '002994.basal_melt_input_depth.nc'
+basal_melt_input_depth_restart_file = '017225.basal_melt_input_depth.nc'
 basal_melt_input_depth_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', basal_melt_input_depth_restart_file)
 
 # PICO input depth, used in regriddedMOM-to-PISM.py
 # -> only used when (use_prescribed_pico_input_depth==False)
-pico_input_depth_restart_file = '002994.pico_input_depth.nc'
+pico_input_depth_restart_file = '017225.pico_input_depth.nc'
 pico_input_depth_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pico_input_depth_restart_file)
 
 
@@ -196,27 +196,28 @@ poem_restart_files_dir = '/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_stand
 #   CMIP5 1pctCO2 forcing:            data_table-dummy_mom5-clim+CMIP5-anom
 #   CMIP5 1pctCO2 extension forcing:  data_table-dummy_mom5-clim+CMIP5-anom
 
-poem_data_table_dummy = 'data_table-dummy_mom5-clim+CMIP5-anom'
-poem_data_table_replace = {'MODEL':            'CCSM4',
-                           'SCENARIO':         '1pctCO2',
-                           'CLIMEXTENSION':    ''} 
-poem_copy_forcing_data = True
-poem_forcing_data_source_dir = '/p/projects/pism/kreuzer/coupled_PISM_MOM/forcing/CMIP5_reanalysis/Amon_CCSM4_1pctCO2_r1i1p1_month_anomaly_plus_MOM5_climatology'
-poem_forcing_data_source_pattern = '*.nc'
-poem_forcing_data_source_path = os.path.join(poem_forcing_data_source_dir, poem_forcing_data_source_pattern)
-poem_forcing_data_target_path = os.path.join(experiment_dir, 'POEM','INPUT','CMIP5_forcing')
-poem_forcing_time_shift_years = (17090 - 1)
-
+#poem_data_table_dummy = 'data_table-dummy_mom5-clim+CMIP5-anom'
 #poem_data_table_replace = {'MODEL':            'CCSM4',
 #                           'SCENARIO':         '1pctCO2',
-#                           'CLIMEXTENSION':    'ext-clim_',
-#                           '\.shift':          ''} 
+#                           'CLIMEXTENSION':    ''} 
 #poem_copy_forcing_data = True
-#poem_forcing_data_source_dir = '/p/projects/pism/kreuzer/coupled_PISM_MOM/forcing/CMIP5_reanalysis/Amon_CCSM4_1pctCO2_r1i1p1_ext-clim_month_anomaly_plus_MOM5_climatology'
+#poem_forcing_data_source_dir = '/p/projects/pism/kreuzer/coupled_PISM_MOM/forcing/CMIP5_reanalysis/Amon_CCSM4_1pctCO2_r1i1p1_month_anomaly_plus_MOM5_climatology'
 #poem_forcing_data_source_pattern = '*.nc'
 #poem_forcing_data_source_path = os.path.join(poem_forcing_data_source_dir, poem_forcing_data_source_pattern)
 #poem_forcing_data_target_path = os.path.join(experiment_dir, 'POEM','INPUT','CMIP5_forcing')
-##poem_forcing_time_shift_years = 17090
+#poem_forcing_time_shift_years = (17090 - 1)
+
+poem_data_table_dummy = 'data_table-dummy_mom5-clim+CMIP5-anom'
+poem_data_table_replace = {'MODEL':            'CCSM4',
+                           'SCENARIO':         '1pctCO2',
+                           'CLIMEXTENSION':    'ext-clim_',
+                           '\.shift':          ''} 
+poem_copy_forcing_data = True
+poem_forcing_data_source_dir = '/p/projects/pism/kreuzer/coupled_PISM_MOM/forcing/CMIP5_reanalysis/Amon_CCSM4_1pctCO2_r1i1p1_ext-clim_month_anomaly_plus_MOM5_climatology'
+poem_forcing_data_source_pattern = '*.nc'
+poem_forcing_data_source_path = os.path.join(poem_forcing_data_source_dir, poem_forcing_data_source_pattern)
+poem_forcing_data_target_path = os.path.join(experiment_dir, 'POEM','INPUT','CMIP5_forcing')
+#poem_forcing_time_shift_years = 17090
 
 
 # ------------------------------- PISM settings --------------------------------
@@ -234,8 +235,10 @@ pism_exp_bin        = os.path.join(pism_exp_bin_dir, pism_exec)
 pism_sys_bin        = os.path.join(pism_code_dir, 'bin', pism_exec)
 
 # input data
-pism_infile_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_equi_16km_run10/output_pism/"
-pism_infile = "result_equi_16km_50000.nc"
+#pism_infile_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_equi_16km_run10/output_pism/"
+#pism_infile = "result_equi_16km_50000.nc"
+pism_infile_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM1.0hash_16km_1pctCO2_CCSM4_run01/PISM/results/"
+pism_infile = "017225.pism_out.nc"
 pism_infile_path = os.path.join(pism_infile_dir, pism_infile)
 
 #pism_atm_data_dir = os.path.join(pism_input_root_dir, "racmo_wessem")
@@ -245,19 +248,19 @@ pism_atm_file = "racmo_wessem_"+grid_id+"_mean1986_2005.nc"
 #pism_atm_file = "bedmap2_albmap_racmo_wessem_tillphi_pism_"+grid_id+".nc"
 pism_atm_data_path = os.path.join(pism_atm_data_dir,pism_atm_file)
 
-### 1pctCO2 atm anomaly forcing
-pism_use_atm_anomaly_file = True
-pism_atm_anomaly_data_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_q0.625_16km_1pctCO2_CCSM4_yearly_run02/initdata/"
-pism_atm_anomaly_file = "pdd_Amon_CCSM4_1pctCO2_r1i1p1_yearly_anomaly_relativeprecip_initmip16km.timeshift.nc"
-pism_atm_anomaly_data_path = os.path.join(pism_atm_anomaly_data_dir, pism_atm_anomaly_file)
-pism_atm_anomaly_time_shift_years = (17090 - 50001) 
-
-### 1pctCO2ext atm anomaly forcing
+#### 1pctCO2 atm anomaly forcing
 #pism_use_atm_anomaly_file = True
-#pism_atm_anomaly_data_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_q0.625_16km_1pctCO2ext_CCSM4_yearly_run02/initdata/"
-#pism_atm_anomaly_file = "pdd_Amon_CCSM4_1pctCO2_r1i1p1_ext-clim_yearly_anomaly_relativeprecip_initmip16km.timeshift.nc"
+#pism_atm_anomaly_data_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_q0.625_16km_1pctCO2_CCSM4_yearly_run02/initdata/"
+#pism_atm_anomaly_file = "pdd_Amon_CCSM4_1pctCO2_r1i1p1_yearly_anomaly_relativeprecip_initmip16km.timeshift.nc"
 #pism_atm_anomaly_data_path = os.path.join(pism_atm_anomaly_data_dir, pism_atm_anomaly_file)
-##pism_atm_anomaly_time_shift_years = (17090 - 50001) 
+#pism_atm_anomaly_time_shift_years = (17090 - 50001) 
+
+## 1pctCO2ext atm anomaly forcing
+pism_use_atm_anomaly_file = True
+pism_atm_anomaly_data_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_q0.625_16km_1pctCO2ext_CCSM4_yearly_run02/initdata/"
+pism_atm_anomaly_file = "pdd_Amon_CCSM4_1pctCO2_r1i1p1_ext-clim_yearly_anomaly_relativeprecip_initmip16km.timeshift.nc"
+pism_atm_anomaly_data_path = os.path.join(pism_atm_anomaly_data_dir, pism_atm_anomaly_file)
+#pism_atm_anomaly_time_shift_years = (17090 - 50001) 
 
 pism_use_atm_lapse_rate_file = True
 #pism_atm_lapse_rate_data_dir = os.path.join(pism_input_root_dir, "merged")
