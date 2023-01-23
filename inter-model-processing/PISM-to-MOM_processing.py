@@ -96,8 +96,6 @@ import argparse
 from tqdm import tqdm
 import xarray as xr
 import warnings
-# debug
-import code
 
 def check_ndims(da, valid_ndims=[2,3], ds_source=None):
     '''checks whether xr.DataArray has the expected dimensions
@@ -624,8 +622,6 @@ if __name__ == "__main__":
         oc_edge_flux[v].attrs = pism_basin_flux[v].attrs
 
 
-    import code
-    #code.interact(local=locals())
 
     # remove unwanted basin coordinate
     #oc_edge_flux = oc_edge_flux.drop('basins')
@@ -695,7 +691,7 @@ if __name__ == "__main__":
                         thk_mean = np.mean(pism_extra['thk'].where(
                             ~np.isnan(shelf_boxes), np.nan)).data
                         if n_cells >0:
-                            print(f"    {t.dt.strftime('%Y-%M-%d').data}, "
+                            warnings.warn(f"{t.dt.strftime('%Y-%M-%d').data}, "
                                   f"shelf {s:6.3f} (cells: {n_cells}, avg "
                                   f"thk: {thk_mean:>6.1f}m) has no PICO box value. "
                                   f"Skipping.")
@@ -725,6 +721,23 @@ if __name__ == "__main__":
         shelf_front_box_depth_basin = \
                 xr.merge(shelf_front_box_depth_basin_time_list).rename(
                         {'pico_box_mask':'shelf_front_depth'})
+
+        # fill NaNs with default depth
+        default_depth = 100
+        for t in shelf_front_box_depth_basin.time:
+            for b in shelf_front_box_depth_basin.basins:
+                d = shelf_front_box_depth_basin['shelf_front_depth'].sel(
+                        time=t, basins=b)
+                if np.isnan(d.data):
+                    warnings.warn(f"Depth in basin {b.data} (time "
+                        f"{t.dt.strftime('%Y-%M-%d').data}) is NaN. Filling "
+                        f"with default depth ({default_depth}m).")
+                    mask = (shelf_front_box_depth_basin['time'] == t) & \
+                            (shelf_front_box_depth_basin['basins'] == b)
+                    shelf_front_box_depth_basin['shelf_front_depth'] = \
+                            xr.where(mask, default_depth, 
+                                shelf_front_box_depth_basin['shelf_front_depth'])
+
 
 
         attrs = {}
@@ -758,7 +771,6 @@ if __name__ == "__main__":
         #shelf_front_box_depth_ocean = shelf_front_box_depth_ocean.drop('basins')
 
     t_process_end = time.time()
-    #code.interact(local=locals())
 
     ### ---------------------- save fluxes to file ---------------------------
     #   write redistributed flux variables to file PISM_to_MOM_fluxes_file
