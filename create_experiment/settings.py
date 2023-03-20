@@ -17,23 +17,26 @@ from pikcluster_settings import *
 
 # ----------------------------- coupling settings ------------------------------
 
-experiment = "MOM5_PISM_16km_spinup_run02"
+experiment = "MOM6_test_2"
 #experiment = "MOM5_PISM_16km_piControl_CCSM4_run01"
 #experiment = "coupling_framework_basal_melt_dev06"
 experiment_dir      = os.path.join(working_dir, experiment)
 
 
-coupling_timestep = 10      # in years, must be greater or equal 1
-max_cpl_iteration = 400     # number of coupling iterations
+coupling_timestep = 10     # in years, must be greater or equal 1
+max_cpl_iteration = 50     # number of coupling iterations
 
+# ----------------------------- Mass flux settings (MOM6 only) -----------------
+
+vprec = 0 # This is the synthetic mass flux applied to the ocean.
 
 # - - - - - - - - - ice -> ocean fluxes [1st coupling iteration] - - - - - - - -
 
 # in case of no coupled restart:
 # specify ice-to-ocean runoff for first coupling iteration as ocean runs before
 # ice and default setup for ocean has no Antarctic runoff from land/ice
-pism_to_mom_flux_init_file = 'equi_16km_110000yrs.mean_last_1ka.fluxes.nc'
-pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run05/output_processed/', pism_to_mom_flux_init_file)
+pism_to_mom_flux_init_file = 'equi_16km_50000yrs.last_1ka.mean.fluxes.nc'
+pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_equi_16km_run07/output_processed/mom6.2023-01/', pism_to_mom_flux_init_file)
 
 # - - - - - - - - - - - - - - - - - - restart - - - - - - - - - - - - - - - - -
 # option to restart a coupled setup from a previous run
@@ -115,16 +118,16 @@ ocean_to_ice_timeseries = False
 #       `runoff_reference_path` are used. 
 do_runoff_slc = True
 runoff_reference_surf_accum = True
-runoff_reference_file = "equi_16km_110000yrs.mean_last_1ka.fluxes.nc"
-runoff_reference_path = os.path.join("/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run03/output_processed", runoff_reference_file)
+#runoff_reference_file = "equi_16km_110000yrs.mean_last_1ka.fluxes.nc"
+#runoff_reference_path = os.path.join("/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.1_equi_16km_100000_plus_run03/output_processed", runoff_reference_file)
 
 
 # - - - - - - - - - - - - - basal melt insertion depth - - - - - - - - - - - - -
 # In MOM6 this is always true. Perhaps hardcode this later to clean things up. TODO
 insert_basal_melt_at_depth = True
-use_prescribed_basal_melt_input_depth = True
-prescribed_basal_melt_input_depth_file = 'basal.nc'
-prescribed_basal_melt_input_depth_path = os.path.join('template_path', prescribed_basal_melt_input_depth_file)
+use_prescribed_basal_melt_input_depth = False
+#prescribed_basal_melt_input_depth_file = 'basal.nc'
+#prescribed_basal_melt_input_depth_path = os.path.join('template_path', prescribed_basal_melt_input_depth_file)
 
 # - - - - - - - - - - - - - - - ocean tracer anomaly - - - - - - - - - - - - - -
 # In MOM6, we should ideally not require this. TODO
@@ -147,7 +150,7 @@ calc_ocn_tracer_anomaly['name_format_in']  = "%06g0101.ocean-decadal.nc"
 calc_ocn_tracer_anomaly['name_format_out'] = "%06g-%06g.ocean-decadal.tracer_mean.nc"
 
 # - - - - - - - - - - - - - - ocean sealevel anomaly - - - - - - - - - - - - - -
-do_ocean_sealevel_anomaly    = True
+do_ocean_sealevel_anomaly    = False
 
 # in case of coupled restart with do_ocean_sealevel_anomaly:
 #     specify ocean sealevel anomaly reference file from previous run

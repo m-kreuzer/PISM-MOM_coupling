@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 #  Copyright (C) 2019-2021 PISM-MOM_coupling authors, see AUTHORS file
 #
 #  This file is part of PISM-MOM_coupling
@@ -15,30 +17,31 @@
 #  You should have received a copy of the GNU General Public License
 #  along with PISM-MOM_coupling.  If not, see <https://www.gnu.org/licenses/>.
 
-""" Update the river runoff file for MOM6 with newly calculated values from PISM-PICO
+# Update the river runoff file for MOM6 with newly calculated values from PISM-PICO
 
-usage: ./update_runoff_MOM6.py -i fluxes_file -o out_file [-v]
+# usage: ./update_runoff_MOM6.py -i fluxes_file -o out_file [-v]
 
-Runoff fields regridded from the PISM to the MOM grid are read in and applied 
-to the model's default runoff file. This default runoff file should be specificially
-created for use with PISM-PICO coupling and should have *no* runoff around the 
-Antarctic margin.
+# Runoff fields regridded from the PISM to the MOM grid are read in and applied 
+# to the model's default runoff file. This default runoff file should be specificially
+# created for use with PISM-PICO coupling and should have *no* runoff around the 
+# Antarctic margin.
 
-Arguments:
-    -i fluxes_file
-        a netCDF file with variables to be processed
-    -o out_file
-       file to store processed fields which serve as PISM/PICO input 
-    -v (optional)
-        print verbose output        
+# Arguments:
+#     -i fluxes_file
+#         a netCDF file with variables to be processed
+#     -o out_file
+#        A reference runoff file which serves as MOM input 
+#     -v (optional)
+#         print verbose output        
 
-This script was created as a processing tool for preparing output of the land ice model 
-PISM-PICO as a forcing field for the ocean model MOM6-SIS2. This was done in the scope 
-of coupling PISM to the climate model POEM at PIK.
+# This script was created as a processing tool for preparing output of the land ice model 
+# PISM-PICO as a forcing field for the ocean model MOM6-SIS2. This was done in the scope 
+# of coupling PISM to the climate model POEM at PIK.
 
-"""
+
 import sys
 import argparse
+import time
 from netCDF4 import Dataset as CDF
     
 if __name__ == "__main__":
@@ -70,7 +73,7 @@ if __name__ == "__main__":
     if args.verbose:
         print("Opening PISM runoff file: " + args.fluxes_file)
     try:
-        ds_ice = CDF(args.fluxes_file)
+        ds_ice = CDF(args.fluxes_file,'r')
     except:
         print("fluxes_file '", args.fluxes_file, "' can't be found! Exiting.")
         sys.exit(1)
@@ -79,7 +82,7 @@ if __name__ == "__main__":
     if args.verbose:
         print("Opening MOM6 runoff file: " + args.out_file)
     try:
-        ds_runoff = CDF(args.out_file)
+        ds_runoff = CDF(args.out_file,'r+')
     except:
         print("Runoff file can't be found! Exiting.")
         sys.exit(1)
@@ -92,8 +95,13 @@ if __name__ == "__main__":
         for j in range(runoff_ice.shape[2]):
             if runoff_ice[0,i,j] != 0:
                 runoff_new[:,i,j] = runoff_ice[0,i,j]
-
+    
+    if args.verbose:
+        print("Saving to runoff file...")
+        
     ds_runoff.variables['runoff'][:] = runoff_new[:]
+    
+    ds_runoff.coupling_note = "Antarctic runoff modified from file: "+ args.fluxes_file + " on " + time.ctime(time.time()) + " using the script update_runoff_MOM6.py"
 
     ds_ice.close()
     ds_runoff.close()

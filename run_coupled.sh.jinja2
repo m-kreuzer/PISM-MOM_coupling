@@ -1,6 +1,6 @@
 #! /bin/sh
 
-#  Copyright (C) 2019-2021 PISM-MOM_coupling authors, see AUTHORS file
+#  Copyright (C) 2019-2022 PISM-MOM_coupling authors, see AUTHORS file
 #
 #  This file is part of PISM-MOM_coupling
 #
@@ -59,6 +59,7 @@ POEM_TOOLS_DIR={{settings.poem_proj_dir}}/bin
 # time & coupling
 CPL_TIMESTEP={{settings.coupling_timestep}}            # in years, must be greater or equal 1
 MAX_CPL_ITERATION={{settings.max_cpl_iteration}}       # number of coupling iterations
+VPREC={{settings.vprec}}                               # synthetic mass flux applied to ocean (MOM6 only)
 
 # initial PISM input files
 PISM_RESTART_FILE={{settings.pism_exp_dir}}/initdata/{{settings.pism_infile}}
@@ -180,9 +181,10 @@ poem_prerun() {
 
     # -------- modify data_table -----------------
     cp data_table-dummy data_table-prerun
-    # comment out all lines with FILE_NAME_DUMMY
+    # comment out all lines with FILE_NAME_DUMMY and DUMMY_FLUX
     #   -> no field overwrite in prerun
     sed -e '/.*FILE_NAME_DUMMY/ s/^./#&/' -i data_table-prerun
+    sed -e '/.*DUMMY_FLUX/ s/^./#&/' -i data_table-prerun
 
     # direct symlinks to prerun versions of lists
     ln -sf diag_table-prerun diag_table
@@ -214,8 +216,7 @@ poem_prerun() {
 
     # revert links to previous location
     ln -sf $DIAG_TABLE_STORE diag_table
-    #ln -sf $DATA_TABLE_STORE data_table
-    ln -sf data_table-prerun data_table
+    ln -sf $DATA_TABLE_STORE data_table
     ln -sf $INPUT_NML_STORE input.nml
 
     return_check $RESULT "POEM_pre-run"
@@ -244,9 +245,9 @@ poem_run_postprocess() {
     echo POEM TIME END $POEM_TIME_END
 
     # rename fms.out file
-    for f in fms.out-$SLURM_JOBID* ; do
-        mv $f $enddate.$(echo $f | sed -e s/$SLURM_JOBID-// )
-    done
+    #for f in fms.out-$SLURM_JOBID* ; do
+    #    mv $f $enddate.$(echo $f | sed -e s/$SLURM_JOBID-// )
+    #done
 
     # put files to history dir
     for i in *.nc
@@ -321,15 +322,8 @@ poem_run_postprocess() {
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 poem_prerun_postprocess() {
 
-    # # rename fms.out file #TODO can probs delete this stuff later
-    # for f in fms.out-$SLURM_JOBID* ; do
-    #     mv $f prerun.$(echo $f | sed -e s/$SLURM_JOBID-// )
-    # done
+    mv *.ocean-prerun.nc $POEM_WORK_DIR/prerun/ocean-prerun.nc
 
-    # # put files to pre-run dir
-    # for i in *.nc
-    #   do mv $i prerun/prerun.$i
-    # done
     mv *.nc sbatch.* MOM_parameter_doc* time_stamp.out CPU_stats ocean.stats logfile* \
     MOM_log available_diags.* V_velocity_truncations U_velocity_truncations SIS_parameter_doc.layout \
     SIS.available_diags SIS_fast.available_diags SIS_parameter_doc* \
@@ -603,8 +597,11 @@ process_pism_to_mom(){
     {% endif %}
 
     {% if ( settings.insert_basal_melt_at_depth==True and (not settings.use_prescribed_basal_melt_input_depth==True ) ) %}
-    # save file path for usage in MOM data_table
+    # save file path for symlink (can't put in data_table in MOM6)
     BASAL_MELT_INPUT_DEPTH_FILE=$PISM_TIME_END_PAD.basal_melt_input_depth.nc
+    cd $ROOT_WORK_DIR/POEM/INPUT
+    ln -sf ../../x_PISM-to-MOM/BASAL_MELT_INPUT_DEPTH_FILE basal_depth.nc
+    cd $ROOT_WORK_DIR/inter-model-processing
     {% endif %}
 
     # If we are allowing dynamic SLC, calculate anomalous mass fluxes and apply to data_override
@@ -622,17 +619,21 @@ process_pism_to_mom(){
 
     cd $ROOT_WORK_DIR/POEM
     cp data_table-dummy data_table-pism_in
-    cp MOM_verride_dummy MOM_override
+    #cp MOM_override_dummy MOM_override # At the moment, this is not necessary
     sed "s/FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
     sed "s/RUNOFF_DUMMY/$PISM_TIME_END_PAD.runoff.nc" -i data_table-pism_in
     #sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
 
-    sed "s/BASAL_DEPTH_FILE/$BASAL_MELT_INPUT_DEPTH_FILE" -i MOM_override
+    #sed "s/BASAL_DEPTH_FILE/$BASAL_MELT_INPUT_DEPTH_FILE" -i MOM_override
 
     # Apply anomalous mass flux to MOM6 to allow for sea level change.
+    # We need to accout for VPREC - any external mass forcing.
+    # If we're not allowing dynamic SLC, change this to 0
     {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) %}
-    sed sed "s/DUMMY_FLUX/$runoff_anom" -i data_table-pism_in
-
+    sed "s/DUMMY_FLUX/$runoff_anom+$VPREC" -i data_table-pism_in
+    {% else %}
+    sed "s/DUMMY_FLUX/0" -i data_table-pism_in
+    {% endif %}
 
     # {% if not settings.insert_basal_melt_at_depth==True %}
     # ### basal melt at surface (via river runoff)
@@ -965,7 +966,7 @@ return_check $RESULT "nco-operation"
 
 echo "  > create weights to regrid from MOM to PISM grid"
 PISM_PRE_OUT=$PISM_WORK_DIR/prerun/prerun.pism_out-no_timestamp.nc
-MOM_PRE_OUT=$POEM_WORK_DIR/prerun/prerun.ocean-prerun.nc
+MOM_PRE_OUT=$POEM_WORK_DIR/prerun/ocean-prerun.nc
 WEIGHTS=weights.MOM-to-PISM.bil.cdo.nc
 export REMAP_EXTRAPOLATE=off
 cdo -b F64 -f nc4c genbil,$PISM_PRE_OUT $MOM_PRE_OUT $WEIGHTS
@@ -1243,6 +1244,12 @@ sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff/" -i data_table-pism_in
 # comment land ice surface runoff heat flux entry
 sed -e '/.*runoff_li_hflx/ s/^./#&/' -i data_table-pism_in
 sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_table-pism_in
+{% endif %}
+
+{% if settings.do_runoff_slc==True %}
+sed "s/DUMMY_FLUX/$VPREC" -i data_table-pism_in
+{% else %}
+sed "s/DUMMY_FLUX/0" -i data_table-pism_in
 {% endif %}
 
 ln -sf data_table-pism_in data_table    # for CPL_ITERATION==1

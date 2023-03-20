@@ -14,7 +14,7 @@ pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
 
 ### POEM paths
 # POEM project directory with tools like mppnccombine, time_stamp.csh, ...
-poem_proj_dir = "/p/projects/climber3/kreuzer/POEM/branches/kreuzer_mom5.1"
+poem_proj_dir = "/p/projects/climber3/huiskamp/POEM"
 # POEM template directory with all namelist & input files
 poem_template_dir = "/p/projects/climber3/huiskamp/POEM/work/MOM6_SIS2_template"
 

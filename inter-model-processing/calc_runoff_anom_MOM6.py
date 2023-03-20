@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 #  Copyright (C) 2019-2021 PISM-MOM_coupling authors, see AUTHORS file
 #
 #  This file is part of PISM-MOM_coupling
