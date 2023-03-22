@@ -180,11 +180,10 @@ poem_prerun() {
     sed -e '/&coupler_nml/a\' -e '\tdays = 1,' -i input.nml-prerun
 
     # -------- modify data_table -----------------
-    cp data_table-dummy data_table-prerun
     # comment out all lines with FILE_NAME_DUMMY and DUMMY_FLUX
     #   -> no field overwrite in prerun
-    sed -e '/.*FILE_NAME_DUMMY/ s/^./#&/' -i data_table-prerun
-    sed -e '/.*DUMMY_FLUX/ s/^./#&/' -i data_table-prerun
+    #sed -e '/.*FILE_NAME_DUMMY/ s/^./#&/' -i data_table-prerun
+    #sed -e '/.*DUMMY_FLUX/ s/^./#&/' -i data_table-prerun
 
     # direct symlinks to prerun versions of lists
     ln -sf diag_table-prerun diag_table
@@ -1180,7 +1179,7 @@ if [ -n "$RUNOFF_REFERENCE_FILE" ]; then
     fi
 fi
 
-echo ">> modify MOM5 data_table for first coupling iteration"
+echo ">> modify MOM6 data_table for first coupling iteration"
 
 {% if not settings.insert_basal_melt_at_depth==True %}
 echo "   -> insert basal melt at surface (via river runoff):"
@@ -1215,7 +1214,7 @@ echo "      li_mflx_balance     mass_flux                           RUNOFF_REFER
 cd $ROOT_WORK_DIR/POEM
 cp data_table-dummy data_table-pism_in
 sed "s/RUNOFF_DUMMY/$RUNOFF_FILE/" -i data_table-pism_in
-sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
+#sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
 
 
 {% if not settings.insert_basal_melt_at_depth==True %}

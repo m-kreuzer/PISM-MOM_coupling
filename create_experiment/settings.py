@@ -35,8 +35,8 @@ vprec = 0 # This is the synthetic mass flux applied to the ocean.
 # in case of no coupled restart:
 # specify ice-to-ocean runoff for first coupling iteration as ocean runs before
 # ice and default setup for ocean has no Antarctic runoff from land/ice
-pism_to_mom_flux_init_file = 'equi_16km_50000yrs.last_1ka.mean.fluxes.nc'
-pism_to_mom_flux_init_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_equi_16km_run07/output_processed/mom6.2023-01/', pism_to_mom_flux_init_file)
+pism_to_mom_flux_init_file = 'runoff_spinup.nc'
+pism_to_mom_flux_init_path = os.path.join('/p/projects/climber3/huiskamp/POEM/work/MOM6_SIS2_template/INPUT', pism_to_mom_flux_init_file)
 
 # - - - - - - - - - - - - - - - - - - restart - - - - - - - - - - - - - - - - -
 # option to restart a coupled setup from a previous run
