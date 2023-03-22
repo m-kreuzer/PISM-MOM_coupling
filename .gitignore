@@ -2,3 +2,7 @@
 *.pyc
 *.swp
 NOTES
+**.log
+inter-model-processing/argparse
+inter-model-processing/sys
+inter-model-processing/time

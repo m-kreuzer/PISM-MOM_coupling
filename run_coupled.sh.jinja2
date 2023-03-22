@@ -630,9 +630,9 @@ process_pism_to_mom(){
     # We need to accout for VPREC - any external mass forcing.
     # If we're not allowing dynamic SLC, change this to 0
     {% if ( settings.do_runoff_slc==True and settings.runoff_reference_surf_accum==True ) %}
-    sed "s/DUMMY_FLUX/$runoff_anom+$VPREC" -i data_table-pism_in
+    sed "s/DUMMY_FLUX/$runoff_anom+$VPREC/" -i data_table-pism_in
     {% else %}
-    sed "s/DUMMY_FLUX/0" -i data_table-pism_in
+    sed "s/DUMMY_FLUX/0/" -i data_table-pism_in
     {% endif %}
 
     # {% if not settings.insert_basal_melt_at_depth==True %}
@@ -1214,7 +1214,7 @@ echo "      li_mflx_balance     mass_flux                           RUNOFF_REFER
 
 cd $ROOT_WORK_DIR/POEM
 cp data_table-dummy data_table-pism_in
-sed "s/RUNOFF_FILE_NAME_DUMMY/$RUNOFF_FILE/" -i data_table-pism_in
+sed "s/RUNOFF_DUMMY/$RUNOFF_FILE/" -i data_table-pism_in
 sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
 
 
@@ -1247,9 +1247,9 @@ sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_
 {% endif %}
 
 {% if settings.do_runoff_slc==True %}
-sed "s/DUMMY_FLUX/$VPREC" -i data_table-pism_in
+sed "s/DUMMY_FLUX/$VPREC/" -i data_table-pism_in
 {% else %}
-sed "s/DUMMY_FLUX/0" -i data_table-pism_in
+sed "s/DUMMY_FLUX/0/" -i data_table-pism_in
 {% endif %}
 
 ln -sf data_table-pism_in data_table    # for CPL_ITERATION==1
