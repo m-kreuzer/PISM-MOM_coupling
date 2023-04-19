@@ -599,7 +599,7 @@ process_pism_to_mom(){
     # save file path for symlink (can't put in data_table in MOM6)
     BASAL_MELT_INPUT_DEPTH_FILE=$PISM_TIME_END_PAD.basal_melt_input_depth.nc
     cd $ROOT_WORK_DIR/POEM/INPUT
-    ln -sf ../../x_PISM-to-MOM/BASAL_MELT_INPUT_DEPTH_FILE basal_depth.nc
+    ln -sf ../../x_PISM-to-MOM/$BASAL_MELT_INPUT_DEPTH_FILE basal_depth.nc
     cd $ROOT_WORK_DIR/inter-model-processing
     {% endif %}
 
@@ -1075,7 +1075,7 @@ BASAL_MELT_INPUT_DEPTH_FILE={{settings.prescribed_basal_melt_input_depth_file}}
 
 {% endif %}
 
-### select RUNOFF_FILE for first coupling iteration
+### select BASAL_FILE and RUNOFF_FILE for first coupling iteration
 #   -> defines ice to ocean runoff fluxes (mass and heat) for first run of
 #      model. As the ice model runs after the ocean model, the fluxes are not
 #      available yet and need to be given by the settings. Possibilities are:
@@ -1087,14 +1087,18 @@ echo " >> set RUNOFF_FILE for first coupling iteration (ice to ocean runoff flux
 echo "    (COUPLED_RESTART=TRUE)"
 echo "    -> set ice to ocean runoff fluxes similar to last iteration of previous run"
 echo "       (given by settings.pism_to_mom_flux_restart_file)"
-echo RUNOFF_FILE={{settings.pism_to_mom_flux_restart_file}}
-RUNOFF_FILE={{settings.pism_to_mom_flux_restart_file}}
+echo BASAL_FILE={{settings.pism_to_mom_flux_restart_file}}
+echo RUNOFF_FILE={{settings.pism_to_mom_runoff_restart_file}}
+BASAL_FILE={{settings.pism_to_mom_flux_restart_file}}
+RUNOFF_FILE={{settings.pism_to_mom_runoff_restart_file}}
 {% else %}
 echo "    (COUPLED_RESTART=FALSE)"
 echo "    -> set ice to ocean runoff fluxes to provided inital fluxes"
 echo "       (given by settings.pism_to_mom_flux_init_file)"
-echo RUNOFF_FILE={{settings.pism_to_mom_flux_init_file}}
-RUNOFF_FILE={{settings.pism_to_mom_flux_init_file}}
+echo BASAL_FILE={{settings.pism_to_mom_flux_init_file}}
+echo RUNOFF_FILE={{settings.pism_to_mom_runoff_init_file}}
+BASAL_FILE={{settings.pism_to_mom_flux_init_file}}
+RUNOFF_FILE={{settings.pism_to_mom_runoff_init_file}}
 {% endif %}
 
 
@@ -1134,7 +1138,7 @@ echo " -> for first coupling iteration, set ice to ocean runoff reference file"
 echo "    to provided PISM-to-MOM flux for initialisation"
 echo "    (given by settings.pism_to_mom_flux_init_file)"
 echo "RUNOFF_REFERENCE_FILE={{settings.pism_to_mom_flux_init_file}}"
-RUNOFF_REFERENCE_FILE={{settings.pism_to_mom_flux_init_file}}
+RUNOFF_REFERENCE_FILE={{settings.pism_to_mom_runoff_init_file}}
         {% endif %}
 
     {% else %}
@@ -1159,61 +1163,63 @@ RUNOFF_REFERENCE_FILE=$RUNOFF_FILE
 
 ## if RUNOFF_REFERENCE_FILE is set, check that it has maximum only one
 #   timestamp (no time series)
-if [ -n "$RUNOFF_REFERENCE_FILE" ]; then
-    echo
-    echo "[runoff_slc] -> checking if RUNOFF_REFERENCE_FILE has maximum "\
-        "only one time stamp (no time series)"
-
-    RUNOFF_REFERENCE_PATH=$ROOT_WORK_DIR/x_PISM-to-MOM/$RUNOFF_REFERENCE_FILE
-    RUNOFF_REF_TIME_DIM=$(ncks --trd -M $RUNOFF_REFERENCE_PATH | \
-        grep "Root record dimension .: name = time" | \
-        cut -f 2 -d ',' | awk '{print $3}')
-    if [ "$RUNOFF_REF_TIME_DIM" == "1" ] || [ "$RUNOFF_REF_TIME_DIM" == "" ] ; then
-        echo "  > [runoff_slc] -> RUNOFF_REFERENCE_FILE $RUNOFF_REFERENCE_FILE "\
-            "has no multiple time stamps"
-    else
-        echo "  > [runoff_slc] ERROR: RUNOFF_REFERENCE_FILE "\
-            "$RUNOFF_REFERENCE_FILE has multiple time stamps! Only 1 allowed "\
-            "or no time dimension."
-        exit_script 3
-    fi
-fi
+#if [ -n "$RUNOFF_REFERENCE_FILE" ]; then
+#    echo
+#    echo "[runoff_slc] -> checking if RUNOFF_REFERENCE_FILE has maximum "\
+#        "only one time stamp (no time series)"
+#
+#    RUNOFF_REFERENCE_PATH=$ROOT_WORK_DIR/x_PISM-to-MOM/$RUNOFF_REFERENCE_FILE
+#    RUNOFF_REF_TIME_DIM=$(ncks --trd -M $RUNOFF_REFERENCE_PATH | \
+#        grep "Root record dimension .: name = time" | \
+#        cut -f 2 -d ',' | awk '{print $3}')
+#    if [ "$RUNOFF_REF_TIME_DIM" == "1" ] || [ "$RUNOFF_REF_TIME_DIM" == "" ] ; then
+#       echo "  > [runoff_slc] -> RUNOFF_REFERENCE_FILE $RUNOFF_REFERENCE_FILE "\
+#            "has no multiple time stamps"
+#    else
+#        echo "  > [runoff_slc] ERROR: RUNOFF_REFERENCE_FILE "\
+#            "$RUNOFF_REFERENCE_FILE has multiple time stamps! Only 1 allowed "\
+#            "or no time dimension."
+#        exit_script 3
+#    fi
+#fi
 
 echo ">> modify MOM6 data_table for first coupling iteration"
 
-{% if not settings.insert_basal_melt_at_depth==True %}
-echo "   -> insert basal melt at surface (via river runoff):"
-echo
-echo "      DATA_OVERRIDE_VAR   FILE_NAME_VAR                       FILE_NAME"
-echo "      ------------------------------------------------------------------------------------"
-echo "      runoff_li           mass_flux_surf_runoff_plus_basal    RUNOFF_FILE"
-echo "      runoff_li_hflx      heat_flux_basal                     RUNOFF_FILE"
-echo "      calving_li          mass_flux_calving                   RUNOFF_FILE"
-echo "      basal_li            -                                   <comment>"
-echo "      basal_li_hflx       -                                   <comment>"
-echo "      basal_depth_top     -                                   <comment>"
-echo "      basal_depth_bot     -                                   <comment>"
-echo "      li_mflx_balance     mass_flux                           RUNOFF_REFERENCE_FILE"
+#{% if not settings.insert_basal_melt_at_depth==True %}
+#echo "   -> insert basal melt at surface (via river runoff):"
+#echo
+#echo "      DATA_OVERRIDE_VAR   FILE_NAME_VAR                       FILE_NAME"
+#echo "      ------------------------------------------------------------------------------------"
+#echo "      runoff_li           mass_flux_surf_runoff_plus_basal    RUNOFF_FILE"
+#echo "      runoff_li_hflx      heat_flux_basal                     RUNOFF_FILE"
+#echo "      calving_li          mass_flux_calving                   RUNOFF_FILE"
+#echo "      basal_li            -                                   <comment>"
+#echo "      basal_li_hflx       -                                   <comment>"
+#echo "      basal_depth_top     -                                   <comment>"
+#echo "      basal_depth_bot     -                                   <comment>"
+#echo "      li_mflx_balance     mass_flux                           RUNOFF_REFERENCE_FILE"
 
-{% else %}
+#{% else %}
 echo "   -> insert basal melt at depth:"
 echo
 echo "      DATA_OVERRIDE_VAR   FILE_NAME_VAR                       FILE_NAME"
 echo "      ------------------------------------------------------------------------------------"
 echo "      runoff_li           mass_flux_surf_runoff               RUNOFF_FILE"
 echo "      runoff_li_hflx      -                                   <comment>"
-echo "      calving_li          mass_flux_calving                   RUNOFF_FILE"
-echo "      basal_li            mass_flux_basal                     RUNOFF_FILE"
-echo "      basal_li_hflx       heat_flux_basal                     RUNOFF_FILE"
+echo "      calving_li          mass_flux_calving                   BASAL_FILE"
+echo "      basal_li            mass_flux_basal                     BASAL_FILE"
+echo "      basal_li_hflx       heat_flux_basal                     BASAL_FILE"
 echo "      basal_depth_top     shelf_front_depth                   BASAL_MELT_INPUT_DEPTH_FILE"
 echo "      basal_depth_bot     shelf_front_depth                   BASAL_MELT_INPUT_DEPTH_FILE"
-echo "      li_mflx_balance     mass_flux                           RUNOFF_REFERENCE_FILE"
-{% endif %}
+#cho "      li_mflx_balance     mass_flux                           RUNOFF_REFERENCE_FILE"
+#{% endif %}
 
 
 cd $ROOT_WORK_DIR/POEM
 cp data_table-dummy data_table-pism_in
 sed "s/RUNOFF_DUMMY/$RUNOFF_FILE/" -i data_table-pism_in
+sed "s/FILE_NAME_DUMMY/$BASAL_FILE/" -i data_table-pism_in
+
 #sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
 
 
@@ -1221,28 +1227,29 @@ sed "s/RUNOFF_DUMMY/$RUNOFF_FILE/" -i data_table-pism_in
 ### basal melt at surface (via river runoff)
 # add basal melt mass flux to surface runoff mass flux
 # (to be inserted together in MOM5's data_table via runoff_li)
-cd $ROOT_WORK_DIR/x_PISM-to-MOM
-ncap2 -O -s "mass_flux_surf_runoff_plus_basal=mass_flux_surf_runoff+mass_flux_basal_melt" \
-    $RUNOFF_FILE $RUNOFF_FILE.tmp
-RESULT=$?
-return_check $RESULT "ncap2"
-ncatted -a long_name,mass_flux_surf_runoff_plus_basal,o,c,'mass_flux_surf_runoff + mass_flux_basal_melt' \
-    $RUNOFF_FILE.tmp
-RESULT=$?
-return_check $RESULT "ncatted"
-mv $RUNOFF_FILE.tmp $RUNOFF_FILE
-cd $ROOT_WORK_DIR/POEM
+#cd $ROOT_WORK_DIR/x_PISM-to-MOM
+#ncap2 -O -s "mass_flux_surf_runoff_plus_basal=mass_flux_surf_runoff+mass_flux_basal_melt" \
+#    $RUNOFF_FILE $RUNOFF_FILE.tmp
+#RESULT=$?
+#return_check $RESULT "ncap2"
+#ncatted -a long_name,mass_flux_surf_runoff_plus_basal,o,c,'mass_flux_surf_runoff + mass_flux_basal_melt' \
+#    $RUNOFF_FILE.tmp
+#RESULT=$?
+#return_check $RESULT "ncatted"
+#mv $RUNOFF_FILE.tmp $RUNOFF_FILE
+#cd $ROOT_WORK_DIR/POEM
 
-sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff_plus_basal/" -i data_table-pism_in
+#sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff_plus_basal/" -i data_table-pism_in
 # comment basal mass, heatflux and depth input entries
-sed -e '/.*basal_li/ s/^./#&/' -i data_table-pism_in
-sed -e '/.*basal_depth/ s/^./#&/' -i data_table-pism_in
+#sed -e '/.*basal_li/ s/^./#&/' -i data_table-pism_in
+#sed -e '/.*basal_depth/ s/^./#&/' -i data_table-pism_in
 {% else %}
 ### basal melt at depth
-sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff/" -i data_table-pism_in
+#sed "s/RUNOFF_VAR_NAME_DUMMY/mass_flux_surf_runoff/" -i data_table-pism_in
 # comment land ice surface runoff heat flux entry
-sed -e '/.*runoff_li_hflx/ s/^./#&/' -i data_table-pism_in
-sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_table-pism_in
+#sed -e '/.*runoff_li_hflx/ s/^./#&/' -i data_table-pism_in
+#sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_table-pism_in
+ln -sf ../x_PISM-to-MOM/$BASAL_MELT_INPUT_DEPTH_FILE INPUT/basal_depth.nc
 {% endif %}
 
 {% if settings.do_runoff_slc==True %}
