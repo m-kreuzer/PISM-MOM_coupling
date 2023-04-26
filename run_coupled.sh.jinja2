@@ -1249,7 +1249,7 @@ sed "s/FILE_NAME_DUMMY/$BASAL_FILE/" -i data_table-pism_in
 # comment land ice surface runoff heat flux entry
 #sed -e '/.*runoff_li_hflx/ s/^./#&/' -i data_table-pism_in
 #sed "s/BASAL_INPUT_DEPTH_FILE_NAME_DUMMY/$BASAL_MELT_INPUT_DEPTH_FILE/" -i data_table-pism_in
-ln -sf ../x_PISM-to-MOM/$BASAL_MELT_INPUT_DEPTH_FILE INPUT/basal_depth.nc
+ln -sf ../../x_PISM-to-MOM/$BASAL_MELT_INPUT_DEPTH_FILE INPUT/basal_depth.nc
 {% endif %}
 
 {% if settings.do_runoff_slc==True %}

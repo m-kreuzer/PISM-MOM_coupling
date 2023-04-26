@@ -1075,7 +1075,7 @@ if __name__ == "__main__":
                 raise ValueError(f'pism_thk_dtype is {pism_thk_dtype}. '
                         'Only "float32" and "float64" are allowed.')
 
-            x = dst.createVariable('shelf_front_depth', nc_dtype, 
+            x = dst.createVariable('basal_depth', nc_dtype, 
                                    ('time','yh','xh'))
             var_dict = col.OrderedDict([
                  ('long_name', ("front depth of ice shelf draft, computed as "
@@ -1089,8 +1089,8 @@ if __name__ == "__main__":
                  ('reporting_interval_units', 'years'),
                  ('cell_methods', 'time: point'),
                  ('coordinates', 'geolon geolat')])
-            dst['shelf_front_depth'].setncatts(var_dict)
-            dst['shelf_front_depth'][0,:] = shelf_front_box_depth_ocean[:].data
+            dst['basal_depth'].setncatts(var_dict)
+            dst['basal_depth'][0,:] = shelf_front_box_depth_ocean[:].data
 
 
     t_write_file_end = time.time()
