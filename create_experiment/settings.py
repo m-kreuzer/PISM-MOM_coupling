@@ -36,11 +36,11 @@ vprec = 0 # This is the synthetic mass flux applied to the ocean.
 # specify ice-to-ocean runoff for first coupling iteration as ocean runs before
 # ice and default setup for ocean has no Antarctic runoff from land/ice
 pism_to_mom_flux_init_file = 'equi_16km_110000yrs.mean_last_1ka.fluxes.nc'
-pism_to_mom_flux_init_path = os.path.join('/p/projects/climber3/huiskamp/POEM/work/MOM6_SIS2_template/INPUT', pism_to_mom_flux_init_file)
+pism_to_mom_flux_init_path = os.path.join('/p/projects/poem/huiskamp/mom_pism/MOM6_SIS2_template/INPUT', pism_to_mom_flux_init_file)
 
 
 pism_to_mom_runoff_init_file = 'runoff_spinup.nc'
-pism_to_mom_runoff_init_path = os.path.join('/p/projects/climber3/huiskamp/POEM/work/MOM6_SIS2_template/INPUT', pism_to_mom_flux_init_file)
+pism_to_mom_runoff_init_path = os.path.join('/p/projects/poem/huiskamp/mom_pism/MOM6_SIS2_template/INPUT', pism_to_mom_flux_init_file)
 
 # - - - - - - - - - - - - - - - - - - restart - - - - - - - - - - - - - - - - -
 # option to restart a coupled setup from a previous run
@@ -60,6 +60,8 @@ restart_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/coupling_framework_ba
 pism_to_mom_flux_restart_file = '002994.fluxes.nc'
 pism_to_mom_flux_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_flux_restart_file)
 
+pism_to_mom_runoff_restart_file = '.nc'
+pism_to_mom_runoff_restart_path = os.path.join(restart_dir, 'x_PISM-to-MOM', pism_to_mom_runoff_restart_file)
 # runoff reference, inserted in MOM's data_table
 # -> only used when (do_runoff_slc==True AND runoff_reference_surf_accum==True)
 #runoff_reference_restart_file = '002994.runoff_reference.nc'

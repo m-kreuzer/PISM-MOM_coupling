@@ -2,11 +2,11 @@
 
 # ----------------------------------- paths ------------------------------------
 # base directory where experiments will be located (submit/input/output files)
-working_dir = "/p/projects/climber3/huiskamp/POEM/work/mom6_runs"
+working_dir = "/p/projects/poem/huiskamp/mom_pism/mom6_runs"
 
 # directory with coupling infrastructure template 
 #  -> clone of https://github.com/m-kreuzer/PISM-MOM_coupling.git
-coupl_template_dir = "/p/projects/climber3/huiskamp/POEM/work/PISM-MOM_coupling"
+coupl_template_dir = "/p/projects/poem/huiskamp/mom_pism/PISM-MOM_coupling"
 
 ### PISM paths
 pism_code_dir = "/p/projects/pism/kreuzer/software/pism1.1.4_extra-double"
@@ -16,7 +16,7 @@ pism_input_root_dir = "/p/projects/pism/kreuzer/pism_input_2020"
 # POEM project directory with tools like mppnccombine, time_stamp.csh, ...
 poem_proj_dir = "/p/projects/climber3/huiskamp/POEM"
 # POEM template directory with all namelist & input files
-poem_template_dir = "/p/projects/climber3/huiskamp/POEM/work/MOM6_SIS2_template"
+poem_template_dir = "/p/projects/poem/huiskamp/mom_pism/MOM6_SIS2_template"
 
 
 

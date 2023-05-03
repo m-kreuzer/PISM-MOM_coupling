@@ -201,6 +201,14 @@ def create_run(settings=settings, experiment=settings.experiment):
                 f"{settings.pism_to_mom_flux_init_path} for ice to ocean "\
                 f"fluxes in first coupling iteration")
 
+        # copy initial runoff field for first coupling iteration
+        shutil.copy2(settings.pism_to_mom_runoff_init_path,
+                os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+        print(f"   - copied initial PISM-to-MOM runoff file "\
+                f"{settings.pism_to_mom_runoff_init_file} from "\
+                f"{settings.pism_to_mom_runoff_init_path} for ice to ocean "\
+                f"fluxes in first coupling iteration")
+
         # TODO: copy MOM RESTART files
 
     # restarting from a previous coupled run
@@ -210,6 +218,13 @@ def create_run(settings=settings, experiment=settings.experiment):
                 os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
         print(f"   - copied PISM-to-MOM flux file "\
                 f"{settings.pism_to_mom_flux_restart_file} from "\
+                f"{settings.restart_dir} to restart from previous run")
+
+        # copy PISM-to-MOM-modified runoff file from previous run (last iteration)
+        shutil.copy2(settings.pism_to_mom_runoff_restart_path, 
+                os.path.join(settings.experiment_dir, 'x_PISM-to-MOM'))
+        print(f"   - copied PISM-to-MOM flux file "\
+                f"{settings.pism_to_mom_runoff_restart_file} from "\
                 f"{settings.restart_dir} to restart from previous run")
 
         if settings.use_prescribed_pico_input_depth==False:
