@@ -247,7 +247,11 @@ poem_run_postprocess() {
     #for f in fms.out-$SLURM_JOBID* ; do
     #    mv $f $enddate.$(echo $f | sed -e s/$SLURM_JOBID-// )
     #done
-
+    # MOM6 automatically names files with the begin date, so we need to change this...
+    for i in $POEM_TIME_BEGIN.*.nc
+      do new=$(echo "$i" | sed -E 's/([0-9]+)\.//')
+      mv "$i" "$new"
+    done
     # put files to history dir
     for i in *.nc
       do mv $i history/$enddate.$i

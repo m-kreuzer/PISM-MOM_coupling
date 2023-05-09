@@ -40,7 +40,7 @@ pism_to_mom_flux_init_path = os.path.join('/p/projects/poem/huiskamp/mom_pism/MO
 
 
 pism_to_mom_runoff_init_file = 'runoff_spinup.nc'
-pism_to_mom_runoff_init_path = os.path.join('/p/projects/poem/huiskamp/mom_pism/MOM6_SIS2_template/INPUT', pism_to_mom_flux_init_file)
+pism_to_mom_runoff_init_path = os.path.join('/p/projects/poem/huiskamp/mom_pism/MOM6_SIS2_template/INPUT', pism_to_mom_runoff_init_file)
 
 # - - - - - - - - - - - - - - - - - - restart - - - - - - - - - - - - - - - - -
 # option to restart a coupled setup from a previous run
