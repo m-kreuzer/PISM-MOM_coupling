@@ -33,8 +33,8 @@
 #SBATCH --job-name=process_mom_to_pism
 #SBATCH --tasks=1
 #SBATCH --mem=60000     # unit: MB
-##SBATCH --qos=priority
-#SBATCH --qos=short
+#SBATCH --qos=priority
+##SBATCH --qos=short
 #SBATCH --time=0:30:00
 #SBATCH --output=process_mom_to_pism.%j.out
 #SBATCH --error=process_mom_to_pism.%j.err

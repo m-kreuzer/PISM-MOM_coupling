@@ -29,7 +29,9 @@ OCN_OUTPUT_DIR=$ROOT_WORK_DIR/history/
 SCRIPT_DIR=$PWD
 
 #X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/
-X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM_reference_piControl_CCSM4_run05
+#X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM_reference_piControl_CCSM4_run05
+X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM_reference_spinup_PISM_runoff_run13
+
 
 # coupling source directory, required for:
 #   regriddedMOM-to-PISM_processing.py
@@ -62,7 +64,7 @@ PICO_INPUT_DEPTH_FILE=$CPL_EXP_DIR/x_PISM-to-MOM/017100.pico_input_depth.nc
 ### ocean anomaly reference files: tracer and sea level
 
 # source of ocean tracer anomaly file
-COMPUTE_OCEAN_TRACER_ANOMALY_FILE=true
+COMPUTE_OCEAN_TRACER_ANOMALY_FILE=false
 #   [true]  tracer anomaly file is computed as mean from ocean model output
 #           -> CALC_OCN_TRACER_ANOMALY_* variables are used
 #   [false] use precomputed anomaly file
@@ -82,7 +84,7 @@ OCEAN_TRACER_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments
 
 
 # source of ocean sealevel anomaly file
-COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE=true
+COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE=false
 #   [true]  sealevel anomaly file is computed as mean from ocean model output
 #           -> CALC_OCN_SEALEVEL_ANOMALY_* variables are used
 #   [false] use precomputed anomaly file

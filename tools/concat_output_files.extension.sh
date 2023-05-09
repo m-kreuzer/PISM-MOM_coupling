@@ -10,26 +10,19 @@ echo ROOT_WORK_DIR: $ROOT_WORK_DIR
 
 POEM_WORK_DIR=$ROOT_WORK_DIR/POEM
 PISM_WORK_DIR=$ROOT_WORK_DIR/PISM
-#SIM_EXT_DIR=$ROOT_WORK_DIR/../MOM5_PISM_16km_gmd-2020-230_run21_ext/
-SIM_EXT_DIR=$ROOT_WORK_DIR/../MOM5_PISM_16km_gmd-2020-230_run21_ext2/
-## ext
-#SIM_START_YEAR=013100
-#SIM_END_YEAR=014350
-#SIM_EXT_START_YEAR=014360
-#SIM_EXT_END_YEAR=015610
-# ext2
-SIM_START_YEAR=013100
-SIM_END_YEAR=015610
-SIM_EXT_START_YEAR=015620
-SIM_EXT_END_YEAR=16420
-#CPL_TIMESTEP=10
+SIM_EXT_DIR=$ROOT_WORK_DIR/../MOM5_PISM1.0hash_16km_1pctCO2ext_CCSM4_run01.RESTART_017625/
+
+SIM_START_YEAR=017235
+SIM_END_YEAR=017625
+SIM_EXT_START_YEAR=017635
+SIM_EXT_END_YEAR=021225
 
 set -x
 
-OCN_FILES="ice-monthly.nc ice-yearly.nc ice-decadal.nc ocean-scalar.nc ocean-monthly.nc ocean-yearly.nc ocean-decadal.nc"
+OCN_FILES="ice-monthly.nc ice-yearly.nc ice-decadal.nc ice-decadal_min.nc ice-decadal_max.nc ocean-scalar.nc ocean-monthly.nc ocean-yearly.nc ocean-decadal.nc ocean-decadal_min.nc ocean-decadal_max.nc"
 ICE_FILES="pism_extra.nc pism_snap.nc pism_ts.nc"
-OTI_FILES="processed_MOM.nc processed_MOM.anomaly.nc PISM_input.nc"
-ITO_FILES="basin_shelf_depth.nc fluxes.nc"
+OTI_FILES="processed_MOM.nc sealevel.processed_MOM.anomaly.nc sealevel.PISM_input.nc tracer.processed_MOM.anomaly.nc tracer.PISM_input.nc"
+ITO_FILES="basal_melt_input_depth.nc pico_input_depth.nc fluxes.nc runoff_reference.nc"
 
 ## concatenate MOM output
 cd $POEM_WORK_DIR/history
@@ -39,6 +32,7 @@ for OF in $OCN_FILES; do
         $SIM_EXT_START_YEAR $SIM_EXT_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.$OF" \
         $SIM_START_YEAR $SIM_EXT_END_YEAR`)
+    echo ncrcat --overwrite $INPUT_FILE1 $INPUT_FILE2 $OUTPUT_FILE
     ncrcat --overwrite $INPUT_FILE1 $INPUT_FILE2 $OUTPUT_FILE
 done
 cd $ROOT_WORK_DIR
@@ -51,6 +45,7 @@ for IF in $ICE_FILES; do
         $SIM_EXT_START_YEAR $SIM_EXT_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.$IF" \
         $SIM_START_YEAR $SIM_EXT_END_YEAR`)
+    echo ncrcat --overwrite $INPUT_FILE1 $INPUT_FILE2 $OUTPUT_FILE
     ncrcat --overwrite $INPUT_FILE1 $INPUT_FILE2 $OUTPUT_FILE
 done
 cd $ROOT_WORK_DIR
@@ -63,6 +58,7 @@ for F in $OTI_FILES; do
         $SIM_EXT_START_YEAR $SIM_EXT_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.$F" \
         $SIM_START_YEAR $SIM_EXT_END_YEAR`)
+    echo ncrcat --overwrite $INPUT_FILE1 $INPUT_FILE2 $OUTPUT_FILE
     ncrcat --overwrite $INPUT_FILE1 $INPUT_FILE2 $OUTPUT_FILE
 done
 
@@ -73,6 +69,7 @@ for F in $ITO_FILES; do
         $SIM_EXT_START_YEAR $SIM_EXT_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.$F" \
         $SIM_START_YEAR $SIM_EXT_END_YEAR`)
+    echo ncrcat --overwrite $INPUT_FILE1 $INPUT_FILE2 $OUTPUT_FILE
     ncrcat --overwrite $INPUT_FILE1 $INPUT_FILE2 $OUTPUT_FILE
 done
 cd $ROOT_WORK_DIR
