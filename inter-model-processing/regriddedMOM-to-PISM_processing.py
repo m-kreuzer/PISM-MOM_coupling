@@ -256,8 +256,8 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # create condensed data structure (no depth) for output
-    if 'st_ocean' in ds_field.dims:
-        ds_field_out = ds_field.isel(st_ocean=0, drop=True)
+    if 'zl' in ds_field.dims:
+        ds_field_out = ds_field.isel(zl=0, drop=True)
     else:
         ds_field_out = cp.deepcopy(ds_field)
 
@@ -386,9 +386,9 @@ if __name__ == "__main__":
     #            raise ValueError( str(err_str) ) 
     #        
     #        # calculate basin mean of edge cells and apply for empty cells
-    #        for z,z_val in enumerate(field.st_ocean):
-    #            f_z =  ds_field[f].isel(time=t, st_ocean=z)
-    #            fe_z = field_edge.sel(st_ocean=z_val)
+    #        for z,z_val in enumerate(field.zl):
+    #            f_z =  ds_field[f].isel(time=t, zl=z)
+    #            fe_z = field_edge.sel(zl=z_val)
 
     #            for b in basin_vals:
     #                ### create masks
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     #                mean_field_basin_edge = f_z.where(m__fedge_A_basin==True).mean()
     #                with ds_field[f] as fs:
     #                    mask_assign = ( (fs.coords['time']==t_val) & 
-    #                                    (fs.coords['st_ocean'] == z_val) & 
+    #                                    (fs.coords['zl'] == z_val) & 
     #                                    (m__fmiss_A_basin==True)        )
     #                ds_field[f] = xr.where(mask_assign, mean_field_basin_edge, ds_field[f])
 
@@ -436,9 +436,9 @@ if __name__ == "__main__":
                             " of EDGE_FILE '" + args.edge_file + "'!" 
                 raise ValueError( str(err_str) ) 
             
-            if 'st_ocean' in ds_field[f].dims:
+            if 'zl' in ds_field[f].dims:
                 # calculate basin mean of edge cells and apply for empty cells
-                for z,z_val in enumerate(ds_field[f].st_ocean):
+                for z,z_val in enumerate(ds_field[f].zl):
                     for b in basin_vals:
                         ### create masks
                         # mask of current basin
@@ -488,11 +488,11 @@ if __name__ == "__main__":
     assert set(basin_list) == set(shelf_depth_basin_list), \
                 assert_str.format(args.basin_file, args.basin_shelf_depth_file)
 
-    # case: dataset holds vertical axis 'st_ocean'
-    if 'st_ocean' in ds_field.dims:
+    # case: dataset holds vertical axis 'zl'
+    if 'zl' in ds_field.dims:
         # extract vertical axis
-        ocean_z = ds_field['st_ocean']              # units: dbars (interpreting as m)
-        ocean_z = -1 * ocean_z                      # positive = upwards
+        ocean_z = ds_field['zl']              # units: m
+        ocean_z = -1 * ocean_z                # positive = upwards
 
         # iterate basins
         for b_idx, b_val in enumerate(tqdm(shelf_depth_basin_list, desc='\tbasin', position=0, leave=True)):
@@ -524,7 +524,7 @@ if __name__ == "__main__":
                 da_data = ds_field_out[f].data      # dim: (time, y, x)
 
                 # case: field has vertical axis
-                if 'st_ocean' in ds_field[f].dims:
+                if 'zl' in ds_field[f].dims:
                     # iterate time
                     for t,t_val in enumerate(ds_field[f].time):
                         bf_l = ds_field[f].data[t,z_idx_lower, basins==b_val]   # basin field lower
