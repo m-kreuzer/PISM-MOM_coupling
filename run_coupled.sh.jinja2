@@ -624,7 +624,7 @@ process_pism_to_mom(){
     cp data_table-dummy data_table-pism_in
     #cp MOM_override_dummy MOM_override # At the moment, this is not necessary
     sed "s/FILE_NAME_DUMMY/$PISM_TIME_END_PAD.fluxes.nc/" -i data_table-pism_in
-    sed "s/RUNOFF_DUMMY/$PISM_TIME_END_PAD.runoff.nc" -i data_table-pism_in
+    sed "s/RUNOFF_DUMMY/$PISM_TIME_END_PAD.runoff.nc/" -i data_table-pism_in
     #sed "s/RUNOFF_REFERENCE_FILE_NAME_DUMMY/$RUNOFF_REFERENCE_FILE/" -i data_table-pism_in
 
     #sed "s/BASAL_DEPTH_FILE/$BASAL_MELT_INPUT_DEPTH_FILE" -i MOM_override
