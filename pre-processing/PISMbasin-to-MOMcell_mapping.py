@@ -369,7 +369,7 @@ if __name__ == "__main__":
                     np.unique(oc_south_edge['pism_basin'], return_counts=True)
     mom_basin_list    = mom_basin_list_tmp[~mom_basin_list_tmp.mask].data
     mom_basin_count   = mom_basin_count_tmp[~mom_basin_list_tmp.mask]
-    mom_basin_area    = np.zeros_like(mom_basin_list, dtype=np.float)
+    mom_basin_area    = np.zeros_like(mom_basin_list, dtype=float)
 
     #pism_basin_list = np.unique(pism_basins).data
     pism_basin_list = np.unique(pism_basins)
