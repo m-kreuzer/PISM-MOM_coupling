@@ -41,7 +41,7 @@
 #SBATCH --time={{settings.slurm_time}}
 {{settings.slurm_add_directives}}
 
-#SBATCH --output=sbatch.64.out
+#SBATCH --output=sbatch.%j.out
 ##SBATCH --error=sbatch.%j.err
 
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
