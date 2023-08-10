@@ -132,7 +132,7 @@ poem_run() {
 
         time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
                 -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
-                ./fms_MOM_SIS.x
+                ./fms_CM2M.x
         RESULT=$?
         #mpdallexit
 
@@ -147,7 +147,7 @@ poem_run() {
     else
        unset SLURM_PMI_KVS_DUP_KEYS
        unset SLURM_JOB_ID SLURM_STEPID SLURM_NPROCS SLURM_PROCID SLURM_GTIDS
-       time      ./fms_MOM_SIS.x > fms.out-1-$SLURM_JOBID 2>&1
+       time      ./fms_CM2M.x > fms.out-1-$SLURM_JOBID 2>&1
        RESULT=$?
     fi
 
@@ -211,7 +211,7 @@ poem_prerun() {
 
         time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
                 -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
-                ./fms_MOM_SIS.x
+                ./fms_CM2M.x
         RESULT=$?
         #mpdallexit
 
@@ -226,7 +226,7 @@ poem_prerun() {
     else
        unset SLURM_PMI_KVS_DUP_KEYS
        unset SLURM_JOB_ID SLURM_STEPID SLURM_NPROCS SLURM_PROCID SLURM_GTIDS
-       time      ./fms_MOM_SIS.x > fms.out-1-$SLURM_JOBID 2>&1
+       time      ./fms_CM2M.x > fms.out-1-$SLURM_JOBID 2>&1
         RESULT=$?
     fi
 
