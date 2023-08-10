@@ -36,7 +36,7 @@ submit_command="sbatch run_coupled.sh"
 
 # ---------------------------- resource management ----------------------------- 
 slurm_nodes = 4
-#slurm_tasks = 32
+slurm_tasks = 64
 #slurm_partition="broadwell"
 slurm_exclusive = True
 
