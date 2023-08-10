@@ -756,6 +756,8 @@ if __name__ == "__main__":
                 pism_mom_mapping['basin'].broadcast_like(pism_extra.time)
         v = 'shelf_front_depth'
         shelf_front_box_depth_ocean[v] = pism_mom_mapping_basin_time.fillna(0) * 0
+        xt_ocean_attrs = shelf_front_box_depth_ocean.xt_ocean.attrs
+        yt_ocean_attrs = shelf_front_box_depth_ocean.yt_ocean.attrs
 
         for b in tqdm(shelf_front_box_depth_basin.basins,
                 desc='redistribution on ocean grid (iterating basins)',
@@ -765,6 +767,8 @@ if __name__ == "__main__":
                              shelf_front_box_depth_basin[v].sel(basins=b),
                              shelf_front_box_depth_ocean[v])
 
+        shelf_front_box_depth_ocean['xt_ocean'].attrs = xt_ocean_attrs
+        shelf_front_box_depth_ocean['yt_ocean'].attrs = yt_ocean_attrs
         shelf_front_box_depth_ocean['time'].attrs = pism_extra.time.attrs
 
         # remove unwanted basin coordinate
