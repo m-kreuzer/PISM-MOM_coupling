@@ -20,18 +20,20 @@
 
 #SBATCH --job-name={{settings.experiment}}
 
-#SBATCH --tasks={{settings.slurm_tasks}}
+### for CM2Mc setup we specify nodes instead of tasks and hard code the core layout for fms (see arbitrary function)
+#SBATCH --nodes={{settings.slurm_nodes}}
+##SBATCH --tasks={{settings.slurm_tasks}}
 {% if settings.slurm_exclusive==True %}
 #SBATCH --exclusive
 {% endif %}
 
-{% if settings.slurm_partition=="broadwell" %}
-#SBATCH --tasks-per-node=32
-#SBATCH --partition=broadwell
-{% else %}
-#SBATCH --tasks-per-node=16
-##SBATCH --partition=haswell
-{% endif %}
+#{% if settings.slurm_partition=="broadwell" %}
+##SBATCH --tasks-per-node=32
+##SBATCH --partition=broadwell
+#{% else %}
+##SBATCH --tasks-per-node=16
+###SBATCH --partition=haswell
+#{% endif %}
 
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
@@ -39,7 +41,7 @@
 #SBATCH --time={{settings.slurm_time}}
 {{settings.slurm_add_directives}}
 
-#SBATCH --output=sbatch.%j.out
+#SBATCH --output=sbatch.64.out
 ##SBATCH --error=sbatch.%j.err
 
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
@@ -128,10 +130,10 @@ poem_run() {
 
         # 16 tasks atm + 32 tasks ocn = 48 tasks total
         #local arb="`arbitrary 16 16 16`"
-        local arb="`arbitrary 16 16`"
+        local arb="`arbitrary 7 7 6 8`"
 
-        time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
-                -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
+        time srun --propagate=ALL -m arbitrary -n 28 -w "$arb" \
+                -o fms.out-$SLURM_JOBID-$SLURM_NNODES-64-'%02t' \
                 ./fms_CM2M.x
         RESULT=$?
         #mpdallexit
@@ -207,10 +209,10 @@ poem_prerun() {
 
         # 16 tasks atm + 32 tasks ocn = 48 tasks total
         #local arb="`arbitrary 16 16 16`"
-        local arb="`arbitrary 16 16`"
+        local arb="`arbitrary 7 7 6 8`"
 
-        time srun --propagate=ALL -m arbitrary -n $SLURM_NTASKS -w "$arb" \
-                -o fms.out-$SLURM_JOBID-$SLURM_NNODES-$SLURM_NTASKS-'%02t' \
+        time srun --propagate=ALL -m arbitrary -n 28 -w "$arb" \
+                -o fms.out-$SLURM_JOBID-$SLURM_NNODES-64-'%02t' \
                 ./fms_CM2M.x
         RESULT=$?
         #mpdallexit
@@ -270,7 +272,7 @@ poem_run_postprocess() {
     for i in *.nc
       do mv $i history/$enddate.$i
     done
-    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out
+    time tar cvjf history/$enddate.out.tar.bz2 $enddate.fms.out-* logfile*out diag_field_log*out diag_integral.out stocks.out
 
     mkdir -p fms.out/$SLURM_JOBID
     mv $enddate.fms.out* fms.out/$SLURM_JOBID

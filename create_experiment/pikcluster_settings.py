@@ -35,9 +35,10 @@ submit_command="sbatch run_coupled.sh"
 
 
 # ---------------------------- resource management ----------------------------- 
-slurm_tasks = 32
+slurm_nodes = 4
+#slurm_tasks = 32
 #slurm_partition="broadwell"
-slurm_exclusive = False
+slurm_exclusive = True
 
 #slurm_qos = 'short'
 #slurm_time = "23:00:00"
@@ -47,5 +48,5 @@ slurm_time = "4-23:00:00"
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 
 #slurm_add_directives = "#SBATCH --constraint=haswell,tasksmax"
-slurm_add_directives = "#SBATCH --constraint=tasksmax"
-#slurm_add_directives = ""
+#slurm_add_directives = "#SBATCH --constraint=tasksmax"
+slurm_add_directives = ""
