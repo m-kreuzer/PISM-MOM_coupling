@@ -130,6 +130,10 @@ def create_run(settings=settings, experiment=settings.experiment):
         dir_path = os.path.join(settings.experiment_dir,d)
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
+    if settings.do_poem_atmos_anomaly_forcing_to_ice:
+        dir_path = os.path.join(settings.experiment_dir,'x_ATM-to-PISM')
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
     print(f" > created experiment directory {settings.experiment_dir}")
 
     # create main coupling script from template
@@ -156,7 +160,7 @@ def create_run(settings=settings, experiment=settings.experiment):
             settings.pism_atm_data_path,
             settings.pism_ocn_data_path,
             settings.pism_ocnkill_data_path]
-    if settings.pism_use_atm_anomaly_file:
+    if settings.pism_copy_atm_anomaly_file:
         pism_input_files_to_copy.append(settings.pism_atm_anomaly_data_path)
     if settings.pism_use_atm_lapse_rate_file:
         pism_input_files_to_copy.append(settings.pism_atm_lapse_rate_data_path)
@@ -165,7 +169,7 @@ def create_run(settings=settings, experiment=settings.experiment):
         print(f"   - copied PISM input file {f} to PISM/initdata")
 
     # adapt PISM input files
-    if settings.pism_use_atm_anomaly_file:
+    if settings.pism_copy_atm_anomaly_file:
         if hasattr(settings, 'pism_atm_anomaly_time_shift_years'):
             cmd = f"ncdump -h {settings.pism_atm_anomaly_data_path} | grep 'time:units'"
             time_units_str = str(subprocess.check_output(cmd, shell=True))
@@ -318,6 +322,20 @@ def create_run(settings=settings, experiment=settings.experiment):
                     f"to same reference like in other run")
         else:
             warnings.warn(f"path {settings.ocean_sealevel_anomaly_reference_path} "\
+                f"does not exist!")
+
+    if (settings.do_poem_atmos_anomaly_forcing_to_ice==True and
+        settings.use_atmos_anomaly_from_prev_run==True):
+        # copy ocean tracer anomaly reference file from given path
+        if os.path.exists(settings.atmos_anomaly_reference_path):
+            shutil.copy2(settings.atmos_anomaly_reference_path,
+                os.path.join(settings.experiment_dir, 'x_ATM-to-PISM'))
+            print(f"   - copied atmosphere anomaly reference file "\
+                    f"{settings.atmos_anomaly_reference_path} "\
+                    f"to compute atmosphere anomalies "\
+                    f"to same reference like in other run")
+        else:
+            warnings.warn(f"path {settings.atmos_anomaly_reference_path} "\
                 f"does not exist!")
 
     # a new coupled run (not restarting from a previous coupled run)

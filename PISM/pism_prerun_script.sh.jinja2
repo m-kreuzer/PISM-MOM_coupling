@@ -20,7 +20,7 @@ echo PISM_TIME_END:     $PISM_TIME_END
 -config_override initdata/config_override.nc \
 -y $__TIMESTEP \
 {{settings.pism_general_opt}} \
-{{settings.pism_atm_opt}} \
+{{settings.pism_atm_opt_prerun}} \
 {{settings.pism_add_opt}} \
 -ocean pico \
 -ocean_pico_file initdata/{{settings.pism_ocn_file}} \

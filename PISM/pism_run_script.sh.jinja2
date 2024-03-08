@@ -15,6 +15,11 @@
 -y {{settings.coupling_timestep}} \
 {{settings.pism_general_opt}} \
 {{settings.pism_atm_opt}} \
+{% if ( settings.do_poem_atmos_anomaly_forcing_to_ice==True ) -%}
+-atmosphere_anomaly_file ../x_ATM-to-PISM/$POEM_TIME_END.atmos-anomaly.PISM_input.nc \
+{% else -%}
+{{settings.pism_atm_anomaly_external_opt}} \
+{% endif -%}
 {{settings.pism_add_opt}} \
 -ocean pico \
 -ocean_pico_file ../x_MOM-to-PISM/$POEM_TIME_END.tracer.PISM_input.nc  \

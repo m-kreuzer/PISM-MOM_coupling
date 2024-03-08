@@ -44,7 +44,7 @@
 #SBATCH --output=sbatch.%j.out
 ##SBATCH --error=sbatch.%j.err
 
-#SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
+#SBATCH --mail-type=START,END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
 
 
 TIME_START_SCRIPT=$(date +%s.%N)
@@ -455,10 +455,10 @@ process_mom_to_pism() {
     #ncks -O -v  temp,salt -d time,-1 $OCEAN_OUT $REGRID_IN     # only last timestep
     {% endif %}
     REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
-    WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
+    WEIGHTS_OCN_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS_OCN
     # remove global attribute _NCProperties from POEM output which causes cdo to crash
     ncatted -O -a _NCProperties,global,d,, $REGRID_IN
-    cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
+    cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_OCN_PATH $REGRID_IN $REGRID_OUT
     RESULT=$?
     return_check $RESULT "cdo_regridding"
 
@@ -586,6 +586,101 @@ process_mom_to_pism() {
 }
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+process_atm_to_pism() {
+    echo " >> process_atm-to-pism function"
+    echo
+
+    START_ATM_to_PISM_PROCESS=$(date +%s.%N)
+    cd $ROOT_WORK_DIR/x_ATM-to-PISM
+
+    echo "  > bilinear regridding ATM output to PISM grid"
+    ATMOS_OUT=$POEM_WORK_DIR/history/$POEM_TIME_END.atmos-yearly.nc
+    # average atmospheric output over coupling time step before regridding
+    REGRID_IN=$POEM_TIME_END.atmos-yearly.mean.nc
+    ncra -O -v t_surf,precip -F -d time,1,,1 $ATMOS_OUT $REGRID_IN
+    REGRID_OUT=$POEM_TIME_END.regrid.ATM-to-PISM.bil.cdo.nc
+    WEIGHTS_ATM_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS_ATM
+    ## remove global attribute _NCProperties from POEM output which causes cdo to crash
+    #ncatted -O -a _NCProperties,global,d,, $REGRID_IN
+    cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_ATM_PATH $REGRID_IN $REGRID_OUT
+    RESULT=$?
+    return_check $RESULT "cdo_regridding"
+
+    {% if settings.do_poem_atmos_anomaly_forcing_to_ice==True %}
+    ### atmosphere anomaly approach: use regular PISM atmosphere forcing (e.g.
+    #       RACMO data) but add difference of atmosphere output from current coupling
+    #       time step to reference file
+    echo ATMOS_ANOMALY_REFERENCE_FILE=$ATMOS_ANOMALY_REFERENCE_FILE
+    echo ATMOS_ANOMALY_REFERENCE_FILE_NOTIME=$ATMOS_ANOMALY_REFERENCE_FILE_NOTIME
+
+    # difference from current atmosphere output to reference
+    ncbo -O --op_typ=subtract \
+        $REGRID_OUT \
+        $ATMOS_ANOMALY_REFERENCE_FILE_NOTIME \
+        $POEM_TIME_END.atmos_anomaly.absolute.nc
+    RESULT=$?
+    return_check $RESULT "ncbo"
+
+    ### apply relative precipitation anomaly from POEM to PISM baseline forcing
+    ncrename -v precip,precip_anomaly_POEM -v t_surf,air_temp_anomaly \
+        $POEM_TIME_END.atmos_anomaly.absolute.nc \
+        tmp1.nc
+    RESULT=$?
+    return_check $RESULT "ncrename"
+    
+    ncrename -v precip,precip_reference_POEM \
+        $ATMOS_ANOMALY_REFERENCE_FILE_NOTIME \
+        tmp2.nc
+    RESULT=$?
+    return_check $RESULT "ncrename"
+    
+    ncks -A -v precip_reference_POEM tmp2.nc tmp1.nc
+    RESULT=$?
+    return_check $RESULT "ncks"
+
+    ncap2 -s precip_anomaly_relative_POEM=precip_anomaly_POEM/precip_reference_POEM \
+        tmp1.nc tmp3.nc
+    RESULT=$?
+    return_check $RESULT "ncap2"
+
+    # preprocess pism atm file (otherwise follow up operations fail)
+    ncwa -a time -v precipitation \
+        $ROOT_WORK_DIR/PISM/initdata/{{settings.pism_atm_file}} \
+        tmp4.nc
+    RESULT=$?
+    return_check $RESULT "ncwa"
+
+    ncrename -v precipitation,precip_pism_base tmp4.nc tmp5.nc
+    ncks -A -v precip_pism_base tmp5.nc tmp3.nc
+    ncap2 -s precipitation_anomaly=precip_pism_base*precip_anomaly_relative_POEM \
+        tmp3.nc $POEM_TIME_END.atmos-anomaly.PISM_input.nc
+
+    rm tmp*.nc
+
+
+    {% else %}
+    # don't use atmosphere anomaly approach:
+    #       make PISM input file the same as regridded POEM output
+
+    #TODO: implementation
+
+    #cd $ROOT_WORK_DIR/x_ATM-to-PISM
+    #ln -sf $REGRID_OUT $POEM_TIME_END.atmos.PISM_input.nc
+
+    ### this requires further handling on the PISM runscript side, to use
+    #   $POEM_TIME_END.atmos.PISM_input.nc as the regular atmosphere forcing 
+    #   file and disabling of anomaly approach
+    {% endif %}
+
+
+
+
+    END_ATM_to_PISM_PROCESS=$(date +%s.%N)
+    TIME_ATM_to_PISM_PROCESS_T=$(echo "$END_ATM_to_PISM_PROCESS - $START_ATM_to_PISM_PROCESS" | bc)
+    TIME_ATM_to_PISM_PROCESS=$(echo "$TIME_ATM_to_PISM_PROCESS + $TIME_ATM_to_PISM_PROCESS_T" | bc)
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 process_pism_to_mom(){
     echo " >> process_pism-to-mom function"
     START_PISM_to_MOM_PROCESS=$(date +%s.%N)
@@ -671,17 +766,18 @@ START_CONCAT_FILES=$(date +%s.%N)
 POEM_TIME_CONCAT_FORMAT="%06g"${enddate:6}
 echo POEM_TIME_CONCAT_FORMAT: $POEM_TIME_CONCAT_FORMAT
 
-    # concatenate MOM output
+    # concatenate POEM output
     cd $POEM_WORK_DIR/history
-    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-monthly.nc" \
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".atmos-monthly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-monthly.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.atmos-monthly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-yearly.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".atmos-yearly.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-yearly.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.atmos-yearly.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
@@ -700,6 +796,66 @@ echo POEM_TIME_CONCAT_FORMAT: $POEM_TIME_CONCAT_FORMAT
     INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-decadal_min.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
     OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-decadal_min.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+    
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-monthly.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-monthly.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-yearly.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-yearly.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-yearly_max.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-yearly_max.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ice-yearly_min.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ice-yearly_min.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".land-static.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.land-static.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".land-yearly.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.land-yearly.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal_max.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal_max.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal_min.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal_min.nc" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean_grid_check.nc" \
+        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean_grid_check.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
@@ -721,23 +877,18 @@ echo POEM_TIME_CONCAT_FORMAT: $POEM_TIME_CONCAT_FORMAT
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-yearly_max.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-yearly_max.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal_max.nc" \
+    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-yearly_min.nc" \
         $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal_max.nc" \
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-yearly_min.nc" \
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 
-    INPUT_FILES=$(echo `seq -f $POEM_TIME_CONCAT_FORMAT".ocean-decadal_min.nc" \
-        $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
-    OUTPUT_FILE=$(echo `printf "%06g-%06g.ocean-decadal_min.nc" \
-        $SIM_START_YEAR $SIM_END_YEAR`)
-    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
     cd $ROOT_WORK_DIR
 
     # concatenate PISM output
@@ -775,6 +926,11 @@ echo POEM_TIME_CONCAT_FORMAT: $POEM_TIME_CONCAT_FORMAT
     #ncrcat --overwrite $(echo `seq -f "%06g.fluxes.anomaly.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
     #    $SIM_START_YEAR-$SIM_END_YEAR.fluxes.anomaly.nc
     cd $ROOT_WORK_DIR
+
+    cd $ROOT_WORK_DIR/x_ATM-to-PISM
+    ncrcat --overwrite $(echo `seq -f $POEM_TIME_CONCAT_FORMAT".atmos-anomaly.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.atmos-anomaly.PISM_input.nc
+
 
 END_CONCAT_FILES=$(date +%s.%N)
 TIME_CONCAT_FILES=$(echo "$END_CONCAT_FILES - $START_CONCAT_FILES" | bc)
@@ -821,6 +977,7 @@ TIME_POEM=0
 TIME_PISM=0
 TIME_POEM_POSTPROC=0
 TIME_MOM_to_PISM_PROCESS=0
+TIME_ATM_to_PISM_PROCESS=0
 TIME_PISM_to_MOM_PROCESS=0
 
 # --- load packages ---
@@ -989,9 +1146,9 @@ return_check $RESULT "nco-operation"
 echo "  > create weights to regrid from MOM to PISM grid"
 PISM_PRE_OUT=$PISM_WORK_DIR/prerun/prerun.pism_out-no_timestamp.nc
 MOM_PRE_OUT=$POEM_WORK_DIR/prerun/prerun.ocean-prerun.nc
-WEIGHTS=weights.MOM-to-PISM.bil.cdo.nc
+WEIGHTS_OCN=weights.MOM-to-PISM.bil.cdo.nc
 export REMAP_EXTRAPOLATE=off
-cdo -b F64 -f nc4c genbil,$PISM_PRE_OUT $MOM_PRE_OUT $WEIGHTS
+cdo -b F64 -f nc4c genbil,$PISM_PRE_OUT $MOM_PRE_OUT $WEIGHTS_OCN
 RESULT=$?
 return_check $RESULT "cdo-weight-generation"
 
@@ -1000,7 +1157,7 @@ REGRID_IN=$MOM_PRE_OUT
 REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/prerun.regrid.MOM-to-PISM.bil.cdo.nc
 # remove global attribute _NCProperties from POEM output which causes cdo to crash
 ncatted -O -a _NCProperties,global,d,, $REGRID_IN
-cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS $REGRID_IN $REGRID_OUT
+cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_OCN $REGRID_IN $REGRID_OUT
 RESULT=$?
 return_check $RESULT "cdo_regridding"
 
@@ -1015,6 +1172,26 @@ echo " >> identify edges on PISM grid"
     --verbose
 RESULT=$?
 return_check $RESULT "find_edge.py"
+
+{% if settings.do_poem_atmos_anomaly_forcing_to_ice==True %}
+echo "  > create weights to regrid from ATM to PISM grid"
+PISM_PRE_OUT=$PISM_WORK_DIR/prerun/prerun.pism_out-no_timestamp.nc
+ATM_PRE_OUT=$POEM_WORK_DIR/prerun/prerun.atmos-prerun.nc
+WEIGHTS_ATM=weights.ATM-to-PISM.bil.cdo.nc
+export REMAP_EXTRAPOLATE=off
+cdo -b F64 -f nc4c genbil,$PISM_PRE_OUT $ATM_PRE_OUT $WEIGHTS_ATM
+RESULT=$?
+return_check $RESULT "cdo-weight-generation"
+
+#echo "  > regrid prerun output from ATM to PISM grid "
+#REGRID_IN=$ATM_PRE_OUT
+#REGRID_OUT=$ROOT_WORK_DIR/x_ATM-to-PISM/prerun.regrid.ATM-to-PISM.bil.cdo.nc
+## remove global attribute _NCProperties from POEM output which causes cdo to crash
+##ncatted -O -a _NCProperties,global,d,, $REGRID_IN
+#cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_ATM $REGRID_IN $REGRID_OUT
+#RESULT=$?
+#return_check $RESULT "cdo_regridding"
+{% endif %}
 
 
 # create mapping between PISM basin and southern MOM cells
@@ -1299,18 +1476,19 @@ INPUT_FILES=$(echo `seq -f "{{settings.calc_ocn_tracer_anomaly['name_format_in']
 AVG_OUT_FILE=$(echo `printf "{{settings.calc_ocn_tracer_anomaly['name_format_out']}}" \
                            "{{settings.calc_ocn_tracer_anomaly['yr_start']}}"         \
                            "{{settings.calc_ocn_tracer_anomaly['yr_end']}}" `)
-ncra --overwrite -v temp,salt $INPUT_FILES $AVG_OUT_FILE
+ncra --overwrite -v temp,salt $INPUT_FILES $ROOT_WORK_DIR/x_MOM-to-PISM/$AVG_OUT_FILE
 RESULT=$?
 return_check $RESULT "ncra-operation"
 cd $ROOT_WORK_DIR
 
 echo "  > [ocean tracer anomaly reference] regrid averaged output from MOM to PISM grid "
-REGRID_IN={{settings.calc_ocn_tracer_anomaly['path']}}/$AVG_OUT_FILE
+#REGRID_IN={{settings.calc_ocn_tracer_anomaly['path']}}/$AVG_OUT_FILE
+REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$AVG_OUT_FILE
 REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/ocean_tracer_mean.regrid.MOM-to-PISM.bil.cdo.nc
-WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
+WEIGHTS_OCN_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS_OCN
 # remove global attribute _NCProperties from POEM output which causes cdo to crash
 ncatted -O -a _NCProperties,global,d,, $REGRID_IN
-cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
+cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_OCN_PATH $REGRID_IN $REGRID_OUT
 RESULT=$?
 return_check $RESULT "cdo_regridding"
 
@@ -1382,18 +1560,19 @@ INPUT_FILES=$(echo `seq -f "{{settings.calc_ocn_sealevel_anomaly['name_format_in
 AVG_OUT_FILE=$(echo `printf "{{settings.calc_ocn_sealevel_anomaly['name_format_out']}}" \
                            "{{settings.calc_ocn_sealevel_anomaly['yr_start']}}"         \
                            "{{settings.calc_ocn_sealevel_anomaly['yr_end']}}" `)
-ncra --overwrite -v eta_t $INPUT_FILES $AVG_OUT_FILE
+ncra --overwrite -v eta_t $INPUT_FILES $ROOT_WORK_DIR/x_MOM-to-PISM/$AVG_OUT_FILE
 RESULT=$?
 return_check $RESULT "ncra-operation"
 cd $ROOT_WORK_DIR
 
 echo "  > [ocean sealevel anomaly reference] regrid averaged output from MOM to PISM grid "
-REGRID_IN={{settings.calc_ocn_sealevel_anomaly['path']}}/$AVG_OUT_FILE
+#REGRID_IN={{settings.calc_ocn_sealevel_anomaly['path']}}/$AVG_OUT_FILE
+REGRID_IN=$ROOT_WORK_DIR/x_MOM-to-PISM/$AVG_OUT_FILE
 REGRID_OUT=$ROOT_WORK_DIR/x_MOM-to-PISM/ocean_sealevel_mean.regrid.MOM-to-PISM.bil.cdo.nc
-WEIGHTS_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS
+WEIGHTS_OCN_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS_OCN
 # remove global attribute _NCProperties from POEM output which causes cdo to crash
 ncatted -O -a _NCProperties,global,d,, $REGRID_IN
-cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_PATH $REGRID_IN $REGRID_OUT
+cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_OCN_PATH $REGRID_IN $REGRID_OUT
 RESULT=$?
 return_check $RESULT "cdo_regridding"
 
@@ -1437,6 +1616,71 @@ echo "ocean sealevel anomaly approach disabled"
 # ____________________________________________________________________________ #
 
 
+### atmosphere anomaly reference file
+# ____________________________________________________________________________ #
+{% if settings.do_poem_atmos_anomaly_forcing_to_ice==True %}
+echo
+echo "atmosphere anomaly approach enabled"
+    # ........................................................................ #
+    {% if settings.use_atmos_anomaly_from_prev_run==True %}
+echo "using atmosphere anomaly reference file {{settings.atmos_anomaly_reference_path}}"
+ATMOS_ANOMALY_REFERENCE_FILE=$ROOT_WORK_DIR/x_ATM-to-PISM/{{settings.atmos_anomaly_reference_file}}
+echo ATMOS_ANOMALY_REFERENCE_FILE=$ATMOS_ANOMALY_REFERENCE_FILE
+
+    # ........................................................................ #
+    {% else %}
+echo "computing atmosphere anomaly reference state from " \
+    {{settings.calc_atmos_anomaly['path']}}
+
+cd {{settings.calc_atmos_anomaly['path']}}
+echo "  > [atmos anomaly reference] average model output (possibly "\
+    "spread across multile files)"
+INPUT_FILES=$(echo `seq -f "{{settings.calc_atmos_anomaly['name_format_in']}}" \
+                           "{{settings.calc_atmos_anomaly['yr_start']}}"       \
+                           "{{settings.calc_atmos_anomaly['yr_step']}}"        \
+                           "{{settings.calc_atmos_anomaly['yr_end']}}" `)
+AVG_OUT_FILE=$(echo `printf "{{settings.calc_atmos_anomaly['name_format_out']}}" \
+                           "{{settings.calc_atmos_anomaly['yr_start']}}"         \
+                           "{{settings.calc_atmos_anomaly['yr_end']}}" `)
+ncra --overwrite -v t_surf,precip $INPUT_FILES $ROOT_WORK_DIR/x_ATM-to-PISM/$AVG_OUT_FILE
+RESULT=$?
+return_check $RESULT "ncra-operation"
+cd $ROOT_WORK_DIR
+
+echo "  > [atmosphere anomaly reference] regrid averaged output from ATM to PISM grid "
+#REGRID_IN={{settings.calc_atmos_anomaly['path']}}/$AVG_OUT_FILE
+REGRID_IN=$ROOT_WORK_DIR/x_ATM-to-PISM/$AVG_OUT_FILE
+REGRID_OUT=$ROOT_WORK_DIR/x_ATM-to-PISM/atmos_reference_mean.regrid.ATM-to-PISM.bil.cdo.nc
+WEIGHTS_ATM_PATH=$ROOT_WORK_DIR/pre-processing/$WEIGHTS_ATM
+# remove global attribute _NCProperties from POEM output which causes cdo to crash
+#ncatted -O -a _NCProperties,global,d,, $REGRID_IN
+cdo -b F64 -f nc4c remap,$PISM_PRE_OUT,$WEIGHTS_ATM_PATH $REGRID_IN $REGRID_OUT
+RESULT=$?
+return_check $RESULT "cdo_regridding"
+ATMOS_ANOMALY_REFERENCE_FILE=$REGRID_OUT
+
+    {% endif %}
+    # ........................................................................ #
+
+# removing time dimension from atmosphere anomaly reference file
+#  -> needed for clean broadcasting with ncbo
+FILE_EXTENSION="${ATMOS_ANOMALY_REFERENCE_FILE##*.}"
+FILE_PATH_NO_EXTENSION="${ATMOS_ANOMALY_REFERENCE_FILE%.*}"
+ATMOS_ANOMALY_REFERENCE_FILE_NOTIME=$FILE_PATH_NO_EXTENSION.no-time.$FILE_EXTENSION
+
+echo ATMOS_ANOMALY_REFERENCE_FILE_NOTIME=$ATMOS_ANOMALY_REFERENCE_FILE_NOTIME
+ncwa -O -a time $ATMOS_ANOMALY_REFERENCE_FILE $ATMOS_ANOMALY_REFERENCE_FILE_NOTIME
+
+
+# ____________________________________________________________________________ #
+{% else %}
+echo
+echo "atmosphere anomaly approach disabled"
+{% endif %}
+# ____________________________________________________________________________ #
+
+
+
 
 END_PREPROC=$(date +%s.%N)
 TIME_PREPROC=$(echo "$END_PREPROC - $START_PREPROC" | bc)
@@ -1462,8 +1706,11 @@ do
     poem_run
     poem_run_postprocess
 
-    # process MOM output for PISM/PICO input
+    # process POEM output for PISM/PICO input
     process_mom_to_pism
+    {% if settings.do_poem_atmos_anomaly_forcing_to_ice==True %}
+    process_atm_to_pism
+    {% endif %}
 
     # run PISM for coupling timestep
     pism_run $CPL_TIMESTEP
@@ -1527,6 +1774,7 @@ print_stat POEM_runs $TIME_POEM $TIME_SCRIPT
 print_stat POEM_postprocessing $TIME_POEM_POSTPROC $TIME_SCRIPT
 print_stat PISM_runs $TIME_PISM $TIME_SCRIPT
 print_stat MOM-to-PISM_processing $TIME_MOM_to_PISM_PROCESS $TIME_SCRIPT
+print_stat ATM-to-PISM_processing $TIME_ATM_to_PISM_PROCESS $TIME_SCRIPT
 print_stat PISM-to-MOM_processing $TIME_PISM_to_MOM_PROCESS $TIME_SCRIPT
 print_stat concat_output_files $TIME_CONCAT_FILES $TIME_SCRIPT
 printf "%$width.${width}s\n" " $sep_str"
