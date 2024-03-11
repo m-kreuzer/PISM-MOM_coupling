@@ -1178,7 +1178,7 @@ echo "  > create weights to regrid from ATM to PISM grid"
 PISM_PRE_OUT=$PISM_WORK_DIR/prerun/prerun.pism_out-no_timestamp.nc
 ATM_PRE_OUT=$POEM_WORK_DIR/prerun/prerun.atmos-prerun.nc
 WEIGHTS_ATM=weights.ATM-to-PISM.bil.cdo.nc
-export REMAP_EXTRAPOLATE=off
+export REMAP_EXTRAPOLATE=on
 cdo -b F64 -f nc4c genbil,$PISM_PRE_OUT $ATM_PRE_OUT $WEIGHTS_ATM
 RESULT=$?
 return_check $RESULT "cdo-weight-generation"
