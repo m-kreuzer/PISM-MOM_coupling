@@ -44,7 +44,7 @@
 #SBATCH --output=sbatch.%j.out
 ##SBATCH --error=sbatch.%j.err
 
-#SBATCH --mail-type=START,END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
+#SBATCH --mail-type=BEGIN,END,FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_90,TIME_LIMIT
 
 
 TIME_START_SCRIPT=$(date +%s.%N)
@@ -658,6 +658,44 @@ process_atm_to_pism() {
     rm tmp*.nc
 
 
+    ### some sanity checks
+    VMAX=$(ncmax air_temp_anomaly $POEM_TIME_END.atmos-anomaly.PISM_input.nc)
+    if (( $(echo "$VMAX > 100" |bc -l) ))
+    then
+        echo "[sanity check] Air temperature anomaly in file "\
+            "$POEM_TIME_END.atmos-anomaly.PISM_input.nc is greater than 100 degC. "\
+            "Exiting as this seems abnormal."
+        exit_script 4
+    fi
+
+    VMIN=$(ncmin air_temp_anomaly $POEM_TIME_END.atmos-anomaly.PISM_input.nc)
+    if (( $(echo "$VMIN < -100" |bc -l) ))
+    then
+        echo "[sanity check] Air temperature anomaly in file "\
+            "$POEM_TIME_END.atmos-anomaly.PISM_input.nc is smaller than -100 degC. "\
+            "Exiting as this seems abnormal."
+        exit_script 4
+    fi
+
+    VMAX=$(ncmax precipitation_anomaly $POEM_TIME_END.atmos-anomaly.PISM_input.nc)
+    if (( $(echo "$VMAX > 100000" |bc -l) ))
+    then
+        echo "[sanity check] Precipitation anomaly in file "\
+            "$POEM_TIME_END.atmos-anomaly.PISM_input.nc is greater than 100000 kg/m2/year. "\
+            "Exiting as this seems abnormal."
+        exit_script 4
+    fi
+
+    VMIN=$(ncmin precipitation_anomaly $POEM_TIME_END.atmos-anomaly.PISM_input.nc)
+    if (( $(echo "$VMIN < -100000" |bc -l) ))
+    then
+        echo "[sanity check] Precipitation anomaly in file "\
+            "$POEM_TIME_END.atmos-anomaly.PISM_input.nc is smaller than -100000 kg/m2/year. "\
+            "Exiting as this seems abnormal."
+        exit_script 4
+    fi
+
+
     {% else %}
     # don't use atmosphere anomaly approach:
     #       make PISM input file the same as regridded POEM output
@@ -936,6 +974,11 @@ END_CONCAT_FILES=$(date +%s.%N)
 TIME_CONCAT_FILES=$(echo "$END_CONCAT_FILES - $START_CONCAT_FILES" | bc)
 
 }
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+function ncmax { ncap2 -O -C -v -s "foo=${1}.max();print(foo)" ${2} ~/tmp/foo.nc | cut -f 3- -d ' ' ; }
+function ncmin { ncap2 -O -C -v -s "foo=${1}.min();print(foo)" ${2} ~/tmp/foo.nc | cut -f 3- -d ' ' ; }
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 return_check() {
