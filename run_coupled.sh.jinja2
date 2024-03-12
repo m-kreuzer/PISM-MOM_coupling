@@ -1713,6 +1713,8 @@ ATMOS_ANOMALY_REFERENCE_FILE_NOTIME=$FILE_PATH_NO_EXTENSION.no-time.$FILE_EXTENS
 
 echo ATMOS_ANOMALY_REFERENCE_FILE_NOTIME=$ATMOS_ANOMALY_REFERENCE_FILE_NOTIME
 ncwa -O -a time $ATMOS_ANOMALY_REFERENCE_FILE $ATMOS_ANOMALY_REFERENCE_FILE_NOTIME
+RESULT=$?
+return_check $RESULT "ncwa-operation"
 
 
 # ____________________________________________________________________________ #
