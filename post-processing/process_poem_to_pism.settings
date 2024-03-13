@@ -25,12 +25,13 @@
 
 ROOT_WORK_DIR=$(readlink -f ../)
 #ROOT_WORK_DIR=/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run14
-OCN_OUTPUT_DIR=$ROOT_WORK_DIR/history/
+POEM_OUTPUT_DIR=$ROOT_WORK_DIR/history/
 SCRIPT_DIR=$PWD
 
 #X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM/
 #X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM_reference_piControl_CCSM4_run05
-X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM_reference_spinup_PISM_runoff_run13
+X_MOM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_MOM-to-PISM_reference_CM2M_spinup_staticPISM_year1860_backup
+X_ATM_TO_PISM_PATH=$ROOT_WORK_DIR/evaluation/x_ATM-to-PISM_reference_CM2M_spinup_staticPISM_year1860_backup
 
 
 # coupling source directory, required for:
@@ -40,14 +41,23 @@ CPL_SRC_DIR=/p/projects/pism/kreuzer/software/PISM-MOM_coupling
 # ocean output file name basis to use
 #   typically: (`ocean-yearly` or `ocean-decadal`)
 OCN_OUTPUT_FILE_BASE=ocean-decadal
+ATM_OUTPUT_FILE_BASE=atmos-yearly
+
+# temporal downscale climate output: yearly to decadal
+AVERAGE_OCN_OUTPUT_YEARLY_TO_DECADAL=true
+OCN_OUTPUT_FILE_BASE_DECADAL=ocean_decade
+
+AVERAGE_ATM_OUTPUT_YEARLY_TO_DECADAL=true
+ATM_OUTPUT_FILE_BASE_DECADAL=atmos_decade
 
 # coupled experiment directory, required for: 
 #   PISM prerun output, bilinear regridding weights, PICO basin mask, regridded
 #   PISM edges, PICO basin topography depths, PICO baseline forcing
-CPL_EXP_DIR=/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01
+CPL_EXP_DIR=/p/tmp/kreuzer/coupled_PISM_MOM/experiments/CM2Mc_PISM_coupling_atm1860_1pctCO2_run01.bak
 
-# weights used for regridding MOM output to PISM grid
-WEIGHTS_PATH=$CPL_EXP_DIR/pre-processing/weights.MOM-to-PISM.bil.cdo.nc
+# weights used for regridding POEM output to PISM grid
+WEIGHTS_OCN_PATH=$CPL_EXP_DIR/pre-processing/weights.MOM-to-PISM.bil.cdo.nc
+WEIGHTS_ATM_PATH=$CPL_EXP_DIR/pre-processing/weights.ATM-to-PISM.bil.cdo.nc
 
 # PISM prerun files
 PISM_PRE_OUT_FILE=$CPL_EXP_DIR/PISM/prerun/prerun.pism_out-no_timestamp.nc
@@ -55,7 +65,10 @@ PISM_BASIN_FILE=$CPL_EXP_DIR/PISM/prerun/prerun.pism_extra.nc
 PISM_EDGES_FILE=$CPL_EXP_DIR/pre-processing/pism_edges.nc
 
 # PISM ocean baseline forcing
-PISM_OCN_FORCING=$CPL_EXP_DIR/PISM/initdata/schmidtko_initmip16km_means.nc
+PISM_OCN_FORCING=$CPL_EXP_DIR/PISM/initdata/oceanWarming_schmidtko_0.0K.nc
+
+# PISM atmosphere baseline forcing
+PISM_ATM_FORCING=$CPL_EXP_DIR/PISM/initdata/racmo_wessem_initmip16km_mean1986_2005.nc
 
 # defining extraction depths of ocean tracers
 PICO_INPUT_DEPTH_FILE=$CPL_EXP_DIR/x_PISM-to-MOM/017100.pico_input_depth.nc
@@ -83,6 +96,8 @@ OCEAN_TRACER_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments
 
 
 
+## whether to calculate ocean to ice sea level anomaly
+DO_OCEAN_SEALEVEL_ANOMALY=false
 # source of ocean sealevel anomaly file
 COMPUTE_OCEAN_SEALEVEL_ANOMALY_FILE=false
 #   [true]  sealevel anomaly file is computed as mean from ocean model output
@@ -100,3 +115,24 @@ CALC_OCN_SEALEVEL_ANOMALY_NAME_FORMAT_OUT="%06g-%06g.ocean-decadal.sealevel_time
 
 #OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_PISM_16km_spinup_run01/x_MOM-to-PISM/017090-017090.sealevel_mean.processed_MOM.nc"
 OCEAN_SEALEVEL_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/evaluation/x_MOM-to-PISM/tmp/017090-017090.sealevel_mean.processed_MOM.nc"
+
+
+### atmosphere anomaly reference file
+
+# source of atmosphere tracer anomaly file
+COMPUTE_ATMOS_ANOMALY_FILE=false
+#   [true]  atmos anomaly file is computed as mean from atmos model output
+#           -> CALC_ATM_ANOMALY_* variables are used
+#   [false] use precomputed anomaly file
+#           -> ATMOS_ANOMALY_REFERENCE_FILE is used
+
+CALC_ATM_ANOMALY_INPUT_PATH=$ROOT_WORK_DIR/evaluation/history_time_mean_last1ka
+CALC_ATM_ANOMALY_YR_START=21090
+CALC_ATM_ANOMALY_YR_END=21090
+CALC_ATM_ANOMALY_YR_STEP=10
+CALC_ATM_ANOMALY_NAME_FORMAT_IN="%06g0101.atmos-yearly.nc"
+CALC_ATM_ANOMALY_OUTPUT_PATH=$ROOT_WORK_DIR/evaluation/history_time_mean_last1ka
+CALC_ATM_ANOMALY_NAME_FORMAT_OUT="%06g-%06g.atmos-yearly.tracer_time_mean.nc"
+
+ATMOS_ANOMALY_REFERENCE_FILE="/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/evaluation/x_MOM-to-PISM/tmp/017090-017090.atmos_mean.nc"
+
