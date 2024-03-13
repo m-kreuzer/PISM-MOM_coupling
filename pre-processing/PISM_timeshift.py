@@ -34,8 +34,9 @@ Arguments:
     -c climate_restart_file
         file named coupler.res from INPUT/ directory in GFDL ocean/climate
         model structure 
-    -s pism_restart_timeshift_path_file
+    -s pism_restart_timeshift_path_file (optional)
         file name to which the path of modified PISM restart file is written
+        (in form of a text file)
     -t (optional)
         print script time statistics
     -v (optional)
@@ -71,8 +72,9 @@ if __name__ == "__main__":
                 timestamp is the same as the corresponding climate model        \
                 (POEM/MOM). To do so the pism_restart_file and the              \
                 climate_restart_file have to be given as arguments.             \
-                The name & path of the modified restart file is written to the  \
-                pism_restart_timeshift_path_file."
+                If given, the name & path of the modified restart file is       \
+                written as a text file to the path specified in the             \
+                pism_restart_timeshift_path_file argument."
             )
 
 
@@ -84,9 +86,9 @@ if __name__ == "__main__":
                         help="file named coupler.res from INPUT/ directory in \
                               GFDL ocean/climate model structure")
     parser.add_argument('-s', '--pism-restart-timeshift-path', action="store", 
-                        dest="pism_restart_timeshift_path_file", required=True, 
+                        dest="pism_restart_timeshift_path_file", required=False, 
                         help="file name to which the path of modified PISM \
-                                restart file is written")
+                                restart file is written (text file)")
     parser.add_argument('-t', '--time', action="store_true", 
                         help="print script timings")
     parser.add_argument('-v', '--verbose', action="store_true", 
@@ -255,25 +257,27 @@ if __name__ == "__main__":
     t_timeshift_end = t.time()
 
     # -------------- write location of shifted PISM restart file -------------- 
-    if args.verbose:
-        print("... writing location of shifted PISM restart file to '" + \
-                args.pism_restart_timeshift_path_file + "' ")
-    t_write_outfile_start = t.time()
+    if args.pism_restart_timeshift_path_file:
+        if args.verbose:
+            print("... writing location of shifted PISM restart file to '" + \
+                    args.pism_restart_timeshift_path_file + "' ")
+        t_write_outfile_start = t.time()
 
-    try:
-        fh_outfile = open(args.pism_restart_timeshift_path_file, 'w')
-    except:
-        print("Cant't write to pism_restart_timeshift_path_file '" + \
-                args.pism_restart_timeshift_path_file + " Exiting.")
-        sys.exit(1)
-
-
-    fh_outfile.write("# path to time shifted PISM restart file written by PISM_timeshift.py \n")
-    fh_outfile.write(pism_restart_file_shift)
-    fh_outfile.close()
+        try:
+            fh_outfile = open(args.pism_restart_timeshift_path_file, 'w')
+        except:
+            print("Cant't write to pism_restart_timeshift_path_file '" + \
+                    args.pism_restart_timeshift_path_file + " Exiting.")
+            sys.exit(1)
 
 
-    t_write_outfile_end = t.time()
+        fh_outfile.write("# path to time shifted PISM restart file written by PISM_timeshift.py \n")
+        fh_outfile.write(pism_restart_file_shift)
+        fh_outfile.close()
+
+
+        t_write_outfile_end = t.time()
+
     t_main_end = t.time()
 
     # -------------------- performance -------------------- 
@@ -286,7 +290,8 @@ if __name__ == "__main__":
                                                 t_read_climrestartfile_start
         t_MOM_time_sec      = t_MOM_time_sec_end    - t_MOM_time_sec_start
         t_timeshift         = t_timeshift_end       - t_timeshift_start
-        t_write_outfile     = t_write_outfile_end   - t_write_outfile_start
+        if args.pism_restart_timeshift_path_file:
+            t_write_outfile     = t_write_outfile_end   - t_write_outfile_start
 
         format_total = "{:<35}{:9.2f} s \t {:6.2f} %"
         format_sub   = "  {:<33}{:9.2f} s \t {:6.2f} %"
@@ -303,8 +308,9 @@ if __name__ == "__main__":
                                     t_MOM_time_sec/t_main*100))
         print(format_sub.format('timeshift PISM restart file', t_timeshift, 
                                     t_timeshift/t_main*100))
-        print(format_sub.format('write outfile', t_write_outfile, 
-                                    t_write_outfile/t_main*100))
+        if args.pism_restart_timeshift_path_file:
+            print(format_sub.format('write outfile', t_write_outfile, 
+                                        t_write_outfile/t_main*100))
         print('{:.^58}'.format(''))
         print()
 
