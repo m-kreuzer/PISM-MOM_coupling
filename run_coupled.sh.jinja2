@@ -653,44 +653,44 @@ process_atm_to_pism() {
     ncrename -v precipitation,precip_pism_base tmp4.nc tmp5.nc
     ncks -A -v precip_pism_base tmp5.nc tmp3.nc
     ncap2 -s precipitation_anomaly=precip_pism_base*precip_anomaly_relative_POEM \
-        tmp3.nc $POEM_TIME_END.atmos-anomaly.PISM_input.nc
+        tmp3.nc $POEM_TIME_END.atmos_anomaly.PISM_input.nc
 
     rm tmp*.nc
 
 
     ### some sanity checks
-    VMAX=$(ncmax air_temp_anomaly $POEM_TIME_END.atmos-anomaly.PISM_input.nc)
+    VMAX=$(ncmax air_temp_anomaly $POEM_TIME_END.atmos_anomaly.PISM_input.nc)
     if (( $(echo "$VMAX > 100" |bc -l) ))
     then
         echo "[sanity check] Air temperature anomaly in file "\
-            "$POEM_TIME_END.atmos-anomaly.PISM_input.nc is greater than 100 degC. "\
+            "$POEM_TIME_END.atmos_anomaly.PISM_input.nc is greater than 100 degC. "\
             "Exiting as this seems abnormal."
         exit_script 4
     fi
 
-    VMIN=$(ncmin air_temp_anomaly $POEM_TIME_END.atmos-anomaly.PISM_input.nc)
+    VMIN=$(ncmin air_temp_anomaly $POEM_TIME_END.atmos_anomaly.PISM_input.nc)
     if (( $(echo "$VMIN < -100" |bc -l) ))
     then
         echo "[sanity check] Air temperature anomaly in file "\
-            "$POEM_TIME_END.atmos-anomaly.PISM_input.nc is smaller than -100 degC. "\
+            "$POEM_TIME_END.atmos_anomaly.PISM_input.nc is smaller than -100 degC. "\
             "Exiting as this seems abnormal."
         exit_script 4
     fi
 
-    VMAX=$(ncmax precipitation_anomaly $POEM_TIME_END.atmos-anomaly.PISM_input.nc)
+    VMAX=$(ncmax precipitation_anomaly $POEM_TIME_END.atmos_anomaly.PISM_input.nc)
     if (( $(echo "$VMAX > 100000" |bc -l) ))
     then
         echo "[sanity check] Precipitation anomaly in file "\
-            "$POEM_TIME_END.atmos-anomaly.PISM_input.nc is greater than 100000 kg/m2/year. "\
+            "$POEM_TIME_END.atmos_anomaly.PISM_input.nc is greater than 100000 kg/m2/year. "\
             "Exiting as this seems abnormal."
         exit_script 4
     fi
 
-    VMIN=$(ncmin precipitation_anomaly $POEM_TIME_END.atmos-anomaly.PISM_input.nc)
+    VMIN=$(ncmin precipitation_anomaly $POEM_TIME_END.atmos_anomaly.PISM_input.nc)
     if (( $(echo "$VMIN < -100000" |bc -l) ))
     then
         echo "[sanity check] Precipitation anomaly in file "\
-            "$POEM_TIME_END.atmos-anomaly.PISM_input.nc is smaller than -100000 kg/m2/year. "\
+            "$POEM_TIME_END.atmos_anomaly.PISM_input.nc is smaller than -100000 kg/m2/year. "\
             "Exiting as this seems abnormal."
         exit_script 4
     fi
@@ -966,8 +966,8 @@ echo POEM_TIME_CONCAT_FORMAT: $POEM_TIME_CONCAT_FORMAT
     cd $ROOT_WORK_DIR
 
     cd $ROOT_WORK_DIR/x_ATM-to-PISM
-    ncrcat --overwrite $(echo `seq -f $POEM_TIME_CONCAT_FORMAT".atmos-anomaly.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
-        $SIM_START_YEAR-$SIM_END_YEAR.atmos-anomaly.PISM_input.nc
+    ncrcat --overwrite $(echo `seq -f $POEM_TIME_CONCAT_FORMAT".atmos_anomaly.PISM_input.nc" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`) \
+        $SIM_START_YEAR-$SIM_END_YEAR.atmos_anomaly.PISM_input.nc
 
 
 END_CONCAT_FILES=$(date +%s.%N)
