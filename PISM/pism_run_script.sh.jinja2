@@ -16,7 +16,7 @@
 {{settings.pism_general_opt}} \
 {{settings.pism_atm_opt}} \
 {% if ( settings.do_poem_atmos_anomaly_forcing_to_ice==True ) -%}
--atmosphere_anomaly_file ../x_ATM-to-PISM/$POEM_TIME_END.atmos-anomaly.PISM_input.nc \
+-atmosphere_anomaly_file ../x_ATM-to-PISM/$POEM_TIME_END.atmos_anomaly.PISM_input.nc \
 {% else -%}
 {{settings.pism_atm_anomaly_external_opt}} \
 {% endif -%}
