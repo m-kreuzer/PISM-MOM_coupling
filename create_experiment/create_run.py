@@ -377,11 +377,13 @@ def create_run(settings=settings, experiment=settings.experiment):
 
         # copy MOM restart files from previous run
         poem_input_dir = os.path.join(settings.poem_exp_dir,'INPUT')
-        poem_restart_files_dir = os.path.join(settings.restart_dir,'POEM/INPUT')
+        poem_restart_files_dir = os.path.join(settings.restart_dir,'POEM/RESTART')
         if os.path.exists(poem_restart_files_dir):
             with helpers.cd( str(poem_restart_files_dir) ):
                 cmd = f"for i in *.res*; do rm {poem_input_dir}/$i; "\
                         f"cp -a $i {poem_input_dir} ; done"
+                #print(os.getcwd())
+                #print(cmd)
                 subprocess.call(cmd, shell=True)
             print(f"   - copied MOM restart files from {poem_restart_files_dir} "\
                     "to POEM/INPUT")
