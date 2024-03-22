@@ -130,9 +130,9 @@ poem_run() {
 
         # 16 tasks atm + 32 tasks ocn = 48 tasks total
         #local arb="`arbitrary 16 16 16`"
-        local arb="`arbitrary 7 7 6 8`"
+        local arb="`arbitrary 7 7 6 16`"
 
-        time srun --propagate=ALL -m arbitrary -n 28 -w "$arb" \
+        time srun --propagate=ALL -m arbitrary -n 36 -w "$arb" \
                 -o fms.out-$SLURM_JOBID-$SLURM_NNODES-64-'%02t' \
                 ./fms_CM2M.x
         RESULT=$?
