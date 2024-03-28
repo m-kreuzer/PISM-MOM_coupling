@@ -9,16 +9,17 @@ echo ROOT_WORK_DIR: $ROOT_WORK_DIR
 
 POEM_WORK_DIR=$ROOT_WORK_DIR/POEM
 PISM_WORK_DIR=$ROOT_WORK_DIR/PISM
-SIM_START_YEAR=012821
-SIM_END_YEAR=012911
+SIM_START_YEAR=002010
+SIM_END_YEAR=002340
 CPL_TIMESTEP=10
 
 set -x
 
-OCN_FILES="ice-monthly.nc ice-yearly.nc ice-decadal.nc ice-decadal_max.nc ice-decadal_min.nc ocean-scalar.nc ocean-monthly.nc ocean-yearly.nc ocean-decadal.nc ocean-decadal_max.nc ocean-decadal_min.nc"
+OCN_FILES="atmos-monthly.nc atmos-yearly.nc ice-monthly.nc ice-yearly.nc ice-decadal.nc ice-decadal_max.nc ice-decadal_min.nc land-static.nc land-yearly.nc ocean_grid_check.nc ocean-scalar.nc ocean-monthly.nc ocean-yearly.nc ocean-yearly_max.nc ocean-yearly_min.nc ocean-decadal.nc ocean-decadal_max.nc ocean-decadal_min.nc"
 ICE_FILES="pism_extra.nc pism_snap.nc pism_ts.nc"
-OTI_FILES="processed_MOM.nc processed_MOM.anomaly.nc PISM_input.nc"
-ITO_FILES="basin_shelf_depth.nc fluxes.nc fluxes.anomaly.nc"
+OTI_FILES="processed_MOM.nc tracer.processed_MOM.anomaly.nc tracer.PISM_input.nc"
+ITO_FILES="basal_melt_input_depth.nc pico_input_depth.nc fluxes.nc runoff_reference.nc"
+ATI_FILES="atmos_anomaly.PISM_input.nc"
 
 ## concatenate MOM output
 cd $POEM_WORK_DIR/history
@@ -51,6 +52,14 @@ for F in $OTI_FILES; do
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 done
 
+cd $ROOT_WORK_DIR/x_ATM-to-PISM
+for F in $ATI_FILES; do
+    INPUT_FILES=$(echo `seq -f "%06g0101.$F" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
+    OUTPUT_FILE=$(echo `printf "%06g-%06g.$F" \
+        $SIM_START_YEAR $SIM_END_YEAR`)
+    ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
+done
+
 cd $ROOT_WORK_DIR/x_PISM-to-MOM
 for F in $ITO_FILES; do
     INPUT_FILES=$(echo `seq -f "%06g.$F" $SIM_START_YEAR $CPL_TIMESTEP $SIM_END_YEAR`)
@@ -58,4 +67,5 @@ for F in $ITO_FILES; do
         $SIM_START_YEAR $SIM_END_YEAR`)
     ncrcat --overwrite $INPUT_FILES $OUTPUT_FILE
 done
+
 cd $ROOT_WORK_DIR
