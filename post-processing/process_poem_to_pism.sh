@@ -486,7 +486,7 @@ process_mom_to_pism(){
 
     REGRID_OUT=$X_MOM_TO_PISM_PATH/$POEM_TIME_END.regrid.MOM-to-PISM.bil.cdo.nc
     # remove global attribute _NCProperties from POEM output which causes cdo to crash
-    ncatted -O -a _NCProperties,global,d,, $REGRID_IN
+    #ncatted -O -a _NCProperties,global,d,, $REGRID_IN
     #export REMAP_EXTRAPOLATE=off
     #cdo -b F64 -f nc4c remap,$PISM_PRE_OUT_FILE,$WEIGHTS_OCN_PATH $REGRID_IN $REGRID_OUT
     cdo -b F64 -f nc4c remap,$PISM_PRE_OUT_FILE,$WEIGHTS_OCN_PATH $OCEAN_OUT_MOD $REGRID_OUT
