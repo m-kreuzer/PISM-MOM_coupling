@@ -310,6 +310,7 @@ pism_ocn_data_dir = pism_input_root_dir
 pism_ocn_file = "oceanWarming_schmidtko_0.0K.nc"
 pism_ocn_data_path = os.path.join(pism_ocn_data_dir,pism_ocn_file)
 
+pism_use_ocnkill_file = False
 #pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "bedmap2")
 #pism_ocnkill_file = "bedmap2_"+grid_id+".nc"
 #pism_ocnkill_data_dir = os.path.join(pism_input_root_dir, "merged")
