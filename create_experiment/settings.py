@@ -166,18 +166,22 @@ calc_ocn_sealevel_anomaly['name_format_out'] = "%06g-%06g.ocean-decadal.sealevel
 
 
 # - - - - - - - - - atmosphere anomaly forcing (from POEM to PISM) - - - - - - -
-### wheter to force PISM with atmospheric POEM anomalies
+### whether to force PISM with atmospheric POEM output
 #   requires a POEM configuration with atmosphere component (e.g. AM2 in CM2Mc)
-do_poem_atmos_anomaly_forcing_to_ice = True
+do_poem_atmos_forcing_to_ice = False
 
-# in case of coupled restart with do_poem_atmos_anomaly_forcing_to_ice:
+### in case of do_poem_atmos_forcing_to_ice = True
+#   whether to use atmospheric anomalies or direct POEM output (do_atmos_anomly=False: NOT IMPLEMENTED yet!)
+do_atmos_anomaly = True
+
+# in case of coupled restart with do_poem_atmos_forcing_to_ice=True and do_atmos_anomaly=True:
 #     specify atmos tracer anomaly reference file from previous run
-use_atmos_anomaly_from_prev_run = False
-atmos_anomaly_reference_file = "017090-017090.atmos-yearly.mean.nc"
-#atmos_tracer_anomaly_reference_path = os.path.join(restart_dir, 'x_MOM-to-PISM', atmos_anomaly_reference_file)
-atmos_anomaly_reference_path = os.path.join('/p/tmp/kreuzer/coupled_PISM_MOM/experiments/MOM5_standalone_EM3_spinup_PISM_runoff_run13/evaluation/x_ATM-to-PISM/tmp/', atmos_anomaly_reference_file)
+use_atmos_anomaly_from_prev_run = True
+atmos_anomaly_reference_file = "atmos_reference_mean.regrid.ATM-to-PISM.bil.cdo.nc"
+atmos_anomaly_reference_path = os.path.join(restart_dir, 'x_ATM-to-PISM', atmos_anomaly_reference_file)
 #     or specify ATM output files used for computing atmos tracer anomaly reference state
-#       -> used if do_poem_atmos_anomaly_forcing_to_ice==True and use_atmos_anomaly_from_prev_run==False
+#       -> used if do_poem_atmos_forcing_to_ice==True and do_atmos_anomaly==True 
+#                  and use_atmos_anomaly_from_prev_run==False
 calc_atmos_anomaly = {}
 calc_atmos_anomaly['path'] = "/p/projects/climber3/annaho/experiments/spinup_ocn_atm_staticPISM/CM2M_spinup_staticPISM_year1860_backup/history/"
 calc_atmos_anomaly['yr_start'] = "22090"
@@ -284,17 +288,17 @@ pism_atm_file = "racmo_wessem_"+grid_id+"_mean1986_2005.nc"
 pism_atm_data_path = os.path.join(pism_atm_data_dir,pism_atm_file)
 
 #### 1pctCO2 atm anomaly forcing
-#pism_copy_atm_anomaly_file = True
-#pism_atm_anomaly_data_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_q0.625_16km_1pctCO2_CCSM4_yearly_run02/initdata/"
-#pism_atm_anomaly_file = "pdd_Amon_CCSM4_1pctCO2_r1i1p1_yearly_anomaly_relativeprecip_initmip16km.timeshift.nc"
-#pism_atm_anomaly_data_path = os.path.join(pism_atm_anomaly_data_dir, pism_atm_anomaly_file)
+pism_copy_atm_anomaly_file = True
+pism_atm_anomaly_data_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/CM2Mc_spinup_staticPISM_atm1860_1pctCO2ext_run01/evaluation/x_ATM-to-PISM_reference_CM2M_spinup_staticPISM_year1860_backup/"
+pism_atm_anomaly_file = "30000101.atmos_anomaly.PISM_input.nc"
+pism_atm_anomaly_data_path = os.path.join(pism_atm_anomaly_data_dir, pism_atm_anomaly_file)
 #pism_atm_anomaly_time_shift_years = (17090 - 50001) 
 
 ## 1pctCO2ext atm anomaly forcing
-pism_copy_atm_anomaly_file = False
-pism_atm_anomaly_data_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_q0.625_16km_1pctCO2ext_CCSM4_yearly_run02/initdata/"
-pism_atm_anomaly_file = "pdd_Amon_CCSM4_1pctCO2_r1i1p1_ext-clim_yearly_anomaly_relativeprecip_initmip16km.timeshift.nc"
-pism_atm_anomaly_data_path = os.path.join(pism_atm_anomaly_data_dir, pism_atm_anomaly_file)
+#pism_copy_atm_anomaly_file = False
+#pism_atm_anomaly_data_dir = "/p/tmp/kreuzer/coupled_PISM_MOM/experiments/pism1.0_precipscale_hash_q0.625_16km_1pctCO2ext_CCSM4_yearly_run02/initdata/"
+#pism_atm_anomaly_file = "pdd_Amon_CCSM4_1pctCO2_r1i1p1_ext-clim_yearly_anomaly_relativeprecip_initmip16km.timeshift.nc"
+#pism_atm_anomaly_data_path = os.path.join(pism_atm_anomaly_data_dir, pism_atm_anomaly_file)
 #pism_atm_anomaly_time_shift_years = (17090 - 50001) 
 
 pism_use_atm_lapse_rate_file = True
@@ -385,8 +389,8 @@ pism_general_opt = "-verbose 2 -options_left -o_format netcdf4_parallel"
 pism_atm_opt = "-atmosphere pik_temp,anomaly,lapse_rate -atmosphere_pik_temp_file initdata/"+pism_atm_file+" -atmosphere_lapse_rate_file initdata/"+pism_atm_lapse_rate_file+" -temp_era_interim -temp_lapse_rate 0.0 -precip_scale_factor .410 -surface pdd"
 pism_atm_opt_prerun = "-atmosphere pik_temp,lapse_rate -atmosphere_pik_temp_file initdata/"+pism_atm_file+" -atmosphere_lapse_rate_file initdata/"+pism_atm_lapse_rate_file+" -temp_era_interim -temp_lapse_rate 0.0 -precip_scale_factor .410 -surface pdd"
 # pism_atm_anomaly_external_opt: use prescribed atmosphere anomaly forcing from external source (not coupled model), e.g. if using POEM without atmosphere component
-#   -> used if do_poem_atmos_anomaly_forcing_to_ice=False
-#pism_atm_anomaly_external_opt = "-atmosphere_anomaly_file initdata/"+pism_atm_anomaly_file
+#   -> used if do_poem_atmos_forcing_to_ice=False
+pism_atm_anomaly_external_opt = "-atmosphere_anomaly_file initdata/"+pism_atm_anomaly_file
 pism_add_opt = "-ocean_kill_file initdata/"+pism_ocnkill_file
 
 

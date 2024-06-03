@@ -606,7 +606,7 @@ process_atm_to_pism() {
     RESULT=$?
     return_check $RESULT "cdo_regridding"
 
-    {% if settings.do_poem_atmos_anomaly_forcing_to_ice==True %}
+    {% if settings.do_atmos_anomaly==True %}
     ### atmosphere anomaly approach: use regular PISM atmosphere forcing (e.g.
     #       RACMO data) but add difference of atmosphere output from current coupling
     #       time step to reference file
@@ -1216,7 +1216,7 @@ echo " >> identify edges on PISM grid"
 RESULT=$?
 return_check $RESULT "find_edge.py"
 
-{% if settings.do_poem_atmos_anomaly_forcing_to_ice==True %}
+{% if settings.do_poem_atmos_forcing_to_ice==True %}
 echo "  > create weights to regrid from ATM to PISM grid"
 PISM_PRE_OUT=$PISM_WORK_DIR/prerun/prerun.pism_out-no_timestamp.nc
 ATM_PRE_OUT=$POEM_WORK_DIR/prerun/prerun.atmos-prerun.nc
@@ -1661,7 +1661,7 @@ echo "ocean sealevel anomaly approach disabled"
 
 ### atmosphere anomaly reference file
 # ____________________________________________________________________________ #
-{% if settings.do_poem_atmos_anomaly_forcing_to_ice==True %}
+{% if ( settings.do_poem_atmos_forcing_to_ice==True and settings.do_atmos_anomaly==True ) %}
 echo
 echo "atmosphere anomaly approach enabled"
     # ........................................................................ #
@@ -1753,7 +1753,7 @@ do
 
     # process POEM output for PISM/PICO input
     process_mom_to_pism
-    {% if settings.do_poem_atmos_anomaly_forcing_to_ice==True %}
+    {% if settings.do_poem_atmos_forcing_to_ice==True %}
     process_atm_to_pism
     {% endif %}
 

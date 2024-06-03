@@ -130,7 +130,7 @@ def create_run(settings=settings, experiment=settings.experiment):
         dir_path = os.path.join(settings.experiment_dir,d)
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
-    if settings.do_poem_atmos_anomaly_forcing_to_ice:
+    if settings.do_poem_atmos_forcing_to_ice:
         dir_path = os.path.join(settings.experiment_dir,'x_ATM-to-PISM')
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
@@ -326,8 +326,9 @@ def create_run(settings=settings, experiment=settings.experiment):
             warnings.warn(f"path {settings.ocean_sealevel_anomaly_reference_path} "\
                 f"does not exist!")
 
-    if (settings.do_poem_atmos_anomaly_forcing_to_ice==True and
-        settings.use_atmos_anomaly_from_prev_run==True):
+    if (settings.do_poem_atmos_forcing_to_ice==True and
+            settings.do_atmos_anomaly==True and
+            settings.use_atmos_anomaly_from_prev_run==True):
         # copy ocean tracer anomaly reference file from given path
         if os.path.exists(settings.atmos_anomaly_reference_path):
             shutil.copy2(settings.atmos_anomaly_reference_path,
