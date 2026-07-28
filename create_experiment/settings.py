@@ -17,14 +17,14 @@ from pikcluster_settings import *
 
 # ----------------------------- coupling settings ------------------------------
 
-experiment = "MOM6_test_2"
+experiment = "coupled_spinup"
 #experiment = "MOM5_PISM_16km_piControl_CCSM4_run01"
 #experiment = "coupling_framework_basal_melt_dev06"
 experiment_dir      = os.path.join(working_dir, experiment)
 
 
 coupling_timestep = 10     # in years, must be greater or equal 1
-max_cpl_iteration = 50     # number of coupling iterations
+max_cpl_iteration = 100     # number of coupling iterations
 
 # ----------------------------- Mass flux settings (MOM6 only) -----------------
 

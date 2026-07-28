@@ -34,7 +34,7 @@ slurm_exclusive = False
 #slurm_qos = 'priority'
 #slurm_time = "23:00:00"
 slurm_qos = 'medium'
-slurm_time = "4-23:00:00"
+slurm_time = "2-23:00:00"
 # Acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds",
 #                   "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 
